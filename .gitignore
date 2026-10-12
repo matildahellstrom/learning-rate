@@ -1,0 +1,19 @@
+# Dependencies and build output
+node_modules/
+dist/
+
+# Test artefacts
+coverage/
+playwright-report/
+test-results/
+
+# OS / editor
+.DS_Store
+*.log
+.env*
+
+# Claude Code local settings (also in the global ignore, but don't rely on that)
+.claude/settings.local.json
+
+# Local env overrides (Vite)
+*.local

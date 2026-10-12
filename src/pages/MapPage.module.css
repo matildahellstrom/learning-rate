@@ -1,0 +1,170 @@
+.title {
+  margin: var(--space-2) 0 var(--space-4);
+  font-size: 1.6rem;
+}
+
+.upNext {
+  padding: var(--space-5);
+  border-radius: var(--radius-l);
+  background: var(--primary);
+  color: var(--on-primary);
+  box-shadow: 0 6px 0 var(--primary-strong);
+}
+
+.upNext :global(.btn) {
+  background: var(--xp);
+  color: var(--on-xp);
+  border-color: var(--xp-strong);
+  box-shadow: 0 4px 0 var(--xp-strong);
+}
+
+.upNextLabel {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+}
+
+.upNextTitle {
+  margin: var(--space-1) 0;
+  font-size: 1.5rem;
+}
+
+.upNextSummary {
+  margin: 0 0 var(--space-4);
+}
+
+.track {
+  margin-top: var(--space-6);
+}
+
+.trackHeader {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-4);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-left: 8px solid var(--track);
+}
+
+.trackIcon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.trackTitle {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.trackDescription,
+.trackProgress {
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+}
+
+.trackProgress {
+  font-weight: 800;
+}
+
+.path {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.stop {
+  display: flex;
+  justify-content: center;
+}
+
+/* Shift the node, not the full-width row: moving the row would overflow the screen. */
+.stop > * {
+  transform: translateX(var(--shift));
+}
+
+.node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  width: 160px;
+  color: var(--text);
+  text-decoration: none;
+  text-align: center;
+}
+
+.circle {
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: var(--track);
+  color: #fff;
+  font-size: 1.6rem;
+  font-weight: 900;
+  box-shadow: 0 6px 0 color-mix(in srgb, var(--track) 60%, #000);
+  transition: transform var(--duration);
+}
+
+a.node:hover .circle {
+  transform: translateY(-2px);
+}
+
+a.node:active .circle {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--track) 60%, #000);
+}
+
+.done {
+  background: var(--xp);
+  color: var(--on-xp);
+  box-shadow: 0 6px 0 var(--xp-strong);
+}
+
+.next {
+  outline: 4px solid var(--track);
+  outline-offset: 5px;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+.locked {
+  background: var(--surface-2);
+  /* Muted, but still readable: the number must meet 3:1 contrast even though it's decorative. */
+  color: var(--text-muted);
+  border: 3px dashed var(--locked);
+  box-shadow: none;
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.soon {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+@keyframes pulse {
+  50% {
+    outline-offset: 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .next {
+    animation: none;
+  }
+}

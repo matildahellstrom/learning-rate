@@ -1,0 +1,113 @@
+# Learning log
+
+One short entry per step: what we built, the concepts behind it, and questions to explore.
+
+---
+
+## Step 0: Planning and repo setup (2026-10-12)
+
+**Built:** An approved plan (`PLAN.md`), a git repository, `CLAUDE.md` for future AI sessions, this log, and a `.gitignore`.
+
+**Concepts:**
+
+- **Explore → plan → implement → verify.** We spent a whole session on the first two steps, with no code written. With an empty folder, "explore" meant interviewing you instead of reading code. Planning first is cheap; rewriting a wrong architecture is not.
+- **CLAUDE.md** is loaded into every Claude Code session in this folder. It holds things that are _always_ true (commands, architecture rules, conventions) and should stay short (under ~200 lines). Anything needed only sometimes belongs in a skill instead. (This is also lesson material for the "Coding with AI" track.)
+- **git basics.** `git init` creates a hidden `.git/` folder that records history. A _commit_ is a snapshot plus a message explaining why. `main` is the default branch name. `.gitignore` lists files git should never track, such as generated folders (`node_modules/`, `dist/`) and OS clutter (`.DS_Store`).
+
+**Trade-offs:** CLAUDE.md lists commands that don't exist yet. That's fine because it says so, but it's a reminder that CLAUDE.md must be kept in sync with reality, or it misleads future sessions.
+
+**Explore:**
+
+1. Run `git log` and `git show --stat` after the first commit. What does a commit actually contain?
+2. Read the "Extend Claude Code" docs (https://code.claude.com/docs/en/features-overview). Which of our CLAUDE.md rules would be better enforced by a _hook_, and why?
+
+## Phase 0: Tooling scaffold (2026-10-12)
+
+**Built:** A Vite + React + TypeScript project with oxlint, Vitest, Prettier, a GitHub Actions CI workflow, and one tested maths helper (`src/lib/math/clamp.ts`).
+
+**Concepts:**
+
+- **`package.json`** is the project's manifest. `dependencies` ship to the browser (React). `devDependencies` are only for building and checking (Vite, TypeScript, linters). `scripts` are named shortcuts: `npm run check` runs four tools in a row. `package-lock.json` records the _exact_ installed versions so everyone (and CI, via `npm ci`) gets an identical install.
+- **Semantic versioning.** `^19.2.8` allows any 19.x.y ≥ 19.2.8 (no breaking changes, by convention). `~6.0.2` only allows 6.0.x, which is how we pin TypeScript.
+- **Four kinds of checks, four kinds of mistakes.** The _type checker_ (`tsc`) catches wrong shapes of data. The _linter_ (oxlint) catches suspicious patterns, like a hook called conditionally or an image without alt text (the jsx-a11y rules). _Tests_ (Vitest) check that behaviour is correct. The _formatter_ (Prettier) ends style debates by deciding layout automatically.
+- **Two tsconfigs.** `tsconfig.app.json` covers browser code in `src/` (DOM types). `tsconfig.node.json` covers `vite.config.ts`, which runs in Node. `tsconfig.json` just references both, and `tsc -b` builds them together.
+- **ES modules.** `"type": "module"` means `import`/`export` everywhere. Vite serves them to the browser directly in dev and bundles them for production.
+- **CI (continuous integration).** `.github/workflows/ci.yml` makes GitHub run the same checks on a clean machine on every push. "Works on my machine" is no longer enough.
+- **Edge cases in tests.** `clamp` is tested inside, outside, _on_ the bounds, and with an invalid interval. Boundaries are where off-by-one bugs live.
+
+**Trade-offs:** oxlint over ESLint (one fast dependency vs. a bigger ecosystem with type-aware rules). TypeScript 6.0 over 7.0 (mature tooling vs. a faster compiler). Vitest's default `node` environment for now: pure maths tests don't need a fake browser, so `jsdom` + Testing Library arrive only with the first component test.
+
+**Explore:**
+
+1. In `src/lib/math/clamp.ts`, change the return type to `string`. Run `npm run typecheck`, then `npm test`. Which tool complains, and why does the test still run?
+2. Swap `Math.min` and `Math.max` in `clamp`. Which test fails first, and what does Vitest's diff tell you?
+3. Open `.github/workflows/ci.yml`. Why does it use `npm ci` instead of `npm install`?
+
+## Phases 1–8: The MVP, built in one go (2026-10-12)
+
+You asked to be told when the first version was ready, so these phases were built back to back. This entry is longer than usual to make up for the step-by-step explanations you didn't get.
+
+**Built:** The app shell (map, lesson player, profile), the MDX content pipeline, the game engine (XP, levels, stars, streaks with freezes, badges), two gradient descent playgrounds with challenges, the quiz, the full gradient descent lesson, 77 unit and component tests, and 4 Playwright journeys (run on a phone and a desktop) with axe accessibility scans. There is also a manual GitHub Pages deploy workflow.
+
+**Decisions made for you** (all reversible; tell me if you'd choose differently):
+
+| Decision point          | Chosen                                                  | Alternative                                                             |
+| ----------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Routing on GitHub Pages | Hash URLs (`#/learn/…`), zero server config             | 404.html redirect trick for clean URLs                                  |
+| Quiz format             | Questions in the lesson frontmatter, validated with zod | `<Question>` components inline in the MDX                               |
+| State management        | Hand-written store + `useSyncExternalStore` (no dep)    | zustand                                                                 |
+| Map style               | Winding vertical path per track + an "Up next" card     | Node graph with prerequisite arrows                                     |
+| XP curve                | Level L needs 50·L·(L−1) XP: 0, 100, 300, 600…          | Linear or exponential                                                   |
+| Lesson stars            | ★ finish · ★ perfect quiz · ★ 3 stars in all challenges | Stars from quiz score only                                              |
+| Mafs vs hand-rolled SVG | Mafs works with React 19; kept it                       | SVG fallback (still easy: the maths is separate from the drawing)       |
+| Challenge fairness      | Start position fixed inside a challenge                 | Otherwise you could drag the ball to the bottom and "win" in 0 steps 😄 |
+
+**Concepts worth knowing:**
+
+- **Pure core, thin shell.** `applyAction(state, action, ctx)` in `src/game/engine.ts` contains every game rule but never touches the clock, storage or React. That's why it can be tested exhaustively. `store.ts` adds persistence, and `app/game.ts` plugs in the real date and localStorage. The same split exists between `model.ts` (maths) and the playground components (drawing).
+- **`useSyncExternalStore`** is React's official way to subscribe to state that lives outside React (our store). React re-renders when the store says it changed.
+- **`useEffectEvent`** (React 19.2): the Play loop's timer always calls the newest `step()` without restarting the effect on every render. Before this existed, people used refs for it.
+- **Derived state beats synced state.** `isPlaying = playing && status === 'running'` is computed, not stored, so it can never disagree with reality. The linter flagged the earlier version that synced it with an effect.
+- **Build time vs run time.** MDX, the `---` step splitter (a remark plugin that edits the Markdown syntax tree) and KaTeX all run during `npm run build`. The browser receives finished HTML for the maths, so no maths engine ships for lesson text.
+- **Schemas at the boundary.** zod checks everything that comes from outside the code: lesson frontmatter, JSON data, and saved progress (which a user or an old version could have mangled). Inside, TypeScript types are trusted.
+- **Versioned persistence.** Saved progress has `version: 1`. When its shape changes, a migration upgrades old saves instead of wiping them.
+- **Dates for streaks** use the player's local calendar day, while day differences are computed in UTC so a daylight-saving change can't make a "day" 23 hours long.
+- **Code splitting.** The lesson route is loaded with `lazy`, so Mafs (~90 kB gzipped) downloads only when you open a lesson.
+- **Accessibility details** you can see in the code: focus moves to each new step and to quiz feedback; `aria-live` announces outcomes only (not every animation frame); sliders offer an alternative to dragging; colour is never the only signal (✓/✗ too); and every animation respects `prefers-reduced-motion`.
+- **Property-based tests** (fast-check) throw hundreds of random inputs at a claim, e.g. "on the bowl, every η in (0, 1) converges from any start". This is closer to a maths proof than a handful of examples.
+
+**Bugs the tools caught** (good examples of why each check exists):
+
+1. axe: an `aria-label` on a plain `<div>` (not allowed), and low contrast in toasts while they faded in.
+2. Playwright on a phone: the map was 70px wider than the screen, because a full-width row was shifted sideways instead of the node inside it.
+3. TypeScript: `Set.delete` returns a boolean, but React cleanup functions must return nothing.
+4. oxlint: `new Date()` during render (impure) and setState inside an effect.
+
+**Your exercises** (the planned ✍️ tasks; the tests are already there to guide you):
+
+1. Delete the bodies of `numericalDerivative` and `gradientStep` in `src/widgets/gradient-descent/model.ts`, then re-implement them until `npx vitest run src/widgets` passes.
+2. Design your own XP curve in `src/game/levels.ts` (`xpForLevel` + `levelFromXp`). The property test checks your inverse is correct for every XP value.
+3. Write a sixth quiz question in `content/en/ml/gradient-descent/index.mdx`. Then make a typo in the YAML on purpose and read the error `npm test` gives you.
+
+**Explore:**
+
+1. Why does η = 0.8 on the bowl converge _slower_ than η = 0.4, even though it's a bigger step? (Hint: |1 − 2η|.)
+2. In the ravine, the best fixed learning rate isn't 2/κ but a bit less. Can you derive the optimum? (Hint: balance the two contraction factors |1 − η| and |1 − ηκ|.)
+3. Open DevTools → Application → Local Storage and look at `learning-rate:game`. What happens if you corrupt it and reload?
+
+## Naming, roadmap and going private (2026-10-12)
+
+**Built:** Renamed the app to **Learning Rate**, added two tracks (Computer vision, Safety & interpretability) plus efficiency and eigenvalue/SVD lessons to the map as "coming soon", reordered the roadmap, removed personal details from the repo, and published it as a private GitHub repository with a fresh history.
+
+**Concepts:**
+
+- **Renaming is cheapest before launch.** The localStorage key changed from the old name to `learning-rate:game`. Since nobody has played the deployed app yet, no saved progress is lost. After launch, the same rename would need a migration that reads the old key.
+- **Git history is permanent until rewritten.** Deleting a line from a file doesn't remove it from older commits, and every commit also records an author name and email. We started a fresh history and now commit as a GitHub _no-reply_ address, set in the repo's own git config (`git config user.email`), so the global setting is untouched.
+- **Ignore files in layers.** `.claude/settings.local.json` was ignored only by a global ignore file on this one machine. The repo's own `.gitignore` now covers it everywhere.
+- **Why install/export comes before the daily warm-up:** the warm-up makes saved progress more valuable, so the features that protect progress (installing the app, which shields it from Safari's 7-day cleanup, and export codes) come first.
+- **Why Leitner boxes for the warm-up:** a question moves up a box when answered right and back to box 1 when wrong. Each box has a fixed interval. That's easy to reason about and test. SM-2 (Anki's algorithm) adapts intervals per question and is a good upgrade later.
+
+**Explore:**
+
+1. Run `git log --format='%an <%ae>'`. What would someone with access to the repo see?
+2. Free GitHub Pages needs a public repo. What would you check before making it public? (Hint: the history, the content licence, and whether any lesson text is copied from somewhere.)

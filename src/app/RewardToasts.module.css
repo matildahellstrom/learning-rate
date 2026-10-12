@@ -1,0 +1,31 @@
+/* Bottom of the screen, above the nav/footer bar, so toasts never cover headings. */
+.region {
+  position: fixed;
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  left: 50%;
+  z-index: 50;
+  display: grid;
+  gap: var(--space-2);
+  width: min(92vw, 360px);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.toast {
+  padding: var(--space-2) var(--space-4);
+  border: 2px solid var(--xp-strong);
+  border-radius: var(--radius-m);
+  background: var(--xp);
+  color: var(--on-xp);
+  font-weight: 800;
+  box-shadow: 0 4px 0 var(--xp-strong);
+  animation: slide-in var(--duration) ease-out both;
+  animation-duration: calc(var(--duration) * 1.5);
+}
+
+/* Movement only, no fade: text stays at full contrast while it animates. */
+@keyframes slide-in {
+  from {
+    transform: translateY(24px) scale(0.9);
+  }
+}

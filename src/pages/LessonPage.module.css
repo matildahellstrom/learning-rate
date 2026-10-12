@@ -1,0 +1,118 @@
+.lesson {
+  min-height: 100dvh;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+}
+
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg);
+}
+
+.close {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: var(--text-muted);
+  font-size: 1.4rem;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.close:hover {
+  background: var(--surface-2);
+}
+
+.progress {
+  flex: 1;
+  height: 16px;
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.progress::-webkit-progress-bar {
+  background: var(--surface-2);
+}
+
+.progress::-webkit-progress-value {
+  background: var(--success);
+  border-radius: 999px;
+  transition: width var(--duration);
+}
+
+.progress::-moz-progress-bar {
+  background: var(--success);
+  border-radius: 999px;
+}
+
+.counter {
+  font-weight: 800;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.content {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 0 var(--space-4);
+}
+
+.step:focus {
+  outline: none;
+}
+
+.step h1 {
+  font-size: 1.7rem;
+  margin-top: var(--space-3);
+}
+
+.hint {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-m);
+  background: var(--surface-2);
+  font-weight: 600;
+}
+
+.sources {
+  margin-top: var(--space-6);
+  font-size: 0.95rem;
+}
+
+.sources h2 {
+  font-size: 1.1rem;
+}
+
+.footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: 2px solid var(--border);
+}
+
+.footerInner {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  max-width: var(--content-width);
+  margin: 0 auto;
+}
+
+.footerInner :global(.btn) {
+  flex: 1;
+}

@@ -1,0 +1,51 @@
+[
+  {
+    "id": "first-steps",
+    "title": "First steps",
+    "description": "Finish your first lesson.",
+    "icon": "🌱",
+    "rule": { "type": "lessonsCompleted", "count": 1 }
+  },
+  {
+    "id": "perfectionist",
+    "title": "Perfectionist",
+    "description": "Answer every quiz question in a lesson correctly.",
+    "icon": "🎯",
+    "rule": { "type": "perfectQuiz" }
+  },
+  {
+    "id": "speedrunner",
+    "title": "Speedrunner",
+    "description": "Earn three stars in a challenge.",
+    "icon": "⚡",
+    "rule": { "type": "challengeStars", "stars": 3 }
+  },
+  {
+    "id": "level-2",
+    "title": "Levelling up",
+    "description": "Reach level 2.",
+    "icon": "⬆️",
+    "rule": { "type": "level", "level": 2 }
+  },
+  {
+    "id": "on-fire",
+    "title": "On fire",
+    "description": "Learn something three days in a row.",
+    "icon": "🔥",
+    "rule": { "type": "streak", "days": 3 }
+  },
+  {
+    "id": "week-warrior",
+    "title": "Week warrior",
+    "description": "Keep a seven-day streak.",
+    "icon": "🏆",
+    "rule": { "type": "streak", "days": 7 }
+  },
+  {
+    "id": "five-lessons",
+    "title": "Curious mind",
+    "description": "Finish five lessons.",
+    "icon": "🧩",
+    "rule": { "type": "lessonsCompleted", "count": 5 }
+  }
+]

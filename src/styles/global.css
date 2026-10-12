@@ -1,0 +1,136 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  /* Keep focused/scrolled-to elements clear of the sticky header and fixed bottom bar. */
+  scroll-padding: 80px 0 120px;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+a {
+  color: var(--primary);
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--space-2);
+  top: -100px;
+  z-index: 100;
+  padding: var(--space-2) var(--space-4);
+  background: var(--surface);
+  border-radius: var(--radius-s);
+}
+
+.skip-link:focus {
+  top: var(--space-2);
+}
+
+/* Chunky game-style buttons: a solid "ledge" underneath that squashes when pressed. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 48px;
+  padding: var(--space-2) var(--space-5);
+  border: 2px solid var(--primary-strong);
+  border-radius: var(--radius-m);
+  background: var(--primary);
+  color: var(--on-primary);
+  font: inherit;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 4px 0 var(--primary-strong);
+  cursor: pointer;
+  transition: transform var(--duration);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--primary-strong);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+  box-shadow: 0 4px 0 var(--border);
+}
+
+.btn-secondary:active:not(:disabled) {
+  box-shadow: 0 1px 0 var(--border);
+}
+
+.btn-small {
+  min-height: 40px;
+  padding: var(--space-1) var(--space-4);
+  font-size: 0.95rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-l);
+  padding: var(--space-4);
+}
+
+/* KaTeX display maths can be wider than a phone: scroll it instead of the page. */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: var(--space-1) 0;
+}
+
+/* Mafs plots follow our theme. */
+.MafsView {
+  --mafs-bg: var(--surface);
+  --mafs-fg: var(--text);
+  --mafs-origin-color: var(--text-muted);
+  --mafs-line-color: var(--border);
+  border-radius: var(--radius-m);
+  touch-action: none;
+}

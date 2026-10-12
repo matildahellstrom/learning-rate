@@ -1,0 +1,103 @@
+.title {
+  margin: var(--space-2) 0 var(--space-4);
+  font-size: 1.6rem;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.levelCard {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.levelNumber {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 2rem;
+  font-weight: 900;
+  box-shadow: 0 5px 0 var(--primary-strong);
+}
+
+.levelInfo {
+  display: grid;
+  flex: 1;
+  gap: var(--space-1);
+}
+
+.levelInfo progress {
+  width: 100%;
+  height: 14px;
+  accent-color: var(--xp);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-4) 0 var(--space-2);
+}
+
+.stat dt {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.stat dd {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 900;
+}
+
+.badges {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-3);
+  border-radius: var(--radius-l);
+  text-align: center;
+  background: var(--surface);
+  border: 2px solid var(--border);
+}
+
+.earned {
+  border-color: var(--xp);
+  box-shadow: 0 4px 0 var(--xp-strong);
+}
+
+.locked .badgeIcon {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+
+.badgeIcon {
+  font-size: 2.2rem;
+}
+
+.storage {
+  margin-top: var(--space-6);
+}
+
+.storage h2 {
+  margin-top: 0;
+  font-size: 1.1rem;
+}

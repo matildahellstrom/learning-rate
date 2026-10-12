@@ -1,0 +1,38 @@
+.challenge {
+  margin: var(--space-4) 0;
+  padding: var(--space-4);
+  border: 3px solid var(--xp);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+  box-shadow: 0 4px 0 var(--xp-strong);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.badge {
+  padding: 2px var(--space-3);
+  border-radius: 999px;
+  background: var(--xp);
+  color: var(--on-xp);
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.title {
+  margin: var(--space-3) 0 var(--space-1);
+}
+
+.goal {
+  margin-top: 0;
+}
+
+.result p {
+  margin-bottom: 0;
+  font-weight: 700;
+}

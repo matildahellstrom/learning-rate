@@ -1,0 +1,127 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+}
+
+.burst {
+  font-size: 4rem;
+  animation: bounce 900ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+
+.title {
+  margin: var(--space-2) 0 0;
+  font-size: 2rem;
+}
+
+.title:focus {
+  outline: none;
+}
+
+.lessonName {
+  margin: var(--space-1) 0 var(--space-4);
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.goals {
+  margin: var(--space-2) 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.xp {
+  margin: var(--space-4) 0 var(--space-1);
+  padding: var(--space-2) var(--space-5);
+  border-radius: 999px;
+  background: var(--xp);
+  color: var(--on-xp);
+  font-size: 1.6rem;
+  font-weight: 900;
+  box-shadow: 0 4px 0 var(--xp-strong);
+}
+
+.level {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: min(100%, 320px);
+  margin-top: var(--space-3);
+  font-weight: 800;
+}
+
+.level progress {
+  flex: 1;
+  height: 14px;
+  accent-color: var(--xp);
+}
+
+.levelUp {
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: var(--primary);
+}
+
+.badges {
+  width: 100%;
+  margin-top: var(--space-4);
+}
+
+.badges h2 {
+  font-size: 1.1rem;
+}
+
+.badges ul {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.badges li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3);
+  border: 2px solid var(--xp);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+  text-align: left;
+}
+
+.badges li span:last-child {
+  grid-column: 2;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.badgeIcon {
+  grid-row: span 2;
+  font-size: 2rem;
+}
+
+.actions {
+  display: grid;
+  gap: var(--space-3);
+  width: min(100%, 320px);
+  margin-top: var(--space-5);
+}
+
+@keyframes bounce {
+  from {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .burst {
+    animation: none;
+  }
+}

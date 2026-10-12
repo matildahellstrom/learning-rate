@@ -1,0 +1,249 @@
+---
+id: gradient-descent
+title: Gradient descent
+summary: How models learn by rolling downhill, one step at a time.
+track: ml
+order: 3
+prerequisites: [derivatives, loss-functions]
+minutes: 10
+xp: 100
+volatility: evergreen
+challenges: [bowl-speedrun, ravine-tamer]
+sources:
+  - title: '3Blue1Brown: Gradient descent, how neural networks learn'
+    url: https://www.3blue1brown.com/lessons/gradient-descent
+  - title: 'Stanford CS231n: Optimization (course notes)'
+    url: https://cs231n.github.io/optimization-1/
+  - title: 'Goodfellow, Bengio & Courville: Deep Learning, ch. 4 Numerical Computation'
+    url: https://www.deeplearningbook.org/contents/numerical.html
+  - title: 'Distill: Why Momentum Really Works'
+    url: https://distill.pub/2017/momentum/
+quiz:
+  - type: choice
+    prompt: 'The gradient points uphill, in the direction of steepest increase. Which way does gradient descent step?'
+    options:
+      - Along the gradient, uphill
+      - Opposite the gradient, downhill
+      - In a random direction
+      - Always towards x = 0
+    answer: 1
+    explanation: "The minus sign in the update rule turns 'steepest uphill' into 'steepest downhill'."
+  - type: numeric
+    prompt: 'On the bowl f(x) = x², you start at x = 2 with learning rate 0.25. The slope there is 4. Where are you after one step?'
+    answer: 1
+    tolerance: 0.001
+    explanation: 'New position = 2 − 0.25 × 4 = 1.'
+  - type: choice
+    prompt: 'On the bowl, you raise the learning rate from 0.4 to 0.8. What happens?'
+    options:
+      - It converges twice as fast
+      - It zig-zags across the valley but still reaches the bottom
+      - It diverges
+      - Nothing changes
+    answer: 1
+    explanation: 'Each step multiplies the distance to the bottom by 1 − 2η: that is 0.2 at η = 0.4 but −0.6 at η = 0.8. The minus sign flips the ball to the other side every step. Since 0.6 is less than 1 it still converges, just more slowly!'
+  - type: choice
+    prompt: 'Gradient descent settled in the shallower of two valleys. Why?'
+    options:
+      - The learning rate was zero
+      - It only feels the local slope, so it cannot see the deeper valley
+      - The loss has no minimum
+      - It ran out of steps
+    answer: 1
+    explanation: 'Gradient descent is local: once the slope is zero it stops, whether or not a deeper valley exists somewhere else.'
+  - type: choice
+    prompt: 'In a narrow ravine, what limits how big the learning rate can be?'
+    options:
+      - The gentle direction along the floor
+      - The steep direction across the walls
+      - The number of contour lines
+      - Nothing, bigger is always faster
+    answer: 1
+    explanation: 'Overshooting starts in the steepest direction (η must stay below 2/κ), so the steep walls set the speed limit and the gentle floor is left crawling.'
+---
+
+# Lost in the fog ⛰️
+
+Imagine you're on a mountainside in thick fog. You want to get down to the valley, but you can only see the ground right under your feet.
+
+A sensible plan: **feel which way the ground slopes, take a small step downhill, repeat.**
+
+That's it. That's **gradient descent**, the algorithm that trains almost every neural network, from spam filters to large language models.
+
+---
+
+## Why would a computer want to go downhill?
+
+Training a model means tuning its numbers, its **parameters**, until it makes good predictions.
+
+We measure how bad the predictions are with a **loss**: one number, where lower is better. Picture the loss as the height of a landscape, and every possible setting of the parameters as a spot on it.
+
+Learning means finding a low spot. Gradient descent is how we walk there.
+
+---
+
+## Your turn: roll the ball
+
+Here's the simplest landscape there is, a bowl: loss = x².
+
+Press **Step** a few times. Each step, the ball checks the slope where it stands and moves downhill.
+
+<GradientPlayground landscape="bowl" />
+
+👀 Notice how the steps get **shorter** near the bottom, even though you changed nothing. The slope gets gentler there, and the step size is proportional to the slope.
+
+---
+
+## The update rule
+
+Every step follows one rule:
+
+**new position = old position − learning rate × slope**
+
+- The **slope** (the derivative) says which way is uphill, so we go the opposite way. That's the minus sign.
+- The **learning rate**, written η ("eta"), says how bold each step is.
+
+<Deeper>
+For a function $f$, gradient descent iterates
+
+$$
+x_{k+1} = x_k - \eta \, f'(x_k)
+$$
+
+On the bowl $f(x) = x^2$ we have $f'(x) = 2x$, so
+
+$$
+x_{k+1} = x_k - 2\eta x_k = (1 - 2\eta)\, x_k
+$$
+
+Every step multiplies the distance to the minimum by the same factor $r = 1 - 2\eta$, so $x_k = r^k x_0$: a geometric sequence. It shrinks to zero exactly when $|r| < 1$, that is, for $0 < \eta < 1$.
+
+- $0 < \eta < \tfrac12$: $r$ is positive and the ball creeps in from one side.
+- $\tfrac12 < \eta < 1$: $r$ is negative, so the ball overshoots and zig-zags, but still converges.
+- $\eta > 1$: $|r| > 1$ and every step overshoots more than the last. Divergence!
+
+At $\eta = \tfrac12$ we get $r = 0$: the ball lands on the minimum **in a single step**. For any parabola the perfect step is $\eta = 1 / f''$, which is Newton's method in disguise.
+
+</Deeper>
+
+---
+
+## Too timid, too bold
+
+The learning rate is the most important knob in machine learning. This one starts out bold:
+
+<GradientPlayground landscape="bowl" learningRate={0.95} />
+
+Try these and watch what happens:
+
+- **0.02**: painfully slow. You'll be here all day.
+- **0.95**: the ball flies across the valley, again and again.
+- **1.05**: each jump is bigger than the last, and the loss explodes. 💥
+
+Real training runs fail in exactly these ways, which is why people spend so much time tuning the learning rate.
+
+---
+
+## Challenge time
+
+<Challenge
+  id="bowl-speedrun"
+  title="Bowl speedrun"
+  goal="Reach the bottom of the bowl in as few steps as possible. The start is fixed: the learning rate is your only tool."
+  stars={[25, 8, 3]}
+>
+  <GradientPlayground landscape="bowl" learningRate={0.1} />
+</Challenge>
+
+💡 Stuck on two stars? Open the "Go deeper" box from two steps back. There's a magic number.
+
+---
+
+## Stuck in the wrong valley
+
+Real loss landscapes aren't perfect bowls. This one has **two valleys**, and the left one is deeper.
+
+<GradientPlayground
+  landscape="doubleWell"
+  choices={['doubleWell', 'bumpy']}
+  start={2}
+  learningRate={0.05}
+/>
+
+Start on the right and press **Play**. The ball settles in the shallow valley and stays there. It only ever feels the slope under its feet, so it has no idea a deeper valley exists.
+
+That's called a **local minimum**. Try dragging the ball to the left side, or switch to the bumpy landscape.
+
+<Deeper title="Go deeper: is this a problem in practice?">
+In one dimension local minima are everywhere. Neural networks have millions or billions of parameters, and there the picture changes. For a point to be a minimum, the loss must curve upwards in **every** direction at once, and with millions of directions that's rare. Most flat spots are **saddle points**: uphill in some directions, downhill in others. Descent eventually slides off them.
+
+Real training also uses **stochastic** gradient descent: each step estimates the slope from a small random batch of data, so the steps are noisy. That noise helps shake the ball out of narrow, shallow dips.
+
+</Deeper>
+
+---
+
+## Two dimensions: the ravine
+
+Real models have many parameters, so the landscape has many directions. Here are two, seen from above. The lines are **contours**, like on a hiking map, and the green dot is the bottom.
+
+With more than one direction, the slope becomes the **gradient**: an arrow made of one slope per direction, pointing straight uphill. We step against it.
+
+<RavinePlayground />
+
+This valley is **10 times steeper across than along**. Turn up the learning rate and watch: the ball bounces between the steep walls while it barely crawls along the gentle floor.
+
+<Deeper>
+The ravine is $f(x, y) = \tfrac12 (x^2 + \kappa y^2)$ with $\kappa = 10$. Its gradient is
+
+$$
+\nabla f(x, y) = \begin{pmatrix} x \\ \kappa y \end{pmatrix}
+$$
+
+so the two coordinates evolve independently:
+
+$$
+x_{k+1} = (1 - \eta)\, x_k, \qquad y_{k+1} = (1 - \eta\kappa)\, y_k
+$$
+
+The steep direction is stable only if $|1 - \eta\kappa| < 1$, which means $\eta < 2/\kappa = 0.2$. But then the gentle direction shrinks by a factor of at least $1 - 0.2 = 0.8$ per step: slow.
+
+The ratio $\kappa$ between the steepest and the gentlest curvature is called the **condition number**. Badly conditioned problems force a small learning rate and slow progress. That is exactly the problem **momentum** and **Adam** were invented to fix.
+
+</Deeper>
+
+---
+
+## Challenge: tame the ravine
+
+<Challenge
+  id="ravine-tamer"
+  title="Tame the ravine"
+  goal="Get to the bottom of the ravine in as few steps as possible."
+  stars={[100, 60, 45]}
+>
+  <RavinePlayground learningRate={0.05} />
+</Challenge>
+
+💡 Too small and you crawl. Too big and you bounce out. Where's the edge?
+
+---
+
+## Quiz time 🧠
+
+Five questions. Answer on your first try to earn XP, and get them all right for an extra star.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- **Loss** measures how wrong a model is. Training means making it small.
+- **Gradient descent** repeats one move: measure the slope, step the opposite way.
+- The **learning rate** sets the step size. Too small is slow; too big overshoots or diverges.
+- Descent can get stuck in **local minima**, and it struggles in **ravines** where some directions are much steeper than others.
+
+**Coming up:** momentum and Adam, the upgrades that make descent fast in ravines, and backpropagation, the trick for computing gradients of huge networks.
+
+Hit **Finish** to collect your XP! 🏁

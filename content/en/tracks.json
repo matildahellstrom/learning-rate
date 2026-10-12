@@ -1,0 +1,320 @@
+[
+  {
+    "id": "maths",
+    "title": "Maths foundations",
+    "description": "Vectors, derivatives, probability: the toolkit behind every model.",
+    "icon": "📐",
+    "colour": "blue",
+    "upcoming": [
+      {
+        "id": "vectors-matrices",
+        "title": "Vectors & matrices",
+        "order": 1
+      },
+      {
+        "id": "dot-product",
+        "title": "Dot product & cosine similarity",
+        "order": 2
+      },
+      {
+        "id": "derivatives",
+        "title": "Derivatives & the chain rule",
+        "order": 3
+      },
+      {
+        "id": "gradients",
+        "title": "Gradients",
+        "order": 4
+      },
+      {
+        "id": "softmax",
+        "title": "Exponentials, logs & softmax",
+        "order": 5
+      },
+      {
+        "id": "probability-bayes",
+        "title": "Probability & Bayes",
+        "order": 6
+      },
+      {
+        "id": "cross-entropy",
+        "title": "Entropy & cross-entropy",
+        "order": 7
+      },
+      {
+        "id": "eigenvalues",
+        "title": "Eigenvalues & eigenvectors",
+        "order": 8
+      },
+      {
+        "id": "svd-low-rank",
+        "title": "SVD & low-rank approximation",
+        "order": 9
+      }
+    ]
+  },
+  {
+    "id": "ml",
+    "title": "Machine learning",
+    "description": "How machines learn from data, one small step downhill at a time.",
+    "icon": "🧠",
+    "colour": "violet",
+    "upcoming": [
+      {
+        "id": "regression",
+        "title": "Regression",
+        "order": 1
+      },
+      {
+        "id": "loss-functions",
+        "title": "Loss functions",
+        "order": 2
+      },
+      {
+        "id": "sgd-momentum-adam",
+        "title": "SGD, momentum & Adam",
+        "order": 4
+      },
+      {
+        "id": "neural-networks",
+        "title": "Neural networks",
+        "order": 5
+      },
+      {
+        "id": "backpropagation",
+        "title": "Backpropagation",
+        "order": 6
+      },
+      {
+        "id": "overfitting",
+        "title": "Overfitting & evaluation",
+        "order": 7
+      }
+    ]
+  },
+  {
+    "id": "llm",
+    "title": "Large language models",
+    "description": "Tokens, embeddings and attention: what's inside a chatbot.",
+    "icon": "💬",
+    "colour": "pink",
+    "upcoming": [
+      {
+        "id": "next-token-prediction",
+        "title": "Next-token prediction",
+        "order": 1
+      },
+      {
+        "id": "tokenisation",
+        "title": "Tokenisation",
+        "order": 2
+      },
+      {
+        "id": "embeddings",
+        "title": "Embeddings",
+        "order": 3
+      },
+      {
+        "id": "attention",
+        "title": "Attention & transformers",
+        "order": 4
+      },
+      {
+        "id": "sampling-temperature",
+        "title": "Sampling & temperature",
+        "order": 5
+      },
+      {
+        "id": "context-windows",
+        "title": "Context windows & KV cache",
+        "order": 6
+      },
+      {
+        "id": "fine-tuning-rlhf",
+        "title": "Fine-tuning & RLHF",
+        "order": 7
+      },
+      {
+        "id": "reasoning-models",
+        "title": "Reasoning models",
+        "order": 8
+      },
+      {
+        "id": "quantization",
+        "title": "Quantization",
+        "order": 9
+      },
+      {
+        "id": "lora",
+        "title": "LoRA: fine-tuning on a budget",
+        "order": 10
+      },
+      {
+        "id": "distillation",
+        "title": "Distillation",
+        "order": 11
+      },
+      {
+        "id": "speculative-decoding",
+        "title": "Speculative decoding",
+        "order": 12
+      }
+    ]
+  },
+  {
+    "id": "vision",
+    "title": "Computer vision",
+    "description": "How machines see: from pixels to image generators.",
+    "icon": "👁️",
+    "colour": "teal",
+    "upcoming": [
+      {
+        "id": "images-as-tensors",
+        "title": "Images as tensors",
+        "order": 1
+      },
+      {
+        "id": "convolutions",
+        "title": "Convolutions",
+        "order": 2
+      },
+      {
+        "id": "cnns",
+        "title": "Convolutional neural networks",
+        "order": 3
+      },
+      {
+        "id": "vision-transformers",
+        "title": "Vision transformers",
+        "order": 4
+      },
+      {
+        "id": "clip",
+        "title": "Contrastive learning (CLIP)",
+        "order": 5
+      },
+      {
+        "id": "diffusion-models",
+        "title": "Diffusion models",
+        "order": 6
+      }
+    ]
+  },
+  {
+    "id": "ai-coding",
+    "title": "Coding with AI",
+    "description": "Prompting, context and Claude Code workflows that actually work.",
+    "icon": "🛠️",
+    "colour": "green",
+    "upcoming": [
+      {
+        "id": "prompting",
+        "title": "Prompting",
+        "order": 1
+      },
+      {
+        "id": "context-management",
+        "title": "Context management",
+        "order": 2
+      },
+      {
+        "id": "explore-plan-implement-verify",
+        "title": "Explore, plan, implement, verify",
+        "order": 3
+      },
+      {
+        "id": "claude-md",
+        "title": "CLAUDE.md",
+        "order": 4
+      },
+      {
+        "id": "skills",
+        "title": "Skills",
+        "order": 5
+      },
+      {
+        "id": "subagents",
+        "title": "Subagents",
+        "order": 6
+      },
+      {
+        "id": "hooks",
+        "title": "Hooks",
+        "order": 7
+      },
+      {
+        "id": "mcp",
+        "title": "MCP",
+        "order": 8
+      }
+    ]
+  },
+  {
+    "id": "agents",
+    "title": "Agentic AI & engineering",
+    "description": "Tools, agent loops, RAG and evals: building real AI systems.",
+    "icon": "🤖",
+    "colour": "orange",
+    "upcoming": [
+      {
+        "id": "tool-use",
+        "title": "Tool use",
+        "order": 1
+      },
+      {
+        "id": "agent-loops",
+        "title": "Agent loops",
+        "order": 2
+      },
+      {
+        "id": "rag",
+        "title": "Retrieval-augmented generation",
+        "order": 3
+      },
+      {
+        "id": "evals",
+        "title": "Evals",
+        "order": 4
+      },
+      {
+        "id": "prompt-caching",
+        "title": "Prompt caching",
+        "order": 5
+      },
+      {
+        "id": "guardrails",
+        "title": "Guardrails & prompt injection",
+        "order": 6
+      }
+    ]
+  },
+  {
+    "id": "safety",
+    "title": "Safety & interpretability",
+    "description": "When models get things wrong, what's going on inside, and how to keep AI safe.",
+    "icon": "🔍",
+    "colour": "red",
+    "upcoming": [
+      {
+        "id": "hallucination-calibration",
+        "title": "Hallucination & calibration",
+        "order": 1
+      },
+      {
+        "id": "inside-a-model",
+        "title": "What's inside a model: features & SAEs",
+        "order": 2
+      },
+      {
+        "id": "alignment-basics",
+        "title": "Alignment basics",
+        "order": 3
+      },
+      {
+        "id": "ai-security",
+        "title": "AI security: injection & poisoning",
+        "order": 4
+      }
+    ]
+  }
+]
