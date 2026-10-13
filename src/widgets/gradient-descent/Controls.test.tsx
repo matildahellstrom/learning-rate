@@ -17,4 +17,13 @@ describe('StatusLine', () => {
     render(<StatusLine status="tooSlow" steps={200} loss={0.01} />)
     expect(screen.getByText(/Try a bigger learning rate/)).toBeTruthy()
   })
+
+  it('says "reached the bottom" only on a convex landscape', () => {
+    const { rerender } = render(<StatusLine status="converged" steps={39} loss={-0.588} />)
+    expect(screen.getByText('Reached the bottom in 39 steps!')).toBeTruthy()
+
+    rerender(<StatusLine status="converged" steps={39} loss={-0.588} convex={false} />)
+    expect(screen.getByText('Settled after 39 steps: the slope here is zero.')).toBeTruthy()
+    expect(screen.queryByText(/bottom/)).toBeNull()
+  })
 })

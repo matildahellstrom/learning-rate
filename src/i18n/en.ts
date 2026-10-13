@@ -78,6 +78,8 @@ export const en = {
   'widget.readout': 'Step {step} · loss {loss}',
   'widget.converged': 'Reached the bottom in {steps} steps!',
   'widget.convergedOne': 'Reached the bottom in a single step!',
+  'widget.settled': 'Settled after {steps} steps: the slope here is zero.',
+  'widget.settledOne': 'Settled after a single step: the slope here is zero.',
   'widget.diverged':
     'Diverged! Each step overshoots more than the last. Try a smaller learning rate.',
   'widget.tooSlow': 'Still going after {steps} steps. Try a bigger learning rate.',

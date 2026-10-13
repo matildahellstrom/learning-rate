@@ -116,7 +116,7 @@ export function GradientPlayground({
         {startFixed ? t('widget.startFixed') : t('widget.hint')}
       </figcaption>
 
-      <StatusLine status={descent.status} steps={descent.steps} loss={l.f(x)} />
+      <StatusLine status={descent.status} steps={descent.steps} loss={l.f(x)} convex={l.convex} />
 
       <div className={styles.controls}>
         {choices && (

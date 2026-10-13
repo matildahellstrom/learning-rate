@@ -88,16 +88,23 @@ export function StatusLine({
   status,
   steps,
   loss,
+  convex = true,
 }: {
   status: PlaygroundStatus
   steps: number
   loss: number
+  /** On a non-convex landscape a flat spot may be a local minimum, not "the bottom". */
+  convex?: boolean
 }) {
   const message =
     status === 'converged'
-      ? steps === 1
-        ? t('widget.convergedOne')
-        : t('widget.converged', { steps })
+      ? convex
+        ? steps === 1
+          ? t('widget.convergedOne')
+          : t('widget.converged', { steps })
+        : steps === 1
+          ? t('widget.settledOne')
+          : t('widget.settled', { steps })
       : status === 'diverged'
         ? t('widget.diverged')
         : status === 'tooSlow'

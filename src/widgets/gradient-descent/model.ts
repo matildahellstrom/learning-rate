@@ -12,6 +12,11 @@ export type Landscape1D = {
   domain: [number, number]
   /** y-range shown in the plot. */
   range: [number, number]
+  /**
+   * Convex (curves upwards everywhere): the only flat spot is the bottom. Otherwise the ball
+   * can settle in a local minimum, so we mustn't call wherever it stops "the bottom".
+   */
+  convex: boolean
 }
 
 export const landscapes = {
@@ -22,6 +27,7 @@ export const landscapes = {
     df: (x) => 2 * x,
     domain: [-4, 4],
     range: [-1, 12],
+    convex: true,
   },
   doubleWell: {
     id: 'doubleWell',
@@ -31,6 +37,7 @@ export const landscapes = {
     df: (x) => x ** 3 - 2 * x + 0.3,
     domain: [-2.5, 2.5],
     range: [-2, 4.5],
+    convex: false,
   },
   bumpy: {
     id: 'bumpy',
@@ -39,6 +46,7 @@ export const landscapes = {
     df: (x) => 0.3 * x + 1.5 * Math.cos(3 * x),
     domain: [-5, 5],
     range: [-1, 4.5],
+    convex: false,
   },
 } satisfies Record<string, Landscape1D>
 

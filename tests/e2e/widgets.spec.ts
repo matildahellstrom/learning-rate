@@ -102,3 +102,12 @@ test('keyboard focus stays put when Step or Play ends a run', async ({ page }) =
   await expect(play).toBeFocused()
   expect(await focusedName()).toBe('Play')
 })
+
+test('settling in the shallow valley is not called "the bottom"', async ({ page }) => {
+  await openStep(page, 7)
+  await page.getByRole('button', { name: 'Play' }).click()
+  await expect(page.getByText(/Settled after \d+ steps: the slope here is zero\./)).toBeVisible({
+    timeout: 15_000,
+  })
+  await expect(page.getByText(/Reached the bottom/)).toHaveCount(0)
+})

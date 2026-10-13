@@ -26,6 +26,20 @@ describe('numericalDerivative', () => {
   })
 })
 
+describe('landscapes', () => {
+  it.each(Object.values(landscapes))(
+    '$label is marked convex exactly when it curves up everywhere',
+    (l) => {
+      const [a, b] = l.domain
+      const curvesUpEverywhere = Array.from(
+        { length: 401 },
+        (_, i) => a + ((b - a) * i) / 400,
+      ).every((x) => numericalDerivative(l.df, x) >= 0)
+      expect(l.convex).toBe(curvesUpEverywhere)
+    },
+  )
+})
+
 describe('numericalGradient', () => {
   it('matches the analytic gradient of the ravine', () => {
     const r = ravine(10)
