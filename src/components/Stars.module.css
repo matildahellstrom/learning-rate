@@ -9,7 +9,8 @@
 }
 
 .large {
-  font-size: 3.6rem;
+  /* Never wider than a narrow phone, even with large text. */
+  font-size: min(3.6rem, 18vw);
   gap: var(--space-3);
 }
 

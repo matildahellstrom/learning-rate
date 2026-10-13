@@ -148,6 +148,9 @@
   background: var(--surface);
   border: 2px solid var(--border);
   box-shadow: 0 4px 0 var(--border);
+  /* Badge names may break with large text instead of overflowing. */
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 .earned {

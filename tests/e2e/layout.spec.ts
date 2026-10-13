@@ -38,13 +38,25 @@ test('no page scrolls sideways, from small phones to desktop', async ({ page }) 
 })
 
 test('no page scrolls sideways with text at 200%', async ({ page }) => {
-  await page.setViewportSize({ width: 412, height: 915 })
   await page.addInitScript(() => {
     document.addEventListener('DOMContentLoaded', () => {
       document.documentElement.style.fontSize = '200%'
     })
   })
-  await checkFits(page, '200% text')
+  for (const width of [320, 375, 412]) {
+    await page.setViewportSize({ width, height: 915 })
+    await checkFits(page, `200% text at ${width}px`)
+
+    // The completion screen too (big stars and title).
+    await page.goto('about:blank')
+    await page.goto(`${LESSON}?step=11`)
+    await page.getByRole('button', { name: /Finish/ }).click()
+    await page.getByRole('heading', { name: 'Lesson complete!' }).waitFor()
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    )
+    expect(overflow, `completion screen, 200% text at ${width}px`).toBeLessThanOrEqual(0)
+  }
 })
 
 const overlaps = (
