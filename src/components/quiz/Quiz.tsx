@@ -17,6 +17,8 @@ export function Quiz() {
   const [feedback, setFeedback] = useState<boolean | null>(null)
   const nextRef = useRef<HTMLButtonElement>(null)
   const doneRef = useRef<HTMLParagraphElement>(null)
+  const counterRef = useRef<HTMLParagraphElement>(null)
+  const isFirstRender = useRef(true)
   const [justFinished, setJustFinished] = useState(false)
   const ids = useId()
 
@@ -24,6 +26,16 @@ export function Quiz() {
   useEffect(() => {
     if (feedback !== null) nextRef.current?.focus()
   }, [feedback])
+
+  // A new question: the "Next" button that had focus is gone, so move focus to the top of the
+  // new question (not on first render, and the done state handles its own focus below).
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
+    counterRef.current?.focus()
+  }, [index])
 
   // The "Next" button disappears after the last question; keep focus on the result instead.
   useEffect(() => {
@@ -74,7 +86,7 @@ export function Quiz() {
 
   return (
     <form className={styles.quiz} onSubmit={submit}>
-      <p className={styles.counter}>
+      <p ref={counterRef} tabIndex={-1} className={styles.counter}>
         {t('quiz.question', { n: index + 1, total: questions.length })}
       </p>
 
@@ -149,11 +161,14 @@ export function Quiz() {
       </div>
 
       {answered ? (
-        <button ref={nextRef} type="button" className="btn" onClick={next}>
+        // Distinct keys: React must not reuse the "Next" button's DOM node (and its focus) for
+        // "Check", which starts out disabled.
+        <button key="next" ref={nextRef} type="button" className="btn" onClick={next}>
           {t('quiz.next')}
         </button>
       ) : (
         <button
+          key="check"
           type="submit"
           className="btn"
           disabled={question.type === 'choice' ? choice === null : text.trim() === ''}

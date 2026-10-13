@@ -72,6 +72,20 @@ describe('Quiz', () => {
     expect(document.activeElement).toBe(done)
   })
 
+  it('moves focus to the new question after "Next question", never to <body>', async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+    await user.click(screen.getByRole('radio', { name: 'Downhill' }))
+    await user.keyboard('{Enter}')
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Next question' }))
+    await user.keyboard('{Enter}')
+
+    expect(document.activeElement).toBe(screen.getByText('Question 2 of 2'))
+    // The next Tab goes into the question, not past it.
+    await user.tab()
+    expect(document.activeElement).toBe(screen.getByLabelText('Your answer'))
+  })
+
   it('asks again instead of marking unparseable numbers wrong', async () => {
     const user = userEvent.setup()
     render(<Harness />)
