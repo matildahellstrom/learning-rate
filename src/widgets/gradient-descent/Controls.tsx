@@ -54,16 +54,25 @@ export function PlayButtons({
   onReset: () => void
 }) {
   const done = status !== 'running'
+  const stepDisabled = done || playing
+  // aria-disabled instead of disabled: a disabled button drops keyboard focus to <body> the
+  // moment the run ends. These stay focusable (and say they're unavailable) and just ignore
+  // presses, so keyboard users can carry on from where they were.
   return (
     <div className={styles.buttons}>
-      <button type="button" className="btn btn-small" onClick={onStep} disabled={done || playing}>
+      <button
+        type="button"
+        className="btn btn-small"
+        onClick={() => !stepDisabled && onStep()}
+        aria-disabled={stepDisabled}
+      >
         {t('widget.step')}
       </button>
       <button
         type="button"
         className="btn btn-small"
-        onClick={onTogglePlay}
-        disabled={done}
+        onClick={() => !done && onTogglePlay()}
+        aria-disabled={done}
         aria-pressed={playing}
       >
         {playing ? t('widget.pause') : t('widget.play')}

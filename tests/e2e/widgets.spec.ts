@@ -66,3 +66,39 @@ test('the draggable ball has an accessible name', async ({ page }) => {
   await openStep(page, 8)
   await expectAccessible(page)
 })
+
+test('keyboard focus stays put when Step or Play ends a run', async ({ page }) => {
+  const focusedName = () =>
+    page.evaluate(() => (document.activeElement as HTMLElement | null)?.innerText ?? '')
+
+  // Challenge: η = 0.5 converges in one step, pressed from the keyboard.
+  await openStep(page, 6)
+  await page.getByLabel('Learning rate η').fill('0.5')
+  const stepButton = page.getByRole('button', { name: 'Step', exact: true })
+  await stepButton.focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByText('Reached the bottom in a single step!')).toBeVisible()
+  await expect(stepButton).toBeFocused()
+  await expect(stepButton).toHaveAttribute('aria-disabled', 'true')
+  await expect(stepButton).toBeDisabled()
+  // Pressing it again does nothing.
+  await page.keyboard.press('Enter')
+  await expect(page.getByText('Step 1 · loss 0.000')).toBeVisible()
+
+  // Play with Space until it converges: focus stays on Play.
+  await page.getByLabel('Learning rate η').fill('0.4')
+  const play = page.getByRole('button', { name: /Play|Pause/ })
+  await play.focus()
+  await page.keyboard.press('Space')
+  await expect(page.getByText(/Reached the bottom in \d+ steps!/)).toBeVisible()
+  await expect(play).toBeFocused()
+
+  // Same when a run diverges.
+  await openStep(page, 5)
+  await page.getByLabel('Learning rate η').fill('1.2')
+  await play.focus()
+  await page.keyboard.press('Space')
+  await expect(page.getByText(/^Diverged!/)).toBeVisible()
+  await expect(play).toBeFocused()
+  expect(await focusedName()).toBe('Play')
+})
