@@ -4,18 +4,53 @@
   align-items: center;
   max-width: var(--content-width);
   margin: 0 auto;
-  padding: var(--space-6) var(--space-4);
+  padding: var(--space-5) var(--space-4) var(--space-6);
   text-align: center;
 }
 
-.burst {
-  font-size: 4rem;
-  animation: bounce 900ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+/* Eta jumps in, with slowly turning sun rays behind (decoration only, no text on top). */
+.hero {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 180px;
+  height: 150px;
+}
+
+.rays {
+  position: absolute;
+  inset: -10px 5px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    color-mix(in srgb, var(--gold) 55%, transparent) 0deg 12deg,
+    transparent 12deg 30deg
+  );
+  mask: radial-gradient(circle, #000 30%, transparent 70%);
+  animation: spin 14s linear infinite;
+}
+
+.mascot {
+  position: relative;
+  width: 150px;
+  animation: jump-in 800ms var(--bounce) both;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes jump-in {
+  from {
+    transform: translateY(40px) scale(0.3);
+  }
 }
 
 .title {
   margin: var(--space-2) 0 0;
-  font-size: 2rem;
+  font-size: 2.2rem;
 }
 
 .title:focus {
@@ -23,61 +58,142 @@
 }
 
 .lessonName {
-  margin: var(--space-1) 0 var(--space-4);
-  color: var(--text-muted);
-  font-weight: 700;
+  margin: var(--space-2) 0 var(--space-4);
+  padding: 2px var(--space-3);
+  border-radius: 999px;
+  background-color: var(--track, var(--btn));
+  background-image: linear-gradient(90deg, var(--track, var(--btn)), var(--track-2, var(--btn)));
+  color: var(--on-track);
+  font-weight: var(--weight-display);
 }
 
 .goals {
-  margin: var(--space-2) 0 0;
+  margin: var(--space-3) 0 0;
   font-size: 0.85rem;
+  font-weight: 700;
   color: var(--text-muted);
 }
 
-.xp {
-  margin: var(--space-4) 0 var(--space-1);
-  padding: var(--space-2) var(--space-5);
-  border-radius: 999px;
-  background: var(--xp);
-  color: var(--on-xp);
-  font-size: 1.6rem;
-  font-weight: 900;
-  box-shadow: 0 4px 0 var(--xp-strong);
+/* Scoreboard tiles. */
+.tiles {
+  display: grid;
+  gap: var(--space-3);
+  width: min(100%, 360px);
+  margin-top: var(--space-4);
+}
+
+.tiles p {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-l);
+  font-weight: 800;
+}
+
+.tileIcon {
+  font-size: 1.4rem;
+}
+
+.tiles .xp {
+  background-color: var(--gold-2);
+  background-image: linear-gradient(180deg, var(--gold), var(--gold-2));
+  color: var(--on-gold);
+  font-size: 1.9rem;
+  font-weight: var(--weight-display);
+  font-variant-numeric: tabular-nums;
+  box-shadow:
+    0 5px 0 var(--gold-ledge),
+    inset 0 3px 0 rgb(255 255 255 / 0.4);
+  animation: pop-in 500ms var(--bounce) 200ms both;
+}
+
+.quiz {
+  border: 2px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 4px 0 var(--border);
 }
 
 .level {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  width: min(100%, 320px);
-  margin-top: var(--space-3);
+  width: min(100%, 360px);
+  margin-top: var(--space-4);
   font-weight: 800;
 }
 
-.level progress {
-  flex: 1;
-  height: 14px;
-  accent-color: var(--xp);
+.levelBadge {
+  padding: 2px var(--space-3);
+  border-radius: 999px;
+  background: var(--btn);
+  color: var(--on-btn);
+  font-weight: var(--weight-display);
+  white-space: nowrap;
+  box-shadow: 0 3px 0 var(--btn-ledge);
 }
 
+.levelBar {
+  flex: 1;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  box-shadow: inset 0 3px 0 rgb(0 0 0 / 0.08);
+  overflow: hidden;
+}
+
+.levelBar progress {
+  display: block;
+  width: 100%;
+  height: 100%;
+  appearance: none;
+  border: 0;
+  background: transparent;
+}
+
+.levelBar progress::-webkit-progress-bar {
+  background: transparent;
+}
+
+.levelBar progress::-webkit-progress-value {
+  background: linear-gradient(180deg, var(--gold), var(--gold-2));
+  border-radius: 999px;
+  box-shadow: inset 0 4px 0 -1px rgb(255 255 255 / 0.45);
+}
+
+.levelBar progress::-moz-progress-bar {
+  background: linear-gradient(180deg, var(--gold), var(--gold-2));
+  border-radius: 999px;
+}
+
+/* Level-up ribbon: white text on the violet hero gradient (≥ 4.6:1 at every stop). */
 .levelUp {
+  margin: var(--space-5) 0 0;
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-m);
+  background-color: #6d28d9;
+  background-image: var(--hero-gradient);
+  color: #ffffff;
   font-size: 1.2rem;
-  font-weight: 900;
-  color: var(--primary);
+  font-weight: var(--weight-display);
+  box-shadow: 0 5px 0 var(--hero-ledge);
+  animation: pop-in 600ms var(--bounce) 900ms both;
 }
 
 .badges {
   width: 100%;
-  margin-top: var(--space-4);
+  margin-top: var(--space-5);
 }
 
 .badges h2 {
-  font-size: 1.1rem;
+  font-size: 1.25rem;
 }
 
 .badges ul {
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -89,10 +205,13 @@
   column-gap: var(--space-3);
   align-items: center;
   padding: var(--space-3);
-  border: 2px solid var(--xp);
-  border-radius: var(--radius-m);
+  border: 2px solid var(--gold-2);
+  border-radius: var(--radius-l);
   background: var(--surface);
+  box-shadow: 0 4px 0 var(--gold-ledge);
   text-align: left;
+  animation: pop-in 500ms var(--bounce) both;
+  animation-delay: calc(1100ms + var(--i) * 150ms);
 }
 
 .badges li span:last-child {
@@ -101,27 +220,44 @@
   font-size: 0.9rem;
 }
 
-.badgeIcon {
+/* A gold medallion: gradient face, rim and ledge. */
+.medal {
+  display: grid;
+  place-items: center;
   grid-row: span 2;
-  font-size: 2rem;
+  width: 56px;
+  height: 56px;
+  border: 3px solid var(--gold-ledge);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fffbeb, var(--gold) 45%, var(--gold-2));
+  box-shadow: 0 4px 0 var(--gold-ledge);
+  font-size: 1.7rem;
 }
 
 .actions {
   display: grid;
-  gap: var(--space-3);
-  width: min(100%, 320px);
-  margin-top: var(--space-5);
+  gap: var(--space-4);
+  width: min(100%, 360px);
+  margin-top: var(--space-6);
 }
 
-@keyframes bounce {
+.actions :global(.btn) {
+  min-height: 54px;
+  font-size: 1.1rem;
+}
+
+@keyframes pop-in {
   from {
-    transform: scale(0.2);
-    opacity: 0;
+    transform: scale(0.4);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .burst {
+  .rays,
+  .mascot,
+  .tiles .xp,
+  .levelUp,
+  .badges li {
     animation: none;
   }
 }

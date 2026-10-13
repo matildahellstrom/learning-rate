@@ -5,12 +5,12 @@
 }
 
 .small {
-  font-size: 1rem;
+  font-size: 1.05rem;
 }
 
 .large {
-  font-size: 3rem;
-  gap: var(--space-2);
+  font-size: 3.6rem;
+  gap: var(--space-3);
 }
 
 .on {
@@ -24,14 +24,34 @@
 }
 
 .large .on {
-  animation: pop 500ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
-  animation-delay: calc(var(--i) * 250ms + 200ms);
+  display: inline-block;
+  text-shadow:
+    0 4px 0 var(--xp-strong),
+    0 0 18px color-mix(in srgb, var(--gold) 60%, transparent);
+  animation: pop 600ms var(--bounce) both;
+  animation-delay: calc(var(--i) * 250ms + 300ms);
 }
 
+/* The middle star sits a little higher, like a podium. */
+.large > span:nth-child(3) {
+  display: inline-block;
+  transform: translateY(-10px) scale(1.15);
+}
+
+/* Scale and spin only: the star is decorative (aria-hidden), and nothing fades. */
 @keyframes pop {
   from {
-    transform: scale(0) rotate(-30deg);
-    opacity: 0;
+    transform: scale(0) rotate(-45deg);
+  }
+}
+
+.large > span.on:nth-child(3) {
+  animation-name: pop-middle;
+}
+
+@keyframes pop-middle {
+  from {
+    transform: translateY(-10px) scale(0) rotate(-45deg);
   }
 }
 

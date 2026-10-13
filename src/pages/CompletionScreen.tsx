@@ -1,7 +1,10 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type CSSProperties } from 'react'
 import { Link } from 'react-router'
 import { useGameState } from '../app/game'
+import { Confetti } from '../components/Confetti'
+import { Eta } from '../components/Eta'
 import { Stars } from '../components/Stars'
+import { useCountUp } from '../components/useCountUp'
 import { badges, type Lesson } from '../content/lessons'
 import type { Reward } from '../game/engine'
 import { levelFromXp } from '../game/levels'
@@ -13,15 +16,17 @@ type Props = {
   rewards: Reward[]
   quizCorrect: number
   onReview: () => void
+  style?: CSSProperties
 }
 
-export function CompletionScreen({ lesson, rewards, quizCorrect, onReview }: Props) {
+export function CompletionScreen({ lesson, rewards, quizCorrect, onReview, style }: Props) {
   const state = useGameState()
   const headingRef = useRef<HTMLHeadingElement>(null)
   const stars = state.lessons[lesson.id]?.stars ?? 0
   const level = levelFromXp(state.xp)
 
   const xp = rewards.reduce((sum, r) => (r.type === 'xp' ? sum + r.amount : sum), 0)
+  const shownXp = useCountUp(xp)
   const levelUp = rewards.findLast((r) => r.type === 'levelUp')
   const newBadges = rewards
     .filter((r) => r.type === 'badge')
@@ -31,9 +36,11 @@ export function CompletionScreen({ lesson, rewards, quizCorrect, onReview }: Pro
   useEffect(() => headingRef.current?.focus(), [])
 
   return (
-    <main className={styles.screen}>
-      <div className={styles.burst} aria-hidden="true">
-        🎉
+    <main className={styles.screen} style={style}>
+      <Confetti />
+      <div className={styles.hero} aria-hidden="true">
+        <span className={styles.rays} />
+        <Eta className={styles.mascot} mood="cheer" hill={false} />
       </div>
       <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
         {t('complete.title')}
@@ -43,34 +50,54 @@ export function CompletionScreen({ lesson, rewards, quizCorrect, onReview }: Pro
       <Stars count={stars} size="large" />
       <p className={styles.goals}>{t('complete.starGoals')}</p>
 
-      <p className={styles.xp}>{t('complete.xp', { xp })}</p>
-      {lesson.quiz.length > 0 && (
-        <p>{t('complete.quiz', { correct: quizCorrect, total: lesson.quiz.length })}</p>
-      )}
+      <div className={styles.tiles}>
+        <p className={styles.xp}>
+          <span className={styles.tileIcon} aria-hidden="true">
+            ⭐
+          </span>
+          {t('complete.xp', { xp: shownXp })}
+        </p>
+        {lesson.quiz.length > 0 && (
+          <p className={styles.quiz}>
+            <span className={styles.tileIcon} aria-hidden="true">
+              🎯
+            </span>
+            {t('complete.quiz', { correct: quizCorrect, total: lesson.quiz.length })}
+          </p>
+        )}
+      </div>
 
       <div className={styles.level}>
-        <span>{t('stats.level', { level: level.level })}</span>
-        <progress
-          max={level.xpForNextLevel}
-          value={level.xpIntoLevel}
-          aria-label={t('stats.levelProgress', {
-            current: level.xpIntoLevel,
-            total: level.xpForNextLevel,
-            next: level.level + 1,
-          })}
-        />
+        <span className={styles.levelBadge}>{t('stats.level', { level: level.level })}</span>
+        <span
+          className={styles.levelBar}
+          style={{ '--fill': level.xpIntoLevel / level.xpForNextLevel } as CSSProperties}
+        >
+          <progress
+            max={level.xpForNextLevel}
+            value={level.xpIntoLevel}
+            aria-label={t('stats.levelProgress', {
+              current: level.xpIntoLevel,
+              total: level.xpForNextLevel,
+              next: level.level + 1,
+            })}
+          />
+        </span>
       </div>
       {levelUp && (
-        <p className={styles.levelUp}>{t('complete.levelUp', { level: levelUp.level })}</p>
+        <p className={styles.levelUp}>
+          <span aria-hidden="true">⬆️ </span>
+          {t('complete.levelUp', { level: levelUp.level })}
+        </p>
       )}
 
       {newBadges.length > 0 && (
         <section className={styles.badges}>
           <h2>{t('complete.newBadges')}</h2>
           <ul>
-            {newBadges.map((b) => (
-              <li key={b.id}>
-                <span className={styles.badgeIcon} aria-hidden="true">
+            {newBadges.map((b, i) => (
+              <li key={b.id} style={{ '--i': i } as CSSProperties}>
+                <span className={styles.medal} aria-hidden="true">
                   {b.icon}
                 </span>
                 <strong>{b.title}</strong>
@@ -82,7 +109,7 @@ export function CompletionScreen({ lesson, rewards, quizCorrect, onReview }: Pro
       )}
 
       <div className={styles.actions}>
-        <Link to="/" className="btn">
+        <Link to="/" className="btn btn-go">
           {t('complete.backToMap')}
         </Link>
         <button type="button" className="btn btn-secondary" onClick={onReview}>
