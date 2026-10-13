@@ -59,3 +59,13 @@ test('a malformed saved date does not wipe progress', async ({ page }) => {
   expect(state.streak.freezes).toBe(0)
   expect(state.streak.current).toBe(1)
 })
+
+test('finishing a lesson again says no new XP instead of "+0 XP"', async ({ page }) => {
+  for (const expected of ['+100 XP', 'No new XP: you already earned it.']) {
+    await page.goto('about:blank')
+    await page.goto(`${LESSON}?step=11`)
+    await page.getByRole('button', { name: 'Finish' }).click()
+    await expect(page.getByText(expected)).toBeVisible()
+  }
+  await expect(page.getByText('+0 XP')).toHaveCount(0)
+})

@@ -38,6 +38,7 @@ export const en = {
 
   'complete.title': 'Lesson complete!',
   'complete.xp': '+{xp} XP',
+  'complete.noNewXp': 'No new XP: you already earned it.',
   'complete.quiz': 'Quiz: {correct} of {total} right on the first try',
   'complete.levelUp': 'Level up! You are now level {level}.',
   'complete.newBadges': 'New badges',

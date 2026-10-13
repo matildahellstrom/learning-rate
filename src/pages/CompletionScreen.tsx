@@ -46,7 +46,11 @@ export function CompletionScreen({ lesson, rewards, quizCorrect, onReview }: Pro
       <Stars count={stars} size="large" />
       <p className={styles.goals}>{t('complete.starGoals')}</p>
 
-      <p className={styles.xp}>{t('complete.xp', { xp })}</p>
+      {xp > 0 ? (
+        <p className={styles.xp}>{t('complete.xp', { xp })}</p>
+      ) : (
+        <p>{t('complete.noNewXp')}</p>
+      )}
       {lesson.quiz.length > 0 && (
         <p>{t('complete.quiz', { correct: quizCorrect, total: lesson.quiz.length })}</p>
       )}

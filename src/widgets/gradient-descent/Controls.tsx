@@ -1,5 +1,6 @@
 import { useId } from 'react'
 import { t } from '../../i18n'
+import { formatLoss } from './format'
 import styles from './Playground.module.css'
 import type { PlaygroundStatus } from './useDescent'
 
@@ -123,9 +124,4 @@ export function StatusLine({
       </p>
     </div>
   )
-}
-
-function formatLoss(loss: number): string {
-  if (!Number.isFinite(loss)) return '∞'
-  return Math.abs(loss) >= 1000 ? loss.toExponential(1) : loss.toFixed(3)
 }
