@@ -59,7 +59,9 @@ export function CompletionScreen({ lesson, rewards, quizCorrect, onReview, style
             <span className={styles.tileIcon} aria-hidden="true">
               ⭐
             </span>
-            {t('complete.xp', { xp: shownXp })}
+            {/* The count-up is for eyes only; screen readers get the final number at once. */}
+            <span aria-hidden="true">{t('complete.xp', { xp: shownXp })}</span>
+            <span className="visually-hidden">{t('complete.xp', { xp })}</span>
           </p>
         ) : (
           <p className={styles.quiz}>{t('complete.noNewXp')}</p>
