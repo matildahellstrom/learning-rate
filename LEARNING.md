@@ -111,3 +111,19 @@ You asked to be told when the first version was ready, so these phases were buil
 
 1. Run `git log --format='%an <%ae>'`. What would someone with access to the repo see?
 2. Free GitHub Pages needs a public repo. What would you check before making it public? (Hint: the history, the content licence, and whether any lesson text is copied from somewhere.)
+
+## Bug bash, round 1 (2026-10-13)
+
+**Built:** Fixed 22 bugs a QA tester found by play-testing the app, each with a test that fails without the fix. They fell into a few families: things drawn on top of other things (the ball couldn't be dragged by its centre, toasts covered the controls), focus lost or stuck for keyboard users (quiz, Step/Play, route changes), progress lost (two tabs, one bad saved field, reload mid-lesson), layout at 320px and 200% text, and wording that didn't match what the app does ("try a bigger learning rate" when it was already too big, "1 days").
+
+**Concepts:**
+
+- **Stacking order and pointer events in SVG.** SVG has no `z-index`: whatever is drawn later is on top and gets the click. The orange "current position" dot was drawn after the draggable ball, so it swallowed the pointer. Fix: draw the interactive thing last, and give decorative shapes `pointer-events: none`. `document.elementFromPoint(x, y)` tells you who really receives a click.
+- **Cross-tab storage.** Every tab has its own copy of the state in memory, but they share one `localStorage`. If each tab writes its whole snapshot, the last writer wins and erases the other tab's progress. Fix: read → apply → write on every action, and listen for the `storage` event, which the browser fires in the _other_ tabs when one of them writes.
+- **Focus management when elements become disabled or disappear.** A focused button that becomes `disabled` (or is removed) drops focus to `<body>`, so a keyboard user has to start over from the top. Options: keep it focusable with `aria-disabled="true"` and ignore presses, or move focus somewhere sensible yourself (the next question, the new page's `<main>`). React may also _reuse_ a DOM node between two different buttons unless you give them different `key`s.
+- **Defensive parsing and migrations.** Saved data comes from outside the code: old versions, other tabs, people editing DevTools. Validate it at the boundary (zod), salvage field by field instead of throwing everything away, never write `NaN`, keep a backup before repairing, and never overwrite data from a _newer_ version you don't understand.
+
+**Explore:**
+
+1. Open the lesson in two tabs, earn XP in one and watch the other tab's XP bar. Then comment out the `storage` listener in `src/app/game.ts`: what still works thanks to "read before write", and what doesn't?
+2. In DevTools, focus the Step button with the keyboard, run `$0.disabled = true` in the console and check `document.activeElement`. Now try `$0.setAttribute('aria-disabled', 'true')` instead. What does a screen reader user hear in each case?
