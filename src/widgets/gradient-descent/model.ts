@@ -26,8 +26,9 @@ export const landscapes = {
     f: (x) => x * x,
     df: (x) => 2 * x,
     domain: [-4, 4],
-    // f(±4) = 16: tall enough that the ball stays in view anywhere it can start.
-    range: [-1, 17],
+    // f(±4) = 16: tall enough that the ball stays in view anywhere it can start. The extra room
+    // below 0 keeps the x-axis labels inside the plot.
+    range: [-1.5, 17],
     convex: true,
   },
   doubleWell: {

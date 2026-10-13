@@ -3,6 +3,7 @@ import { useRef, useState } from 'react'
 import { t } from '../../i18n'
 import { clamp } from '../../lib/math/clamp'
 import { useChallenge } from '../events'
+import { labelsWithin } from './axisLabels'
 import { PlayButtons, Slider, StatusLine } from './Controls'
 import { ravine } from './model'
 import styles from './Playground.module.css'
@@ -65,12 +66,17 @@ export function RavinePlayground({
     <figure ref={figureRef} className={styles.playground}>
       <Mafs
         height={240}
-        viewBox={{ x: [-X_MAX, X_MAX], y: [-Y_MAX, Y_MAX], padding: 0 }}
+        // A little padding so the outermost axis labels aren't cut in half.
+        viewBox={{ x: [-X_MAX, X_MAX], y: [-Y_MAX, Y_MAX], padding: 0.5 }}
         preserveAspectRatio="contain"
         pan={false}
         zoom={false}
       >
-        <Coordinates.Cartesian subdivisions={false} />
+        <Coordinates.Cartesian
+          subdivisions={false}
+          xAxis={{ labels: labelsWithin(-X_MAX, X_MAX) }}
+          yAxis={{ labels: labelsWithin(-Y_MAX, Y_MAX) }}
+        />
         {CONTOUR_LEVELS.map((level) => (
           <Plot.Parametric
             key={level}

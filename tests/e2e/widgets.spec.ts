@@ -111,3 +111,33 @@ test('settling in the shallow valley is not called "the bottom"', async ({ page 
   })
   await expect(page.getByText(/Reached the bottom/)).toHaveCount(0)
 })
+
+test('axis labels are not cut off at the plot edges', async ({ page }) => {
+  for (const width of [0, 320]) {
+    // The project's own viewport first, then the narrowest phones.
+    if (width) await page.setViewportSize({ width, height: 640 })
+    for (const step of [3, 7, 8]) {
+      await openStep(page, step)
+      await page.locator('.MafsView .mafs-axis text').first().waitFor({ state: 'attached' })
+      const clipped = await page
+        .locator('.MafsView')
+        .first()
+        .evaluate((view) => {
+          const plot = view.getBoundingClientRect()
+          return [...view.querySelectorAll('.mafs-axis text')]
+            .filter((label) => label.textContent?.trim())
+            .filter((label) => {
+              const r = label.getBoundingClientRect()
+              return (
+                r.left < plot.left ||
+                r.right > plot.right ||
+                r.top < plot.top ||
+                r.bottom > plot.bottom
+              )
+            })
+            .map((label) => label.textContent)
+        })
+      expect(clipped, `step ${step}, width ${width || 'default'}`).toEqual([])
+    }
+  }
+})

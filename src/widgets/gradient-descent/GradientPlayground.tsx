@@ -3,11 +3,15 @@ import { useId, useRef, useState } from 'react'
 import { clamp } from '../../lib/math/clamp'
 import { t } from '../../i18n'
 import { useChallenge } from '../events'
+import { labelsWithin } from './axisLabels'
 import { PlayButtons, Slider, StatusLine } from './Controls'
 import { landscapes, type LandscapeId, type Vector } from './model'
 import styles from './Playground.module.css'
 import { useBallAccessibility } from './useBallAccessibility'
 import { useDescent } from './useDescent'
+
+/** A little room around the plot so the outermost axis labels aren't cut in half. */
+const PLOT_PADDING = 0.5
 
 /** Path dots never catch the pointer, so they can't block dragging the ball underneath. */
 const DECORATIVE = { style: { pointerEvents: 'none' } } as const
@@ -70,12 +74,20 @@ export function GradientPlayground({
     <figure ref={figureRef} className={styles.playground}>
       <Mafs
         height={260}
-        viewBox={{ x: l.domain, y: l.range, padding: 0 }}
+        viewBox={{ x: l.domain, y: l.range, padding: PLOT_PADDING }}
         preserveAspectRatio={false}
         pan={false}
         zoom={false}
       >
-        <Coordinates.Cartesian subdivisions={false} />
+        <Coordinates.Cartesian
+          subdivisions={false}
+          // A grid line (and label) every 2 units on tall plots, so the labels don't overlap.
+          xAxis={{ labels: labelsWithin(xMin, xMax) }}
+          yAxis={{
+            lines: l.range[1] - l.range[0] > 10 ? 2 : 1,
+            labels: labelsWithin(l.range[0], l.range[1]),
+          }}
+        />
         <Plot.OfX y={l.f} color={Theme.violet} weight={3} />
         <Polyline
           points={descent.path.map(([px]) => [px, l.f(px)])}
