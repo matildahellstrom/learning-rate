@@ -1,6 +1,7 @@
 .lesson {
   min-height: 100dvh;
-  padding-bottom: calc(104px + env(safe-area-inset-bottom));
+  /* rem, not px: with large text the footer buttons stack and the footer gets taller. */
+  padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
 }
 
 .top {
@@ -188,6 +189,8 @@
 
 .footerInner {
   display: flex;
+  /* With large text the buttons don't fit side by side: stack them instead of overflowing. */
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: var(--space-3);
   max-width: var(--content-width);
@@ -195,7 +198,11 @@
 }
 
 .footerInner :global(.btn) {
-  flex: 1;
+  /* Equal halves normally; a basis in rem makes them wrap once the text is too big. */
+  flex: 1 1 8rem;
+  min-width: 0;
+  padding-inline: var(--space-3);
+  overflow-wrap: anywhere;
   min-height: 54px;
   font-size: 1.15rem;
   text-transform: uppercase;

@@ -81,3 +81,26 @@ test('the completion screen shows rewards without toasts on top', async ({ page 
   // Checked right away (no auto-retry): toasts would also disappear on their own after a while.
   expect(await page.locator('[aria-live] > div').count()).toBe(0)
 })
+
+test('the lesson footer buttons stay on screen with text at 200%', async ({ page }) => {
+  await page.addInitScript(() => {
+    document.addEventListener('DOMContentLoaded', () => {
+      document.documentElement.style.fontSize = '200%'
+    })
+  })
+  for (const width of [320, 375, 412]) {
+    await page.setViewportSize({ width, height: 915 })
+    for (const step of [2, 11]) {
+      await page.goto('about:blank')
+      await page.goto(`${LESSON}?step=${step}`)
+      const footer = page.locator('footer')
+      for (const button of await footer.getByRole('button').all()) {
+        const box = (await button.boundingBox())!
+        expect(box.x, `${width}px step ${step}`).toBeGreaterThanOrEqual(0)
+        expect(box.x + box.width, `${width}px step ${step}`).toBeLessThanOrEqual(width)
+        // The label fits inside its button too.
+        expect(await button.evaluate((b) => b.scrollWidth <= b.clientWidth)).toBe(true)
+      }
+    }
+  }
+})
