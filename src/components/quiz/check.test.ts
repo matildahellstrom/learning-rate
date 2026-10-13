@@ -26,13 +26,26 @@ describe('parseNumber', () => {
     ['-2', -2],
     ['.25', 0.25],
     ['1e-3', 0.001],
+    ['−2', -2],
+    ['−0,5', -0.5],
+    ['0,125', 0.125],
+    ['1,0', 1],
+    ['1.0', 1],
+    [' 1 ', 1],
+    ['+1', 1],
+    ['1e0', 1],
+    ['1.', 1],
+    ['.99999', 0.99999],
   ])('parses %j', (input, expected) => {
     expect(parseNumber(input)).toBe(expected)
   })
 
-  it.each(['', 'abc', '1.2.3', '--1', '1,2,3'])('rejects %j', (input) => {
-    expect(parseNumber(input)).toBeNull()
-  })
+  it.each(['', 'abc', '1.2.3', '--1', '1,2,3', '1,000', '12,345', '1,000.5', '1.000,5'])(
+    'rejects %j',
+    (input) => {
+      expect(parseNumber(input)).toBeNull()
+    },
+  )
 })
 
 describe('checkAnswer', () => {
