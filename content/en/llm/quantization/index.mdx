@@ -120,7 +120,10 @@ Each weight moves by at most half a grid step. With fewer bits the grid is coars
 With $b$ bits, **symmetric** quantization uses integers $-(2^{b-1}-1), \dots, 2^{b-1}-1$ and a scale $s = \max_i |w_i| / (2^{b-1} - 1)$:
 
 $$
-q_i = \operatorname{round}\!\left(\frac{w_i}{s}\right), \qquad \hat w_i = s\, q_i, \qquad |w_i - \hat w_i| \le \frac{s}{2}
+\begin{gathered}
+q_i = \operatorname{round}\!\left(\frac{w_i}{s}\right), \qquad \hat w_i = s\, q_i \\
+|w_i - \hat w_i| \le \frac{s}{2}
+\end{gathered}
 $$
 
 When values aren't centred on zero (activations after a ReLU live in $[0, \infty)$), **affine** quantization adds an integer **zero point** $z$: $\hat w = s\,(q - z)$, so the grid covers exactly $[\min, \max]$. This is the scheme Jacob et al. use, with the convenient property that the real number 0 is represented exactly.

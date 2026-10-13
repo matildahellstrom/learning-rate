@@ -138,13 +138,19 @@ Usually the first part carries most of the weight. Notice the teacher only has t
 Write $z$ for the student's logits, $v$ for the teacher's, and $\sigma_T(z)_i = \frac{e^{z_i/T}}{\sum_j e^{z_j/T}}$ for the softmax at temperature $T$. A common form of the loss is
 
 $$
-\mathcal{L} = \lambda\, T^2 \, \mathrm{KL}\big(\sigma_T(v) \,\|\, \sigma_T(z)\big) + (1 - \lambda)\, \mathrm{CE}\big(y, \sigma_1(z)\big)
+\begin{aligned}
+\mathcal{L} = {} & \lambda\, T^2 \, \mathrm{KL}\big(\sigma_T(v) \,\|\, \sigma_T(z)\big) \\
+& + (1 - \lambda)\, \mathrm{CE}\big(y, \sigma_1(z)\big)
+\end{aligned}
 $$
 
 The gradient of the soft cross-entropy with respect to a student logit is
 
 $$
-\frac{\partial}{\partial z_i}\,\mathrm{CE}\big(\sigma_T(v), \sigma_T(z)\big) = \frac{1}{T}\big(\sigma_T(z)_i - \sigma_T(v)_i\big)
+\begin{aligned}
+& \frac{\partial}{\partial z_i}\,\mathrm{CE}\big(\sigma_T(v), \sigma_T(z)\big) \\
+& \quad = \frac{1}{T}\big(\sigma_T(z)_i - \sigma_T(v)_i\big)
+\end{aligned}
 $$
 
 and the difference in brackets itself shrinks roughly like $1/T$ when $T$ is large compared with the logits. So the soft-target gradients scale like $1/T^2$, and Hinton et al. multiply by $T^2$ to keep the balance between the two terms when $T$ changes.

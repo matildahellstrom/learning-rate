@@ -154,7 +154,12 @@ The chance of accepting the draft and getting token $x$ is $q(x)\min\!\left(1, \
 The total rejection probability is $1 - \sum_y \min(p(y), q(y)) = \sum_y \max(0, p(y) - q(y))$, which is exactly the denominator of $r$. So
 
 $$
-P(\text{output} = x) = \min\big(p(x), q(x)\big) + \max\big(0,\; p(x) - q(x)\big) = p(x)
+\begin{aligned}
+&P(\text{output} = x) \\
+&\quad = \min\big(p(x), q(x)\big) \\
+&\qquad + \max\big(0, p(x) - q(x)\big) \\
+&\quad = p(x)
+\end{aligned}
 $$
 
 Every token is distributed exactly as if the target had sampled it alone. This is modified **rejection sampling**, introduced independently by Leviathan et al. and Chen et al. In practice "exactly" means up to floating-point rounding, since a batched pass can round slightly differently from a single one.

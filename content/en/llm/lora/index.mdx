@@ -139,7 +139,13 @@ At scale the numbers get wild. For GPT-3 (175 billion parameters), the LoRA pape
 Here's the smallest possible version. Let $B$ be a column and $A$ a row:
 
 $$
-B = \begin{pmatrix} 1 \\ 2 \\ 0 \end{pmatrix}, \quad A = \begin{pmatrix} 1 & 0 & -1 \end{pmatrix}, \quad BA = \begin{pmatrix} 1 & 0 & -1 \\ 2 & 0 & -2 \\ 0 & 0 & 0 \end{pmatrix}
+B = \begin{pmatrix} 1 \\ 2 \\ 0 \end{pmatrix}, \quad A = \begin{pmatrix} 1 & 0 & -1 \end{pmatrix}
+$$
+
+Multiply them (each entry is a row number of $B$ times a column number of $A$):
+
+$$
+BA = \begin{pmatrix} 1 & 0 & -1 \\ 2 & 0 & -2 \\ 0 & 0 & 0 \end{pmatrix}
 $$
 
 Check one entry yourself: row 2, column 3 is $2 \times (-1) = -2$.
