@@ -128,11 +128,6 @@
         "id": "context-windows",
         "title": "Context windows & KV cache",
         "order": 6
-      },
-      {
-        "id": "fine-tuning-rlhf",
-        "title": "Fine-tuning & RLHF",
-        "order": 7
       }
     ]
   },

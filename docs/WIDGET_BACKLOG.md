@@ -132,3 +132,30 @@ wrong and watch each attempt's GRPO advantage bar grow or shrink.
 2. `majorityAccuracy(p, 1)` equals p, and for p = 0.5 the result is 0.5 for every odd n.
 3. `grpoAdvantages([1, 0, 0, 1])` ≈ `[1, -1, -1, 1]`; `grpoAdvantages([1, 1, 1])` is `[0, 0, 0]`.
 4. `plurality(['42', '42', '17', '42', '40'])` is `'42'`; `plurality(['a', 'b'])` is `null`.
+
+## llm/fine-tuning-rlhf: be the reward model
+
+**Idea:** the learner sees pairs of short answers, picks the better one, and watches a tiny reward
+model (one score per answer) update after each choice. Two draggable score sliders show
+P(A preferred) as a sigmoid curve with the current gap marked, and the loss for the learner's
+choice. A second panel plots "proxy reward" against "true quality" as optimisation pressure grows,
+to show Goodhart's law.
+
+**Pure functions:**
+
+- `sigmoid(x: number): number`: `1 / (1 + e^(−x))`, stable for large |x|.
+- `preferenceProbability(rA: number, rB: number): number`: `sigmoid(rA − rB)`.
+- `preferenceLoss(rChosen: number, rRejected: number): number`: `−ln sigmoid(rChosen − rRejected)`,
+  computed stably (softplus of the negative gap).
+- `updateScores(scores: number[], chosen: number, rejected: number, lr: number): number[]`: one
+  gradient step on `preferenceLoss`, raising the chosen score and lowering the rejected one by
+  `lr · (1 − sigmoid(gap))`.
+
+**Acceptance tests:**
+
+1. `preferenceProbability(2, 0)` ≈ 0.881 and `preferenceProbability(1, 1)` is 0.5.
+2. `preferenceLoss(2, 0)` ≈ 0.127 and `preferenceLoss(0, 2)` ≈ 2.127.
+3. `preferenceLoss(1000, 0)` is about 0 and `preferenceLoss(0, 1000)` is about 1000, with no
+   `Infinity` or `NaN`.
+4. After `updateScores`, the chosen score rose by exactly as much as the rejected one fell, and
+   other scores are unchanged.
