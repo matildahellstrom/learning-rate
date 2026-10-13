@@ -1,0 +1,234 @@
+---
+id: speculative-decoding
+title: Speculative decoding
+summary: A small model guesses ahead, the big model checks every guess at once. Same text, much faster.
+track: llm
+order: 12
+prerequisites: [next-token-prediction, sampling-temperature, context-windows]
+minutes: 10
+xp: 100
+volatility: fast-moving
+lastVerified: 2026-10-13
+sources:
+  - title: 'Leviathan, Kalman & Matias (2022): Fast Inference from Transformers via Speculative Decoding'
+    url: https://arxiv.org/abs/2211.17192
+  - title: 'Chen et al. (2023): Accelerating Large Language Model Decoding with Speculative Sampling'
+    url: https://arxiv.org/abs/2302.01318
+  - title: 'Google Research: Looking back at speculative decoding (2024)'
+    url: https://research.google/blog/looking-back-at-speculative-decoding/
+  - title: 'Hugging Face: Assisted Generation, a new direction toward low-latency text generation'
+    url: https://huggingface.co/blog/assisted-generation
+  - title: 'vLLM documentation: Speculative decoding'
+    url: https://docs.vllm.ai/en/latest/features/speculative_decoding/
+quiz:
+  - type: choice
+    prompt: 'Why can a big model check 4 drafted tokens in roughly the time it takes to generate 1?'
+    options:
+      - It skips the tokens it agrees with
+      - Generating is limited by loading the weights from memory, and one load can serve all 4 positions
+      - The small model does half of the big model's work
+      - It only checks the first token and trusts the rest
+    answer: 1
+    explanation: 'Each forward pass has to stream billions of weights from memory. Once they are loaded, scoring 4 positions instead of 1 adds little extra time, because the chip had spare arithmetic capacity anyway.'
+  - type: numeric
+    prompt: 'Greedy decoding. The drafter proposes 5 tokens. The big model agrees with the first 2 and would have picked something else for the 3rd. How many tokens does this round add to the text?'
+    answer: 3
+    tolerance: 0
+    explanation: "The 2 agreed tokens are kept, and at the first disagreement the big model's own choice is used instead: 2 + 1 = 3. The last 2 drafts are thrown away."
+  - type: numeric
+    prompt: 'With sampling, the drafter gave its token probability 0.6, and the big model gives the same token probability 0.3. With what probability is the draft kept?'
+    answer: 0.5
+    tolerance: 0.001
+    explanation: 'Keep with probability min(1, p/q) = min(1, 0.3 / 0.6) = 0.5. The drafter was twice as keen as the big model, so the draft survives half the time.'
+  - type: choice
+    prompt: 'Compared with letting the big model generate on its own, the text from speculative decoding is…'
+    options:
+      - Slightly worse, the price of the speed-up
+      - Better, because two models vote
+      - Drawn from exactly the same distribution (up to floating-point rounding)
+      - Identical to what the small model would write
+    answer: 2
+    explanation: "The accept/reject rule is designed so every token has exactly the big model's probabilities. With greedy decoding the text is word-for-word the same."
+  - type: numeric
+    prompt: 'Each draft survives with probability 0.5 and the drafter guesses 2 tokens ahead. Using 1 + α + α² + …, how many tokens do you expect per big-model pass?'
+    answer: 1.75
+    tolerance: 0.001
+    explanation: 'With k = 2 drafts the sum stops at α²: 1 + 0.5 + 0.25 = 1.75 tokens per pass, versus exactly 1 without speculation.'
+  - type: choice
+    prompt: 'In which situation would you expect the smallest speed-up?'
+    options:
+      - The text is very predictable, like code that repeats the prompt
+      - The drafter is tiny and usually agrees with the big model
+      - The drafter often disagrees, and the server is already busy with many requests at once
+      - Greedy decoding instead of sampling
+    answer: 2
+    explanation: 'Low acceptance wastes most drafts, and a busy server has little spare compute to spend on checking guesses. Both shrink the gain.'
+---
+
+# The intern and the editor ✍️
+
+A famous editor writes beautifully but slowly: one word, then a long pause, then the next word.
+
+Her intern is quick but less brilliant. So they try a new routine. The intern scribbles the **next few words** as a guess. The editor reads the whole guess **in one glance**, keeps the part she agrees with, and fixes the first word she doesn't.
+
+The finished text is exactly what the editor would have written. It just arrives much sooner.
+
+That's **speculative decoding**, one of the main tricks for making large language models answer faster.
+
+---
+
+## Why generating text is slow
+
+A language model writes **one token at a time**: predict a token, append it, predict the next. (The next-token prediction lesson covers this.) Each token needs a full **forward pass** through the model.
+
+Here's the surprising part. For a big model, the slow bit of a forward pass is usually not the arithmetic. It's **moving the weights**, billions of numbers, from memory into the chip's compute units.
+
+Once those weights are loaded, scoring **several** positions instead of one costs barely any extra time. The chip had arithmetic to spare anyway.
+
+So the expensive model can **check five words almost as fast as it can write one**. Speculative decoding exploits exactly that.
+
+---
+
+## The trick: guess, then check
+
+You need two models:
+
+- the **target**: the big, smart, slow model whose answers you actually want
+- the **drafter**: a much smaller, faster model (it must use the same tokens)
+
+One round goes like this:
+
+1. The drafter guesses the next few tokens, one by one. That's cheap.
+2. The target runs **one** forward pass over all the guesses at once. That gives its own prediction at every position.
+3. Walk through the guesses from left to right. Keep each guess the target agrees with.
+4. At the **first disagreement**, use the target's token instead and throw away the rest of the draft.
+
+Then start the next round from the new end of the text.
+
+🎁 Bonus: if the target agrees with **every** guess, its pass also predicted the token after the last one, so you get that one for free.
+
+---
+
+## Worked example
+
+Prompt: _"The capital of France is"_. The drafter guesses 4 tokens:
+
+**Paris** · **.** · **It** · **is**
+
+The target looks at all four positions in one pass. Its own picks would be:
+
+**Paris** · **.** · **The** · …
+
+🤔 Before you read on: how many tokens does this round add to the text?
+
+- "Paris": agree, keep.
+- ".": agree, keep.
+- "It": the target would have said "The". Stop, and write **The** instead.
+- "is": thrown away, because it was built on a word we just rejected.
+
+**Three tokens** from one expensive pass, where normal decoding gives one. And in the worst case, a wrong first guess, you still get the target's own token: one per pass, as before (plus the small cost of drafting).
+
+---
+
+## Why the answer doesn't change
+
+With **greedy** decoding (always take the most likely token) it's easy to see: every token we keep is exactly the one the target would have picked.
+
+With **sampling** (the sampling lesson covers this) the target doesn't pick one fixed token; it rolls dice using its probabilities. A cleverer rule keeps those dice fair. Call the target's probability for the drafted token $p$ and the drafter's $q$:
+
+- If the target likes the token **at least as much** as the drafter did ($p \ge q$), always keep it.
+- If the drafter was **over-keen** ($p$ smaller than $q$), keep it only with probability $p / q$.
+- If it's rejected, sample a replacement from the probability the target has **left over**, the tokens the drafter under-rated.
+
+Example: the drafter gave "Paris" 0.8 and the target gives it 0.6. Keep it with probability 0.6 / 0.8 = 0.75.
+
+<Deeper title="Go deeper: why the output distribution is exactly the target's">
+The drafter proposes $x \sim q$. We accept with probability $\min\!\left(1, \frac{p(x)}{q(x)}\right)$, and on rejection we sample from the residual
+
+$$
+r(x) = \frac{\max\big(0,\; p(x) - q(x)\big)}{\sum_y \max\big(0,\; p(y) - q(y)\big)}
+$$
+
+The chance of accepting the draft and getting token $x$ is $q(x)\min\!\left(1, \frac{p(x)}{q(x)}\right) = \min\big(p(x), q(x)\big)$.
+
+The total rejection probability is $1 - \sum_y \min(p(y), q(y)) = \sum_y \max(0, p(y) - q(y))$, which is exactly the denominator of $r$. So
+
+$$
+P(\text{output} = x) = \min\big(p(x), q(x)\big) + \max\big(0,\; p(x) - q(x)\big) = p(x)
+$$
+
+Every token is distributed exactly as if the target had sampled it alone. This is modified **rejection sampling**, introduced independently by Leviathan et al. and Chen et al. In practice "exactly" means up to floating-point rounding, since a batched pass can round slightly differently from a single one.
+
+</Deeper>
+
+---
+
+## How much faster?
+
+It depends on the **acceptance rate** $\alpha$: how often a draft token survives. Suppose each survives with chance $\alpha$ and the drafter guesses $k$ tokens ahead.
+
+The first guess survives with chance $\alpha$, the first two with $\alpha^2$, and so on. Counting the target's own token that always comes at the end, one pass yields on average
+
+$$
+1 + \alpha + \alpha^2 + \dots + \alpha^k \text{ tokens}
+$$
+
+With $\alpha = 0.8$ and $k = 4$: 1 + 0.8 + 0.64 + 0.512 + 0.41 ≈ **3.4 tokens per pass**.
+
+🤔 Predict: what if the drafter is worse, with $\alpha = 0.5$? (Answer: 1 + 0.5 + 0.25 + 0.125 + 0.0625 ≈ 1.9.)
+
+Drafting isn't free, so real speed-ups are smaller than these counts. The original papers reported about **2–3×** faster generation for an 11B-parameter T5 model, and **2–2.5×** for the 70B Chinchilla model, with no change in output.
+
+<Deeper title="Go deeper: the closed form and the trade-off">
+The sum is a geometric series, so the expected number of tokens per target pass is
+
+$$
+\mathbb{E}[\text{tokens}] = \frac{1 - \alpha^{k+1}}{1 - \alpha}
+$$
+
+(Leviathan et al. derive this under the simplifying assumption that acceptances are independent.) Longer drafts have diminishing returns: as $k \to \infty$ the count approaches $1/(1-\alpha)$, which is 5 for $\alpha = 0.8$. Meanwhile each extra draft token costs a drafter pass and some target compute that is wasted whenever an earlier guess fails. The best $k$ balances the two, and depends on how cheap the drafter is relative to the target.
+
+</Deeper>
+
+---
+
+## Where do the guesses come from?
+
+Anything that guesses well and fast can be a drafter. Some popular choices:
+
+- **A smaller sibling model** from the same family, sharing the tokeniser. Drafters are often trained to imitate the target (the distillation lesson covers this).
+- **Copying from the context.** When editing code or quoting a document, the next tokens often already appear in the prompt, so simple lookups make great guesses.
+- **Extra prediction heads** bolted onto the target itself, trained to guess a few tokens ahead (methods like Medusa and EAGLE).
+- **Multi-token prediction.** Some models are trained to predict more than the next token. DeepSeek-V3's report says its extra module's second-token guess was accepted 85–90% of the time, giving about 1.8× more tokens per second.
+
+This isn't just a lab trick. As of October 2026, open-source serving engines such as vLLM support several of these drafting methods, and back in 2024 Google wrote that speculative decoding helps AI Overviews in Search answer faster.
+
+---
+
+## Common misconceptions
+
+- **"It's an approximation, so quality drops."** No. The target has the final say on every token, and the output follows its distribution exactly (up to floating-point rounding).
+- **"The small model writes the answer."** It only proposes. Anything the target disagrees with is replaced.
+- **"It saves compute."** It actually does **more** total arithmetic, since rejected drafts are wasted work. It trades spare compute for lower **latency**: less waiting per token.
+- **"It always helps."** If the drafter rarely agrees, or the server is already busy batching many users' requests (so there is no spare compute), the gain shrinks or disappears.
+
+---
+
+## Quiz time 🧠
+
+Six questions. Grab a pencil for the numeric ones.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- Generating is slow mainly because each token needs a full pass that **streams all the weights** from memory.
+- A cheap **drafter** guesses several tokens, and the big **target** checks them all in **one pass**, keeping the agreed prefix plus one token of its own.
+- A clever **accept/reject rule** makes the result follow the target's distribution exactly: faster, not worse.
+- The speed-up depends on the **acceptance rate**: on average $1 + \alpha + \dots + \alpha^k$ tokens per pass.
+
+**Coming up:** the distillation lesson shows how small models learn to imitate big ones (handy for training good drafters), and the quantization lesson shrinks the weights themselves so there is less to move.
+
+Hit **Finish** to collect your XP! 🏁

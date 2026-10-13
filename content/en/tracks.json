@@ -153,11 +153,6 @@
         "id": "distillation",
         "title": "Distillation",
         "order": 11
-      },
-      {
-        "id": "speculative-decoding",
-        "title": "Speculative decoding",
-        "order": 12
       }
     ]
   },
