@@ -58,6 +58,10 @@ test('a new player finishes the gradient descent lesson and keeps their progress
 
   // Progress survives a reload.
   await page.getByRole('link', { name: 'Back to map' }).click()
+  // Focus follows the route change instead of falling back to <body>.
+  await expect
+    .poll(() => page.evaluate(() => document.activeElement?.closest('main') !== null))
+    .toBe(true)
   await page.reload()
   await expect(page.getByText('Level 2').first()).toBeVisible()
   await expect(page.getByText('180 XP')).toBeVisible()

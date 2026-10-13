@@ -1,7 +1,8 @@
 import { MDXProvider } from '@mdx-js/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router'
+import { Link, ScrollRestoration, useParams, useSearchParams } from 'react-router'
 import { gameStore, useGameState } from '../app/game'
+import { hasNavigated } from '../app/navigation'
 import { usePageTitle } from '../app/usePageTitle'
 import { mdxComponents } from '../components/mdxComponents'
 import { getLesson, lessonTitle, type Lesson } from '../content/lessons'
@@ -54,9 +55,12 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
 
   // Moving to a new step: scroll up and move focus to the new content, so screen-reader and
   // keyboard users start reading from the top of the step.
+  // On first render, only move focus if we arrived from another page of the app (not on a fresh
+  // page load or reload, where the browser's own starting point is the right one).
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false
+      if (hasNavigated()) stepRef.current?.focus({ preventScroll: true })
       return
     }
     window.scrollTo({ top: 0 })
@@ -156,6 +160,7 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
           )}
         </div>
       </footer>
+      <ScrollRestoration />
     </div>
   )
 }
