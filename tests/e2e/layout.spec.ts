@@ -104,3 +104,32 @@ test('the lesson footer buttons stay on screen with text at 200%', async ({ page
     }
   }
 })
+
+test('with text at 200% the reward toast stays one line below the header', async ({ page }) => {
+  await page.setViewportSize({ width: 412, height: 915 })
+  await page.addInitScript(() => {
+    document.addEventListener('DOMContentLoaded', () => {
+      document.documentElement.style.fontSize = '200%'
+    })
+  })
+  await page.goto(`${LESSON}?step=6`)
+  await page.getByLabel('Learning rate η').fill('0.5')
+  await page.getByRole('button', { name: 'Step', exact: true }).click()
+
+  const toast = page.locator('[aria-live] > div').filter({ hasText: 'XP' })
+  await expect(toast).toBeVisible()
+  // Measure where it settles, after its pop-in animation.
+  await toast.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
+  const toastBox = (await toast.boundingBox())!
+  // One line, not a tower of five.
+  expect(toastBox.height).toBeLessThan(60)
+  for (const target of [
+    page.locator('header').first(),
+    page.getByText(/^Step 1 · loss/),
+    page.getByText('Three stars, perfect!'),
+  ]) {
+    expect(overlaps(toastBox, (await target.boundingBox())!)).toBe(false)
+  }
+  // Screen readers still get every reward, even if the line is cut off visually.
+  await expect(toast).toContainText('Streak started')
+})

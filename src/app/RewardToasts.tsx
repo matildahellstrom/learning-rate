@@ -10,6 +10,7 @@ type Item = { icon: string; text: string }
 type Toast = { id: number; items: Item[] }
 
 const TOAST_MS = 2500
+const PRIORITY: Record<Reward['type'], number> = { levelUp: 0, badge: 1, xp: 2, streak: 3 }
 let nextId = 0
 
 function toItem(reward: Reward): Item | null {
@@ -44,7 +45,11 @@ export function RewardToasts() {
     () =>
       gameStore.onRewards((rewards) => {
         if (rewardToastsSuppressed()) return
-        const items = rewards.map(toItem).filter((x): x is Item => x !== null)
+        // Most valuable first: the toast is one line, and the end may be cut off.
+        const items = [...rewards]
+          .sort((a, b) => PRIORITY[a.type] - PRIORITY[b.type])
+          .map(toItem)
+          .filter((x): x is Item => x !== null)
         if (items.length === 0) return
         const id = nextId++
         setToast({ id, items })

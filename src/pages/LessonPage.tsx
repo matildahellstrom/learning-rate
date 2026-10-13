@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperti
 import { Link, ScrollRestoration, useParams, useSearchParams } from 'react-router'
 import { gameStore, useGameState } from '../app/game'
 import { hasNavigated } from '../app/navigation'
+import { useHeaderHeight } from '../app/useHeaderHeight'
 import { usePageTitle } from '../app/usePageTitle'
 import { mdxComponents } from '../components/mdxComponents'
 import { getLesson, lessonTitle, tracks, type Lesson } from '../content/lessons'
@@ -49,6 +50,8 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
   )
   const finished = atDone && completion !== null
   const stepRef = useRef<HTMLDivElement>(null)
+  const headerRef = useRef<HTMLElement>(null)
+  useHeaderHeight(headerRef)
   const isFirstRender = useRef(true)
 
   useEffect(
@@ -141,7 +144,7 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
   const { Content } = lesson
   return (
     <div className={styles.lesson} style={themed}>
-      <header className={styles.top}>
+      <header ref={headerRef} className={styles.top}>
         <Link to="/" className={styles.close} aria-label={t('lesson.close')}>
           ✕
         </Link>

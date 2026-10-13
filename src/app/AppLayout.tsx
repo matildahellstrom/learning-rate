@@ -4,10 +4,13 @@ import { t } from '../i18n'
 import styles from './AppLayout.module.css'
 import { useFocusOnNavigation } from './navigation'
 import { StatsBar } from './StatsBar'
+import { useHeaderHeight } from './useHeaderHeight'
 
 /** Frame for the map and profile: header with stats, content, and navigation. */
 export function AppLayout() {
   const mainRef = useRef<HTMLElement>(null)
+  const headerRef = useRef<HTMLElement>(null)
+  useHeaderHeight(headerRef)
   useFocusOnNavigation(mainRef, useLocation().pathname)
 
   return (
@@ -23,7 +26,7 @@ export function AppLayout() {
       >
         {t('skipToContent')}
       </a>
-      <header className={styles.header}>
+      <header ref={headerRef} className={styles.header}>
         <Link to="/" className={styles.brand}>
           <span className={styles.logo} aria-hidden="true">
             ⚡
