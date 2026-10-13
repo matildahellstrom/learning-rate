@@ -101,7 +101,8 @@ export const en = {
     'You earn a freeze every 7 days in a row (max 2). A freeze saves your streak if you miss a day.',
   'profile.badges': 'Badges',
   'profile.locked': 'Locked',
-  'profile.days': '{days} days',
+  'profile.days.one': '{days} day',
+  'profile.days.other': '{days} days',
   'profile.storageTitle': 'Where is my progress saved?',
   'profile.storageText':
     'Only in this browser on this device. Safari may clear it after 7 days without a visit; adding the app to your home screen keeps it safe.',

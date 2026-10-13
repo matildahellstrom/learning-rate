@@ -4,7 +4,7 @@ import { useToday } from '../app/useToday'
 import { badges } from '../content/lessons'
 import { levelFromXp } from '../game/levels'
 import { activeStreak, MAX_FREEZES } from '../game/streak'
-import { t } from '../i18n'
+import { t, tn } from '../i18n'
 import styles from './ProfilePage.module.css'
 
 export function ProfilePage() {
@@ -12,18 +12,19 @@ export function ProfilePage() {
   const state = useGameState()
   const level = levelFromXp(state.xp)
   const today = useToday()
+  const currentStreak = activeStreak(state.streak, today)
 
   const stats = [
     { label: t('profile.level'), value: level.level, icon: '⬆️' },
     { label: t('profile.totalXp'), value: state.xp, icon: '⭐' },
     {
       label: t('profile.streak'),
-      value: t('profile.days', { days: activeStreak(state.streak, today) }),
+      value: tn('profile.days', currentStreak, { days: currentStreak }),
       icon: '🔥',
     },
     {
       label: t('profile.bestStreak'),
-      value: t('profile.days', { days: state.streak.best }),
+      value: tn('profile.days', state.streak.best, { days: state.streak.best }),
       icon: '🏆',
     },
     { label: t('profile.freezes'), value: `${state.streak.freezes} / ${MAX_FREEZES}`, icon: '🧊' },

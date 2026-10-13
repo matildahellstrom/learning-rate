@@ -24,7 +24,8 @@
     "playwright.config.ts",
     "src/content/remarkSteps.ts",
     "src/content/rehypeFocusableMath.ts",
-    "src/i18n",
+    "src/i18n/index.ts",
+    "src/i18n/en.ts",
     "tests"
   ]
 }
