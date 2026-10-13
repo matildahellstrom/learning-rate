@@ -89,11 +89,20 @@ test('a tab that cannot save says so and celebrates nothing', async ({ page }) =
   await expect(page.getByText(/older version of Learning Rate/)).toBeVisible()
   await expectAccessible(page)
 
+  // The challenge shows how the run went, but celebrates nothing.
+  await page.goto(`${LESSON}?step=6`)
+  await page.getByLabel('Learning rate η').fill('0.5')
+  await page.getByRole('button', { name: 'Step', exact: true }).click()
+  await expect(page.getByText(/Not saved: this tab can't save progress/)).toBeVisible()
+  await expect(page.getByText('Three stars, perfect!')).toHaveCount(0)
+  expect(await page.locator('canvas').count()).toBe(0)
+
   await page.goto(`${LESSON}?step=11`)
   await expect(page.getByText(/older version of Learning Rate/)).toBeVisible()
   await page.getByRole('button', { name: /Finish/ }).click()
   await expect(page.getByRole('heading', { name: 'Lesson complete!' })).toBeVisible()
   await expect(page.getByText(/Nothing was saved in this tab/)).toBeVisible()
+  expect(await page.locator('canvas').count()).toBe(0)
   await expect(page.getByText('+100 XP')).toHaveCount(0)
   await expect(page.getByText(/Level up!/)).toHaveCount(0)
   expect(await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY)).toBe(before)

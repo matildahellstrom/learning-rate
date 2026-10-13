@@ -1,5 +1,5 @@
 import { useCallback, useId, useMemo, useState, type ReactNode } from 'react'
-import { gameStore, useGameState } from '../../app/game'
+import { gameStore, useGameState, useReadOnly } from '../../app/game'
 import { t } from '../../i18n'
 import { useLesson } from '../../lesson/context'
 import { ChallengeContext, type WidgetEvent } from '../../widgets/events'
@@ -20,6 +20,9 @@ type Props = {
 export function Challenge({ id, title, goal, stars: thresholds, children }: Props) {
   const { lesson } = useLesson()
   const best = useGameState().lessons[lesson.id]?.challengeStars[id] ?? 0
+  // A tab that can't save (see ReadOnlyBanner) still shows how the run went, but doesn't
+  // celebrate stars that won't be kept.
+  const readOnly = useReadOnly()
   const [last, setLast] = useState<{ steps: number; stars: number } | null>(null)
   // Counts three-star results; each one remounts <Confetti> for a fresh burst.
   const [bursts, setBursts] = useState(0)
@@ -38,7 +41,7 @@ export function Challenge({ id, title, goal, stars: thresholds, children }: Prop
       }
       const stars = starsForSteps(event.steps, thresholds)
       setLast({ steps: event.steps, stars })
-      if (stars === 3) setBursts((n) => n + 1)
+      if (stars === 3 && !gameStore.isReadOnly()) setBursts((n) => n + 1)
       if (stars > 0) {
         gameStore.dispatch({ type: 'challengeScored', lessonId: lesson.id, challengeId: id, stars })
       }
@@ -67,14 +70,16 @@ export function Challenge({ id, title, goal, stars: thresholds, children }: Prop
       {bursts > 0 && <Confetti key={bursts} count={90} originY={0.45} />}
       <div aria-live="polite" className={styles.result}>
         {last && (
-          <p className={last.stars === 3 ? styles.perfect : undefined}>
+          <p className={last.stars === 3 && !readOnly ? styles.perfect : undefined}>
             {last.steps === 1
               ? t('challenge.resultOne')
               : t('challenge.result', { steps: last.steps })}{' '}
             <Stars count={last.stars} />{' '}
-            {nextStar === null
-              ? t('challenge.maxStars')
-              : t('challenge.nextStar', { steps: nextStar })}
+            {readOnly
+              ? t('challenge.notSaved')
+              : nextStar === null
+                ? t('challenge.maxStars')
+                : t('challenge.nextStar', { steps: nextStar })}
           </p>
         )}
       </div>

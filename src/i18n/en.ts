@@ -68,6 +68,7 @@ export const en = {
   'challenge.result': 'Reached the bottom in {steps} steps.',
   'challenge.resultOne': 'Reached the bottom in a single step.',
   'challenge.nextStar': 'Get it in {steps} steps or fewer for the next star.',
+  'challenge.notSaved': "(Not saved: this tab can't save progress.)",
   'challenge.maxStars': 'Three stars, perfect!',
 
   'widget.learningRate': 'Learning rate η',

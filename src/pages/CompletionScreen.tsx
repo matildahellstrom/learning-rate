@@ -41,10 +41,11 @@ export function CompletionScreen({ lesson, rewards, quizCorrect, onReview, style
 
   return (
     <main className={styles.screen} style={style}>
-      <Confetti />
+      {/* Nothing to celebrate in a tab that can't save (see ReadOnlyBanner). */}
+      {!readOnly && <Confetti />}
       <div className={styles.hero} aria-hidden="true">
         <span className={styles.rays} />
-        <Eta className={styles.mascot} mood="cheer" hill={false} />
+        <Eta className={styles.mascot} mood={readOnly ? 'happy' : 'cheer'} hill={false} />
       </div>
       <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
         {t('complete.title')}
