@@ -50,6 +50,21 @@ describe('applyAction', () => {
     expect(state.xp).toBe(10)
   })
 
+  // The lesson's quiz intro promises exactly this; keep the two in sync.
+  it('pays quiz XP once per question, even if it was wrong on an earlier attempt', () => {
+    const answer = (correct: boolean) =>
+      ({ type: 'quizAnswered', lessonId: 'gd', questionIndex: 0, correct }) as const
+    const { state } = play([answer(false), answer(true), answer(true)])
+    expect(state.xp).toBe(10)
+  })
+
+  it('gives the perfect-quiz star only when one attempt got every question right', () => {
+    const finish = (quizCorrect: number) =>
+      ({ type: 'lessonFinished', lessonId: 'gd', quizCorrect, quizTotal: 5 }) as const
+    expect(play([finish(4)]).state.lessons.gd.quizPerfect).toBe(false)
+    expect(play([finish(4), finish(5)]).state.lessons.gd.quizPerfect).toBe(true)
+  })
+
   it('pays nothing for a wrong answer, but still counts as activity', () => {
     const { state, rewards } = play([
       { type: 'quizAnswered', lessonId: 'gd', questionIndex: 0, correct: false },
