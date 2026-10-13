@@ -110,3 +110,25 @@ show bits per weight including the scale overhead and the memory for a chosen mo
    group with the 10, still rounds to 0).
 4. An all-zero group returns zeros without dividing by zero.
 5. `bitsPerWeight(4, 32, 8)` is 4.25 and `weightMemoryGB(13e9, 4)` is 6.5.
+
+## llm/reasoning-models: vote-and-group simulator
+
+**Idea:** two small panels. "Vote": sliders for per-sample accuracy p and number of samples n,
+with a chart of majority-vote accuracy against n and a "sample once" button that draws n coloured
+answer chips and shows the plurality. "Group": toggle four to eight attempts between correct and
+wrong and watch each attempt's GRPO advantage bar grow or shrink.
+
+**Pure functions:**
+
+- `majorityAccuracy(p: number, n: number): number`: probability that more than half of n
+  independent samples are correct (n odd): `Σ_(k > n/2) C(n, k) p^k (1 − p)^(n − k)`.
+- `grpoAdvantages(rewards: number[], eps = 1e-8): number[]`: `(r_i − mean) / (std + eps)`, using
+  the population standard deviation; all zeros when every reward is equal.
+- `plurality(answers: string[]): string | null`: the most common answer, `null` on a tie for first.
+
+**Acceptance tests:**
+
+1. `majorityAccuracy(0.8, 3)` ≈ 0.896 and `majorityAccuracy(0.6, 3)` ≈ 0.648.
+2. `majorityAccuracy(p, 1)` equals p, and for p = 0.5 the result is 0.5 for every odd n.
+3. `grpoAdvantages([1, 0, 0, 1])` ≈ `[1, -1, -1, 1]`; `grpoAdvantages([1, 1, 1])` is `[0, 0, 0]`.
+4. `plurality(['42', '42', '17', '42', '40'])` is `'42'`; `plurality(['a', 'b'])` is `null`.

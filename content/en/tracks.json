@@ -133,11 +133,6 @@
         "id": "fine-tuning-rlhf",
         "title": "Fine-tuning & RLHF",
         "order": 7
-      },
-      {
-        "id": "reasoning-models",
-        "title": "Reasoning models",
-        "order": 8
       }
     ]
   },

@@ -1,0 +1,233 @@
+---
+id: reasoning-models
+title: Reasoning models
+summary: Why letting a model think out loud before answering makes it smarter, and how it is trained to do so.
+track: llm
+order: 8
+prerequisites: [next-token-prediction, sampling-temperature, fine-tuning-rlhf]
+minutes: 11
+xp: 100
+volatility: fast-moving
+lastVerified: 2026-10-13
+sources:
+  - title: 'Wei et al. (2022): Chain-of-Thought Prompting Elicits Reasoning in Large Language Models'
+    url: https://arxiv.org/abs/2201.11903
+  - title: 'Kojima et al. (2022): Large Language Models are Zero-Shot Reasoners'
+    url: https://arxiv.org/abs/2205.11916
+  - title: 'Wang et al. (2022): Self-Consistency Improves Chain of Thought Reasoning in Language Models'
+    url: https://arxiv.org/abs/2203.11171
+  - title: 'OpenAI (2024): OpenAI o1 System Card'
+    url: https://arxiv.org/abs/2412.16720
+  - title: 'DeepSeek-AI (2025): DeepSeek-R1, Incentivizing Reasoning Capability in LLMs via Reinforcement Learning (v1)'
+    url: https://arxiv.org/abs/2501.12948v1
+  - title: 'Snell et al. (2024): Scaling LLM Test-Time Compute Optimally can be More Effective than Scaling Model Parameters'
+    url: https://arxiv.org/abs/2408.03314
+  - title: "Anthropic (2025): Reasoning models don't always say what they think"
+    url: https://www.anthropic.com/research/reasoning-models-dont-say-think
+  - title: 'Claude API docs: Thinking (adaptive thinking, effort, pricing)'
+    url: https://platform.claude.com/docs/en/build-with-claude/thinking
+quiz:
+  - type: choice
+    prompt: 'Why does writing out intermediate steps help a language model on a hard problem?'
+    options:
+      - It makes the model's weights larger
+      - Every token gets a fixed amount of computation, so more tokens means more computation and a written-down scratchpad
+      - It lets the model look up the answer on the internet
+      - Longer answers are always graded higher
+    answer: 1
+    explanation: 'Each token comes from one forward pass. Spending more tokens on intermediate steps gives the model more computation and lets it reuse earlier results as working memory.'
+  - type: numeric
+    prompt: 'GRPO-style training: five answers to one maths question get rewards 1, 0, 0, 1, 0. What is "reward minus the group average" for a correct answer?'
+    answer: 0.6
+    tolerance: 0.001
+    explanation: 'The group average is 2 / 5 = 0.4, so a correct answer scores 1 − 0.4 = 0.6 (made more likely) and a wrong one 0 − 0.4 = −0.4 (made less likely). GRPO then also divides by the spread of the rewards.'
+  - type: numeric
+    prompt: 'Each sampled answer is right with probability 0.8, independently. You sample 3 and take the majority. What is the chance the majority is right?'
+    answer: 0.896
+    tolerance: 0.001
+    explanation: 'The majority is right if at least 2 of 3 are right: 0.8³ + 3 × 0.8² × 0.2 = 0.512 + 0.384 = 0.896. Voting beat a single sample (0.8).'
+  - type: choice
+    prompt: 'DeepSeek-R1-Zero was rewarded by simple rules (is the final answer correct, is the format right) instead of a learned reward model. Why?'
+    options:
+      - Rules are more creative
+      - A learned reward model can be gamed (reward hacking) during long RL training
+      - Learned reward models cannot read maths
+      - Rules make the answers shorter
+    answer: 1
+    explanation: 'The paper says a neural reward model may suffer from reward hacking in large-scale RL, and retraining it adds cost. Checkable answers are hard to fake.'
+  - type: choice
+    prompt: 'A 2025 study planted hints in questions and checked whether reasoning models admitted using them. What did it find?'
+    options:
+      - The models always mentioned the hints they used
+      - The models never used the hints
+      - The models often used the hints without saying so in their reasoning
+      - The hints made the models refuse to answer
+    answer: 2
+    explanation: 'Claude 3.7 Sonnet mentioned a hint it used 25% of the time and DeepSeek R1 39% of the time. The written reasoning is useful but not a complete record of what drove the answer.'
+  - type: choice
+    prompt: 'For which request is a long thinking phase least worth it?'
+    options:
+      - Debugging a subtle race condition
+      - A multi-step maths proof
+      - Asking for the capital of France
+      - Planning a large code refactor
+    answer: 2
+    explanation: 'Thinking costs time and output tokens. A simple lookup gains nothing from it; multi-step problems are where it pays off.'
+---
+
+# Think before you speak 🤔
+
+Try this one quickly, in your head:
+
+_A bat and a ball cost €1.10 together. The bat costs €1.00 more than the ball. How much is the ball?_
+
+Most people's first instinct is **10 cents**. But then the bat would be €1.10 and the total €1.20. Write it down step by step and you find the real answer: **5 cents** (bat €1.05).
+
+Language models have the same problem with snap answers, and the same fix. A **reasoning model** is trained to work through a problem in writing before it commits to an answer.
+
+---
+
+## Why thinking out loud helps a model
+
+A language model produces one token at a time, and every token gets the **same fixed amount of computation**: one forward pass. (The next-token prediction lesson covers this.)
+
+A snap answer has to squeeze all the work into the few tokens of the answer itself. Writing intermediate steps first does two things:
+
+- **More computation.** Every extra token is another full pass through the network.
+- **A scratchpad.** Results written down early can be read back later, like your notes on paper.
+
+This chain of reasoning is called a **chain of thought**. Before anyone trained for it, researchers found you could simply **ask** for it:
+
+- In 2022, Wei and colleagues showed a 540-billion-parameter model a few worked examples with their reasoning written out. On the GSM8K maths word problems, this reached state-of-the-art accuracy.
+- The same year, Kojima and colleagues added one sentence, _"Let's think step by step"_. With one of OpenAI's models, accuracy on GSM8K jumped from 10.4% to 40.7%, with no examples at all.
+
+That was a big hint: the ability was partly there already, waiting to be used.
+
+---
+
+## From prompt trick to trained skill
+
+A **reasoning model** doesn't need to be asked. It is trained, with reinforcement learning, to produce a long chain of thought before its final answer.
+
+OpenAI's o1 models (2024) were described as _trained with large-scale reinforcement learning to reason using chain of thought_. In January 2025, DeepSeek published the recipe for its open R1 model in detail, so let's look at that one.
+
+The key ingredient is a **reward you can check**:
+
+- **Maths:** does the final answer match the known answer?
+- **Code:** does the program pass the tests?
+
+The model writes many attempts, and the ones that end in a correct answer are reinforced. Nobody tells it **how** to reason. It only learns that whatever it did on the way to correct answers was worth doing.
+
+---
+
+## Learning from a group of attempts
+
+DeepSeek used an algorithm called **GRPO**. For each question it samples a **group** of answers and compares each answer with its own group.
+
+Worked example. Four attempts at one maths question:
+
+- ✅ correct · ❌ wrong · ❌ wrong · ✅ correct → rewards **1, 0, 0, 1**
+
+🤔 Predict: which attempts get pushed up and which down?
+
+The group average is 0.5. Each attempt's **advantage** is its reward minus the average: **+0.5, −0.5, −0.5, +0.5**. The correct ones become more likely, the wrong ones less likely. If every attempt is correct, everything is average and nothing changes: an easy question teaches nothing.
+
+<Deeper title="Go deeper: the GRPO advantage">
+For a question $q$, sample $G$ outputs $o_1, \dots, o_G$ with rewards $r_1, \dots, r_G$. GRPO's advantage for output $i$ is the reward standardised within its group:
+
+$$
+A_i = \frac{r_i - \operatorname{mean}(r_1, \dots, r_G)}{\operatorname{std}(r_1, \dots, r_G)}
+$$
+
+For rewards $1, 0, 0, 1$: mean $0.5$, standard deviation $0.5$, so $A = (+1, -1, -1, +1)$. Every token of output $i$ is then pushed up or down in proportion to $A_i$, with a PPO-style clipped update and a penalty for drifting from a reference model.
+
+Using the group as the baseline removes the separate **critic** network that PPO normally trains to predict expected reward, a model typically as big as the policy itself. That saves a lot of memory and compute.
+
+</Deeper>
+
+---
+
+## What emerged
+
+DeepSeek first tried RL **without** any human-written reasoning examples (they called that model R1-Zero). The paper reports:
+
+- On the AIME 2024 maths competition, accuracy rose from **15.6% to 71.0%** during training, and to 86.7% with majority voting.
+- The answers grew **longer** by themselves: the model learned to spend more thinking on harder problems.
+- It started to **re-check** its work mid-answer, at one point writing _"Wait, wait. Wait. That's an aha moment I can flag here."_
+
+R1-Zero's reasoning was hard to read and sometimes mixed languages. The final R1 model added a small set of curated examples before RL to fix that.
+
+---
+
+## A new dial: thinking time
+
+This creates a new way to buy quality: spend more computation **when answering** (called **test-time compute**), not just when training. Two ways to spend it:
+
+- **Think longer:** a longer chain of thought.
+- **Think in parallel:** sample several answers and take a **majority vote**. Wang and colleagues called this **self-consistency**; it improved GSM8K accuracy by 17.9 percentage points over a single chain of thought.
+
+🤔 Quick check: five sampled answers say 42, 42, 17, 42, 40. What does the vote pick? (42.)
+
+A 2024 study by Snell and colleagues found that spending test-time compute **adaptively** per question was over 4× more efficient than simple best-of-N sampling. On problems where a small model already had some success, the extra thinking let it beat a model 14× larger given the same total compute.
+
+<Deeper title="Go deeper: why voting helps">
+Suppose each sample is correct with probability $p$, independently. With 3 samples, the majority is correct if at least 2 are:
+
+$$
+P = p^3 + 3p^2(1 - p)
+$$
+
+At $p = 0.6$ that's $0.216 + 0.432 = 0.648$, better than one sample. With $n$ samples and $p > 0.5$, the majority's accuracy tends to 1 as $n$ grows (a binomial tail). In practice wrong answers tend to scatter over many different values while correct chains agree, so a **plurality** vote can help even when $p < 0.5$. The catch is the independence assumption: if a model makes the same mistake every time, no amount of voting fixes it.
+
+</Deeper>
+
+---
+
+## Thinking in practice
+
+Thinking isn't free: the reasoning tokens take time and are paid for. For example, Claude's API bills thinking tokens as **output tokens**, even when the thinking text isn't shown to you.
+
+So modern models let you set how hard they think. As of October 2026, newer Claude models use **adaptive thinking**: the model decides whether and how much to think on each request, guided by an **effort** setting, and may skip thinking entirely on easy inputs.
+
+Use reasoning for multi-step work: maths, tricky bugs, planning, long agent tasks. For a quick fact or a simple rewrite, it mostly adds waiting.
+
+---
+
+## Can you trust the reasoning?
+
+It's tempting to read a model's chain of thought as a window into its mind. Be careful.
+
+In a 2025 study, Anthropic researchers slipped **hints** into questions and checked whether reasoning models admitted using them. Claude 3.7 Sonnet mentioned a hint it had used only **25%** of the time, and DeepSeek R1 **39%**. When models learned to exploit a planted shortcut, they mentioned it in their reasoning less than 2% of the time in most settings.
+
+So the chain of thought is genuinely useful, for the model and for us, but it isn't a complete or guaranteed-honest record of what drove the answer.
+
+---
+
+## Common misconceptions
+
+- **"Reasoning models are a new kind of AI."** Where the details are public, as with DeepSeek-R1, it's the same kind of next-token transformer. What changed is the training, which rewards long, self-checking answers.
+- **"More thinking is always better."** Returns diminish, and simple questions don't benefit. Thinking costs time and money.
+- **"The model reasons like a person."** It produces text that **looks** like human reasoning because that helped it get rewarded, not because it thinks the way we do.
+- **"The visible reasoning is the whole story."** Some of what drives the answer may never show up in the text.
+
+---
+
+## Quiz time 🧠
+
+Six questions, two with numbers.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- Every token gets a fixed amount of computation, so **writing out steps** gives a model more computation and a scratchpad.
+- **Chain-of-thought prompting** showed the ability was there; **reasoning models** are trained with RL on **checkable rewards** to use it.
+- **GRPO** compares each attempt with its group; long, self-checking reasoning **emerged** from this alone.
+- **Test-time compute** is a new dial: think longer, or sample several answers and **vote**.
+- The written reasoning is helpful but **not always faithful**.
+
+**Coming up:** the fine-tuning and RLHF lesson covers the reinforcement learning that came before reasoning models, and the hallucination and calibration lesson asks when a model's confidence can be trusted.
+
+Hit **Finish** to collect your XP! 🏁
