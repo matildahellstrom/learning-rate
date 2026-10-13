@@ -41,7 +41,7 @@ quiz:
       - It diverges
       - Nothing changes
     answer: 1
-    explanation: 'Each step multiplies the distance to the bottom by 1 − 2η: that is 0.2 at η = 0.4 but −0.6 at η = 0.8. The minus sign flips the ball to the other side every step. Since 0.6 is less than 1 it still converges, just more slowly!'
+    explanation: 'Measure the position from the bottom (x = 0). Each step multiplies it by 1 − 2η: that is 0.2 at η = 0.4 but −0.6 at η = 0.8. The minus sign flips the ball to the other side every step, and since 0.6 is less than 1 it still ends up closer each time. It converges, just more slowly!'
   - type: choice
     prompt: 'Gradient descent settled in the shallower of two valleys. Why?'
     options:
@@ -116,7 +116,7 @@ $$
 x_{k+1} = x_k - 2\eta x_k = (1 - 2\eta)\, x_k
 $$
 
-Every step multiplies the distance to the minimum by the same factor $r = 1 - 2\eta$, so $x_k = r^k x_0$: a geometric sequence. It shrinks to zero exactly when $|r| < 1$, that is, for $0 < \eta < 1$.
+Every step multiplies the position, measured from the minimum at $0$, by the same factor $r = 1 - 2\eta$, so $x_k = r^k x_0$: a geometric sequence. It shrinks to zero exactly when $|r| < 1$, that is, for $0 < \eta < 1$.
 
 - $0 < \eta < \tfrac12$: $r$ is positive and the ball creeps in from one side.
 - $\tfrac12 < \eta < 1$: $r$ is negative, so the ball overshoots and zig-zags, but still converges.
