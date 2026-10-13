@@ -157,6 +157,7 @@ You asked to be told when the first version was ready, so these phases were buil
 - **State that should live in the URL.** If a screen can be reached with Back/Forward, it belongs in the URL (`?step=done`), and the UI should be _derived_ from it. Keeping "finished" in component state next to a URL step meant two sources of truth that could disagree, and two updates (one instant, one through the router) that showed an in-between frame.
 - **Test at 200% text, not just at narrow widths.** People who enlarge text get longer words than the screen is wide. `position: fixed` elements don't make the page scroll sideways, so overflow checks miss them: check their boxes directly. Fixes are usually `overflow-wrap: anywhere`, `flex-wrap: wrap`, sizes in `rem` and caps like `min(3.6rem, 18vw)`.
 - **Accessible count-up animations.** Animated numbers are for eyes only: mark them `aria-hidden` and give screen readers the final value in a visually hidden span, or they hear "+0 XP".
+- **Callback refs when the element can be swapped.** An effect that reads `ref.current` once keeps watching the first node it saw, even after React replaced it with a new one (the lesson header, after the completion screen). A callback ref runs for every new node, and in React 19 it can return a cleanup to disconnect the old observer.
 
 **Explore:**
 
