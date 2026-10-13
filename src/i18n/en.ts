@@ -46,6 +46,7 @@ export const en = {
   'complete.starGoals': '★ Finish · ★ Perfect quiz · ★ Three stars in every challenge',
 
   'deeper.label': 'Go deeper: the maths',
+  'math.equation': 'Equation',
 
   'quiz.title': 'Quiz',
   'quiz.question': 'Question {n} of {total}',

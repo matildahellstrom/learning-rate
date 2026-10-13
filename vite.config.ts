@@ -5,7 +5,9 @@ import remarkFrontmatter from 'remark-frontmatter'
 import remarkMath from 'remark-math'
 import remarkMdxFrontmatter from 'remark-mdx-frontmatter'
 import { defineConfig } from 'vitest/config'
+import { rehypeFocusableMath } from './src/content/rehypeFocusableMath.ts'
 import { remarkSteps } from './src/content/remarkSteps.ts'
+import { t } from './src/i18n/index.ts'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -18,7 +20,7 @@ export default defineConfig({
       ...mdx({
         providerImportSource: '@mdx-js/react',
         remarkPlugins: [remarkFrontmatter, remarkMdxFrontmatter, remarkSteps, remarkMath],
-        rehypePlugins: [rehypeKatex],
+        rehypePlugins: [rehypeKatex, [rehypeFocusableMath, { label: t('math.equation') }]],
       }),
     },
     react({ include: /\.(mdx|tsx|ts)$/ }),

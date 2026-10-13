@@ -1,4 +1,4 @@
-import { en, type MessageKey } from './en'
+import { en, type MessageKey } from './en.ts'
 
 // One locale for now; a second one is another file with the same keys.
 const messages: Record<MessageKey, string> = en
