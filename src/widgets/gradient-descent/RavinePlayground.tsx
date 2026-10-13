@@ -1,11 +1,12 @@
 import { Coordinates, Mafs, MovablePoint, Plot, Point, Polyline, Theme } from 'mafs'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { t } from '../../i18n'
 import { clamp } from '../../lib/math/clamp'
 import { useChallenge } from '../events'
 import { PlayButtons, Slider, StatusLine } from './Controls'
 import { ravine } from './model'
 import styles from './Playground.module.css'
+import { useBallAccessibility } from './useBallAccessibility'
 import { useDescent } from './useDescent'
 
 type Props = {
@@ -48,11 +49,19 @@ export function RavinePlayground({
     setP0(p)
     descent.reset(p)
   }
+  // Two coordinates, so not a slider: a labelled group that describes where it is.
+  const figureRef = useRef<HTMLElement>(null)
+  useBallAccessibility(figureRef, {
+    role: 'group',
+    'aria-roledescription': t('widget.ballRole'),
+    'aria-label': t('widget.ball2d', { x: p0[0].toFixed(1), y: p0[1].toFixed(1) }),
+  })
+
   const [cx, cy] = descent.current
   const visible = Math.abs(cx) <= X_MAX * 2 && Math.abs(cy) <= Y_MAX * 2
 
   return (
-    <figure className={styles.playground}>
+    <figure ref={figureRef} className={styles.playground}>
       <Mafs
         height={240}
         viewBox={{ x: [-X_MAX, X_MAX], y: [-Y_MAX, Y_MAX], padding: 0 }}

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { openStep } from './helpers.ts'
+import { expectAccessible, openStep } from './helpers.ts'
 
 /** Centre of the draggable ball in page pixels. */
 async function ballCentre(page: Page) {
@@ -18,7 +18,7 @@ for (const { step, slider } of [
 ]) {
   test(`the ball can be dragged by its centre (step ${step})`, async ({ page }) => {
     await openStep(page, step)
-    const start = page.getByLabel(slider)
+    const start = page.getByLabel(slider, { exact: true })
 
     // Before any step (the orange "current position" dot sits exactly on the ball) and after a
     // few steps (the faded path dots start there).
@@ -45,3 +45,24 @@ for (const { step, slider } of [
     }
   })
 }
+
+test('the draggable ball has an accessible name', async ({ page }) => {
+  for (const step of [3, 5, 7, 8]) {
+    await openStep(page, step)
+    const ball = page.locator('.mafs-movable-point')
+    await ball.focus()
+    await expect(page.locator(':focus')).toHaveAccessibleName(/^Ball start position/)
+  }
+
+  // On the 1D bowl it is a slider whose value follows the arrow keys.
+  await openStep(page, 3)
+  const ball = page.getByRole('slider', { name: 'Ball start position' })
+  await expect(ball).toHaveAttribute('aria-valuetext', '3.0')
+  await ball.focus()
+  await page.keyboard.press('ArrowLeft')
+  await expect(ball).not.toHaveAttribute('aria-valuetext', '3.0')
+  await expectAccessible(page)
+
+  await openStep(page, 8)
+  await expectAccessible(page)
+})

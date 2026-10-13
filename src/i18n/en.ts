@@ -81,6 +81,9 @@ export const en = {
   'widget.diverged':
     'Diverged! Each step overshoots more than the last. Try a smaller learning rate.',
   'widget.tooSlow': 'Still going after {steps} steps. Try a bigger learning rate.',
+  'widget.ball': 'Ball start position',
+  'widget.ballRole': 'draggable ball',
+  'widget.ball2d': 'Ball start position: x {x}, y {y}. Move it with the arrow keys.',
   'widget.hint': 'Drag the ball (or use the sliders), then press Step or Play.',
   'widget.startFixed': 'In a challenge the start is fixed. Only the learning rate is yours.',
 

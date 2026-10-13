@@ -1,11 +1,12 @@
 import { Coordinates, Mafs, MovablePoint, Plot, Point, Polyline, Theme } from 'mafs'
-import { useId, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { clamp } from '../../lib/math/clamp'
 import { t } from '../../i18n'
 import { useChallenge } from '../events'
 import { PlayButtons, Slider, StatusLine } from './Controls'
 import { landscapes, type LandscapeId, type Vector } from './model'
 import styles from './Playground.module.css'
+import { useBallAccessibility } from './useBallAccessibility'
 import { useDescent } from './useDescent'
 
 /** Path dots never catch the pointer, so they can't block dragging the ball underneath. */
@@ -53,8 +54,19 @@ export function GradientPlayground({
     descent.reset([newX])
   }
 
+  // The ball works like the Start slider (arrow keys move it along the curve), so it says so.
+  const figureRef = useRef<HTMLElement>(null)
+  useBallAccessibility(figureRef, {
+    role: 'slider',
+    'aria-label': t('widget.ball'),
+    'aria-valuemin': String(xMin),
+    'aria-valuemax': String(xMax),
+    'aria-valuenow': String(x0),
+    'aria-valuetext': x0.toFixed(1),
+  })
+
   return (
-    <figure className={styles.playground}>
+    <figure ref={figureRef} className={styles.playground}>
       <Mafs
         height={260}
         viewBox={{ x: l.domain, y: l.range, padding: 0 }}
