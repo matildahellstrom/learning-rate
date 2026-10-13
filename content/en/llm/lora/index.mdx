@@ -1,0 +1,203 @@
+---
+id: lora
+title: 'LoRA: fine-tuning on a budget'
+summary: Freeze the giant model and train two skinny matrices instead. Same idea, a fraction of the cost.
+track: llm
+order: 10
+prerequisites: [vectors-matrices, svd-low-rank, backpropagation, fine-tuning-rlhf]
+minutes: 10
+xp: 100
+volatility: evergreen
+lastVerified: 2026-10-13
+sources:
+  - title: 'Hu et al. (2021): LoRA, Low-Rank Adaptation of Large Language Models'
+    url: https://arxiv.org/abs/2106.09685
+  - title: 'Dettmers et al. (2023): QLoRA, Efficient Finetuning of Quantized LLMs'
+    url: https://arxiv.org/abs/2305.14314
+  - title: 'Biderman et al. (2024): LoRA Learns Less and Forgets Less'
+    url: https://arxiv.org/abs/2405.09673
+  - title: 'Hugging Face PEFT docs: LoRA conceptual guide'
+    url: https://huggingface.co/docs/peft/main/en/conceptual_guides/lora
+  - title: 'Rajbhandari et al. (2019): ZeRO, Memory Optimizations Toward Training Trillion Parameter Models'
+    url: https://arxiv.org/abs/1910.02054
+quiz:
+  - type: numeric
+    prompt: 'A layer has a 1000 × 1000 weight matrix. How many numbers does a rank-4 LoRA adapter train for it?'
+    answer: 8000
+    tolerance: 0
+    explanation: 'B is 1000 × 4 and A is 4 × 1000: 4,000 + 4,000 = 8,000 numbers, versus 1,000,000 for the full matrix.'
+  - type: choice
+    prompt: 'LoRA starts B at zero. What does the model do on the very first training step?'
+    options:
+      - It outputs zeros
+      - Exactly what the original model does, because B·A is zero
+      - Something random, because A is random
+      - It refuses to train until B is set
+    answer: 1
+    explanation: 'With B = 0 the update B·A is the zero matrix, so the adapted layer computes exactly W·x. Training then moves away from the original model gently.'
+  - type: choice
+    prompt: 'After training, you merge the adapter into the weights (W + B·A). How fast does the model now answer, compared with the original?'
+    options:
+      - Slower, because there are extra matrices
+      - The same speed, because it is one matrix of the original shape again
+      - Twice as fast
+      - It depends on the rank
+    answer: 1
+    explanation: 'Merging gives a single matrix with the original shape, so inference costs exactly what it did before fine-tuning.'
+  - type: choice
+    prompt: 'Which statement about a rank-1 matrix is true?'
+    options:
+      - All its entries are equal
+      - It has only one non-zero entry
+      - Every row is a multiple of the same row pattern
+      - It must be square
+    answer: 2
+    explanation: 'A rank-1 matrix is a column times a row, so each row is that row pattern scaled by one number from the column. Some multiples can be zero.'
+  - type: choice
+    prompt: 'What does LoRA mainly make cheaper?'
+    options:
+      - Running the finished model on a phone
+      - Training and storing a fine-tuned version of a big model
+      - Pre-training a model from scratch
+      - Tokenising text
+    answer: 1
+    explanation: 'LoRA cuts the trainable parameters, optimiser memory and the size of each saved fine-tune. Making the model itself smaller is the job of quantization or distillation.'
+  - type: choice
+    prompt: 'A 2024 study compared LoRA with full fine-tuning on code and maths. What did it find?'
+    options:
+      - LoRA was better at everything
+      - They were indistinguishable
+      - LoRA learned the new domain less well, but forgot less of what the model already knew
+      - LoRA could not learn code at all
+    answer: 2
+    explanation: "Biderman et al. found standard LoRA set-ups learned less of the target domain than full fine-tuning, but preserved more of the base model's other abilities."
+---
+
+# Sticky notes on a giant textbook 📒
+
+Imagine you're a teacher with a brilliant 1,000-page textbook. You want it to fit **your** class: a few corrections, local examples, a different emphasis.
+
+You could reprint the whole book with your edits. Expensive! Or you could leave the book alone and add a stack of **sticky notes**.
+
+**LoRA** (Low-Rank Adaptation) is the sticky-note approach to fine-tuning. The big model stays frozen; you train a tiny add-on that nudges its behaviour.
+
+---
+
+## Why full fine-tuning hurts
+
+Fine-tuning means continuing to train a pre-trained model on your own examples. (The fine-tuning lesson covers why.) Done the straightforward way, **every** weight gets updated.
+
+That's painful for big models:
+
+- **Memory.** Besides the weights, training stores a gradient and optimiser state for every one of them. With the popular Adam optimiser and mixed precision, that's about 16 bytes per parameter: around **112 GB** for a 7-billion-parameter model.
+- **Storage.** Every fine-tuned version is a full copy of the model. Ten customers, ten giant files.
+
+So people asked: do we really need to change all those numbers?
+
+---
+
+## The low-rank bet
+
+The LoRA authors bet that the **change** a model needs for a new task is simple, even when the model itself is huge.
+
+Think of a giant spreadsheet: songs as columns, people as rows, each cell a rating. It looks like millions of independent numbers, but much of it is explained by a few hidden "taste" factors, like how much each person likes guitars and how guitar-heavy each song is.
+
+A matrix that can be built from a few such factors is called **low-rank**. (The SVD lesson covers this properly.) LoRA assumes the fine-tuning **update** to each weight matrix is low-rank, even if the weights themselves aren't.
+
+---
+
+## How LoRA works
+
+Take one weight matrix $W$ in the model, size $d \times k$. Normally a layer computes $W x$.
+
+LoRA freezes $W$ and adds a detour through two skinny matrices:
+
+- $A$, size $r \times k$, squeezes the input down to just $r$ numbers,
+- $B$, size $d \times r$, spreads them back out.
+
+The layer now computes $W x + B A x$. The **rank** $r$ is tiny, often 4 to 16, while $d$ and $k$ can be in the thousands.
+
+Only $A$ and $B$ are trained. And $B$ starts at **zero**, so at the start $BA = 0$ and the model behaves exactly like the original. Training then grows the sticky notes from nothing.
+
+---
+
+## Count the savings
+
+A typical matrix in a large model might be $4096 \times 4096$.
+
+- **Full fine-tuning** trains all of it: 4096 × 4096 = **16,777,216** numbers.
+- **LoRA with r = 8** trains $B$ (4096 × 8) and $A$ (8 × 4096): 32,768 + 32,768 = **65,536** numbers.
+
+That's **256 times fewer**, about 0.4% of the original. 🤔 Predict before you read on: what does doubling the rank to 16 do? (It doubles the count to 131,072: still 128 times fewer.)
+
+At scale the numbers get wild. For GPT-3 (175 billion parameters), the LoRA paper reports about **10,000× fewer** trainable parameters, training memory down from 1.2 TB to 350 GB, and saved checkpoints shrinking from roughly 350 GB to about 35 MB.
+
+---
+
+## A rank-1 sticky note, by hand
+
+Here's the smallest possible version. Let $B$ be a column and $A$ a row:
+
+$$
+B = \begin{pmatrix} 1 \\ 2 \\ 0 \end{pmatrix}, \quad A = \begin{pmatrix} 1 & 0 & -1 \end{pmatrix}, \quad BA = \begin{pmatrix} 1 & 0 & -1 \\ 2 & 0 & -2 \\ 0 & 0 & 0 \end{pmatrix}
+$$
+
+Check one entry yourself: row 2, column 3 is $2 \times (-1) = -2$.
+
+Six numbers describe a $3 \times 3$ update of nine. Every row is the same pattern (1, 0, −1) scaled by 1, 2 or 0. That's what **rank 1** means. A rank-$r$ update is a sum of $r$ such patterns.
+
+<Deeper title="Go deeper: rank, SVD and the scaling factor">
+Any matrix $M$ has a singular value decomposition $M = \sum_i \sigma_i u_i v_i^\top$ with $\sigma_1 \ge \sigma_2 \ge \dots \ge 0$. Keeping the top $r$ terms gives the **best** rank-$r$ approximation in the least-squares sense (the Eckart–Young theorem). LoRA's bet is that the ideal update $\Delta W$ has most of its energy in a few singular directions, so $\Delta W \approx BA$ loses little. The LoRA paper found that a rank as small as 1 was enough on some GPT-3 tasks, though not on every task.
+
+In practice the update is scaled:
+
+$$
+h = W x + \frac{\alpha}{r} B A x
+$$
+
+so that changing $r$ doesn't require re-tuning the learning rate. A is initialised randomly and $B = 0$. Notice the asymmetry in the first step: $\partial L / \partial A = \tfrac{\alpha}{r} B^\top (\partial L / \partial h)\, x^\top = 0$, while $\partial L / \partial B = \tfrac{\alpha}{r}(\partial L / \partial h)(A x)^\top$ is not, so $B$ moves first and $A$ follows.
+
+Parameter count per matrix: $r(d + k)$ instead of $dk$. The memory saving is smaller than this ratio suggests, because the frozen weights and the activations still have to sit in memory.
+
+</Deeper>
+
+---
+
+## Swap, merge, squeeze
+
+Two practical superpowers:
+
+- **No slowdown when serving.** After training you can **merge**: $W' = W + BA$ is one matrix of the original shape, so the model runs exactly as fast as before.
+- **Swappable skills.** Or keep adapters separate: one shared base model plus a small file per task or customer, swapped in as needed.
+
+And one combo: **QLoRA** stores the frozen base model in 4-bit precision (the quantization lesson covers this) and trains LoRA adapters on top. In 2023 that made it possible to fine-tune a 65-billion-parameter model on a **single 48 GB GPU**.
+
+---
+
+## Common misconceptions
+
+- **"LoRA always matches full fine-tuning."** Not always. A 2024 study on code and maths found standard LoRA learned less of the new domain than full fine-tuning, but **forgot less** of what the model already knew. Often a fine trade.
+- **"LoRA makes the model smaller or faster."** It makes **training** and **storing fine-tunes** cheaper. The model itself is as big as before.
+- **"Bigger rank is always better."** Higher ranks cost more and often help little. Start small and check.
+- **"LoRA is only for language models."** It works on any big weight matrix; it's popular for image generators too.
+
+---
+
+## Quiz time 🧠
+
+Six questions. The first one wants a number.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- **Full fine-tuning** updates every weight and needs a lot of memory and storage.
+- **LoRA** freezes the model and learns a low-rank update $BA$ with only $r(d + k)$ numbers per matrix.
+- $B$ starts at zero, so training begins from the original model, and merging afterwards costs **no extra inference time**.
+- LoRA trades a little learning power for big savings, and **forgets less** of what the model knew.
+
+**Coming up:** the quantization lesson shows how to store the frozen weights in 4 bits (the "Q" in QLoRA), and the distillation lesson shrinks a model by teaching a smaller one.
+
+Hit **Finish** to collect your XP! 🏁

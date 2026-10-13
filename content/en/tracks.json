@@ -143,11 +143,6 @@
         "id": "quantization",
         "title": "Quantization",
         "order": 9
-      },
-      {
-        "id": "lora",
-        "title": "LoRA: fine-tuning on a budget",
-        "order": 10
       }
     ]
   },
