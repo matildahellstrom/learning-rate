@@ -111,3 +111,23 @@ You asked to be told when the first version was ready, so these phases were buil
 
 1. Run `git log --format='%an <%ae>'`. What would someone with access to the repo see?
 2. Free GitHub Pages needs a public repo. What would you check before making it public? (Hint: the history, the content licence, and whether any lesson text is copied from somewhere.)
+
+## UI glow-up (2026-10-13)
+
+**Built:** A more game-like, colourful look: every track is a "world" with its own gradient, the map is a winding dotted road of 3D coins with a pulsing START node, the header is a HUD (level chip, shiny XP bar, streak flame), lessons have a glossy progress bar and bouncy quiz feedback, and finishing a lesson (or a three-star challenge) fires confetti. The mascot, Eta (η), is a little ball that rolls downhill, like gradient descent. The font is Nunito, a self-hosted variable font.
+
+**Concepts:**
+
+- **3D without images.** A box-shadow with no blur (`0 6px 0 darker`) draws a solid "ledge" under a button or coin. On `:active` the element moves down (`translateY(4px)`) while the ledge shrinks, so it looks pressed. A second, inset shadow (`inset 0 3px 0 rgb(255 255 255 / 0.2)`) adds a glossy top edge.
+- **CSS custom properties per track.** React sets just `--track` and `--track-2` on each section (`style={{ '--track': 'var(--track-blue)' }}`), and one stylesheet themes every banner, coin and lesson accent from them. `color-mix(in srgb, var(--track) 55%, #000)` derives the darker ledge colour, so no extra tokens are needed.
+- **Contrast on gradients.** axe can't measure text on a gradient (it reports "needs review", not a failure), so we check it ourselves: both gradient stops must pass 4.5:1 with the text colour. Every gradient also sets a solid `background-color` as a fallback.
+- **Animate transform, not opacity.** Every keyframe that touches text uses only `transform` (scale, translate, rotate), so the text is always at full contrast, even mid-animation. Opacity animations are only used on decoration, such as the ring around the START node and the confetti.
+- **Reduced motion in two layers.** Each component turns its own loops off under `prefers-reduced-motion: reduce`. A global rule in `global.css` then shortens any remaining animation to 0.01 ms, so everything snaps to its final, visible state. JavaScript effects check `matchMedia` too: confetti doesn't render, and the XP counter shows the final number straight away.
+- **An SVG path that needs no measuring.** Each map row draws its own piece of the road, from its coin down to the next one. The SVG uses `viewBox="0 0 100 100"` with `preserveAspectRatio="none"`, so CSS can stretch it to any size (`height: calc(100% + gap)`). `vector-effect: non-scaling-stroke` keeps the dots round when it stretches. A dash array of `0.1 15` with round line caps turns a line into a row of dots.
+- **Canvas for confetti.** About 100 small rectangles and dots get a velocity, gravity and spin, and are redrawn with `requestAnimationFrame` for under 3 seconds. The canvas has `pointer-events: none`, so it never blocks clicks, and accessibility checkers still "see" the text underneath.
+- **Responsive without breakpoints.** The map's sideways swing is `clamp(0px, (100vw - 220px) / 2, 76px)`, so it shrinks on narrow phones. The old map was 42px wider than a 320px screen.
+
+**Explore:**
+
+1. In `MapPage.tsx`, remove `vectorEffect="non-scaling-stroke"` from the connector path. What happens to the dots on long, narrow segments, and why?
+2. Open DevTools → Rendering → "Emulate CSS media feature prefers-reduced-motion: reduce" and finish a lesson. Which parts still feel rewarding without motion? What would you add (a sound? a bigger static badge?) for players who turn motion off?
