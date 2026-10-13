@@ -52,6 +52,14 @@ describe('recordActivity', () => {
     expect(streak).toMatchObject({ current: 8, freezes: 0 })
   })
 
+  it('never produces NaN from an unreadable last day', () => {
+    const broken: Streak = { current: 4, best: 4, lastDay: '13/10/2026', freezes: 1 }
+    const { streak, change } = recordActivity(broken, day(14))
+    expect(change).toBe('reset')
+    expect(streak).toEqual({ current: 1, best: 4, lastDay: day(14), freezes: 0 })
+    expect(activeStreak(broken, day(14))).toBe(0)
+  })
+
   it('caps freezes at 2', () => {
     let s: Streak = emptyStreak
     for (let d = 1; d <= 28; d++) s = recordActivity(s, day(d)).streak

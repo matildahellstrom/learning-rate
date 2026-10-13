@@ -1,7 +1,9 @@
 import { applyAction, type GameAction, type GameContext, type Reward } from './engine'
-import { initialGameState, migrate, type GameState } from './state'
+import { initialGameState, migrateSaved, type GameState } from './state'
 
 export const STORAGE_KEY = 'learning-rate:game'
+/** Where unreadable saved data is copied before it is repaired, so nothing is lost for good. */
+export const BACKUP_KEY = 'learning-rate:game:backup'
 
 type KeyValueStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
@@ -18,13 +20,17 @@ export function createGameStore({
   storage: KeyValueStorage | null
   context: () => GameContext
 }) {
-  let state = load(storage)
+  let { state, readOnly } = load(storage)
   const listeners = new Set<() => void>()
   const rewardListeners = new Set<(rewards: Reward[]) => void>()
 
-  function commit(next: GameState) {
+  function commit(next: GameState, { force = false } = {}) {
     state = next
-    save(storage, state)
+    // Data from a newer version of the app is never overwritten (except by an explicit reset).
+    if (!readOnly || force) {
+      save(storage, state)
+      readOnly = false
+    }
     listeners.forEach((l) => l())
   }
 
@@ -54,19 +60,31 @@ export function createGameStore({
     },
 
     reset() {
-      commit(initialGameState())
+      commit(initialGameState(), { force: true })
     },
   }
 }
 
-function load(storage: KeyValueStorage | null): GameState {
+function load(storage: KeyValueStorage | null): { state: GameState; readOnly: boolean } {
+  let raw: string | null | undefined
   try {
-    const raw = storage?.getItem(STORAGE_KEY)
-    return raw ? migrate(JSON.parse(raw)) : initialGameState()
+    raw = storage?.getItem(STORAGE_KEY)
   } catch {
-    // Corrupt JSON or storage blocked (private mode): start fresh rather than crash.
-    return initialGameState()
+    // Storage blocked (private mode): play without saving.
+    return { state: initialGameState(), readOnly: false }
   }
+  if (!raw) return { state: initialGameState(), readOnly: false }
+
+  let saved: unknown
+  try {
+    saved = JSON.parse(raw)
+  } catch {
+    saved = undefined
+  }
+  const { state, repaired, fromNewerVersion } = migrateSaved(saved)
+  // About to replace data we couldn't fully read: keep a copy of the original first.
+  if (repaired) backup(storage, raw)
+  return { state, readOnly: fromNewerVersion }
 }
 
 function save(storage: KeyValueStorage | null, state: GameState) {
@@ -74,6 +92,14 @@ function save(storage: KeyValueStorage | null, state: GameState) {
     storage?.setItem(STORAGE_KEY, JSON.stringify(state))
   } catch {
     // Quota exceeded or storage blocked: the game still works for this visit.
+  }
+}
+
+function backup(storage: KeyValueStorage | null, raw: string) {
+  try {
+    storage?.setItem(BACKUP_KEY, raw)
+  } catch {
+    // Nothing more we can do; the repaired state still loads.
   }
 }
 

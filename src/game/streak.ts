@@ -26,6 +26,13 @@ export function recordActivity(
   }
 
   const gap = daysBetween(streak.lastDay, today)
+  // A day we can't read (gap is NaN): start over rather than let NaN leak into the save.
+  if (!Number.isFinite(gap) || !Number.isFinite(streak.freezes)) {
+    return {
+      streak: withBest({ ...streak, current: 1, freezes: 0, lastDay: today }),
+      change: 'reset',
+    }
+  }
   // Same day, or the clock went backwards: nothing to do.
   if (gap <= 0) return { streak, change: 'unchanged' }
 
@@ -47,6 +54,7 @@ export function recordActivity(
 export function activeStreak(streak: Streak, today: string): number {
   if (streak.lastDay === null) return 0
   const missed = daysBetween(streak.lastDay, today) - 1
+  if (!Number.isFinite(missed)) return 0
   return missed > streak.freezes ? 0 : streak.current
 }
 
