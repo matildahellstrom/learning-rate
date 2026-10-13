@@ -147,3 +147,18 @@ You asked to be told when the first version was ready, so these phases were buil
 
 1. In `MapPage.tsx`, remove `vectorEffect="non-scaling-stroke"` from the connector path. What happens to the dots on long, narrow segments, and why?
 2. Open DevTools → Rendering → "Emulate CSS media feature prefers-reduced-motion: reduce" and finish a lesson. Which parts still feel rewarding without motion? What would you add (a sound? a bigger static badge?) for players who turn motion off?
+
+## Bug bash, round 2 (2026-10-13)
+
+**Built:** After the UI glow-up was merged, a re-test found 7 new bugs, all fixed with tests: Back on the "Lesson complete!" screen changed the URL but not the screen, "Review lesson" flashed the last step, the footer buttons, reward toast, map titles and completion screen broke at 200% text on small phones, screen readers heard the XP count-up start at "+0 XP", and a tab that couldn't save still celebrated rewards it then threw away. Two small extras: unearned stars are now hollow (☆), not just paler, and the hero's Start button gets a double focus ring that shows up on the gradient.
+
+**Concepts:**
+
+- **State that should live in the URL.** If a screen can be reached with Back/Forward, it belongs in the URL (`?step=done`), and the UI should be _derived_ from it. Keeping "finished" in component state next to a URL step meant two sources of truth that could disagree, and two updates (one instant, one through the router) that showed an in-between frame.
+- **Test at 200% text, not just at narrow widths.** People who enlarge text get longer words than the screen is wide. `position: fixed` elements don't make the page scroll sideways, so overflow checks miss them: check their boxes directly. Fixes are usually `overflow-wrap: anywhere`, `flex-wrap: wrap`, sizes in `rem` and caps like `min(3.6rem, 18vw)`.
+- **Accessible count-up animations.** Animated numbers are for eyes only: mark them `aria-hidden` and give screen readers the final value in a visually hidden span, or they hear "+0 XP".
+
+**Explore:**
+
+1. Set your browser's default font size to 200% and walk through a lesson. What else would you change?
+2. Why does `?step=done` show the last step after a reload instead of the celebration? What would you need to store to show the celebration again?
