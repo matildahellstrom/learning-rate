@@ -1,5 +1,5 @@
 import { MDXProvider } from '@mdx-js/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, ScrollRestoration, useParams, useSearchParams } from 'react-router'
 import { gameStore, useGameState } from '../app/game'
 import { hasNavigated } from '../app/navigation'
@@ -57,7 +57,10 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
   // keyboard users start reading from the top of the step.
   // On first render, only move focus if we arrived from another page of the app (not on a fresh
   // page load or reload, where the browser's own starting point is the right one).
-  useEffect(() => {
+  // A layout effect: the step comes from the URL, and router updates render as transitions,
+  // whose plain effects can run a moment after the new step is on screen. Moving focus during
+  // the commit means a fast keypress can't land on the old focus target.
+  useLayoutEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false
       if (hasNavigated()) stepRef.current?.focus({ preventScroll: true })
