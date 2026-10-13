@@ -138,11 +138,6 @@
         "id": "reasoning-models",
         "title": "Reasoning models",
         "order": 8
-      },
-      {
-        "id": "quantization",
-        "title": "Quantization",
-        "order": 9
       }
     ]
   },

@@ -1,0 +1,196 @@
+---
+id: quantization
+title: Quantization
+summary: Store each weight with fewer bits so a giant model fits in a backpack, and runs faster too.
+track: llm
+order: 9
+prerequisites: [vectors-matrices, next-token-prediction, context-windows]
+minutes: 11
+xp: 100
+volatility: fast-moving
+lastVerified: 2026-10-13
+sources:
+  - title: 'Jacob et al. (2017): Quantization and Training of Neural Networks for Efficient Integer-Arithmetic-Only Inference'
+    url: https://arxiv.org/abs/1712.05877
+  - title: 'Dettmers et al. (2022): LLM.int8(), 8-bit Matrix Multiplication for Transformers at Scale'
+    url: https://arxiv.org/abs/2208.07339
+  - title: 'Frantar et al. (2022): GPTQ, Accurate Post-Training Quantization for Generative Pre-trained Transformers'
+    url: https://arxiv.org/abs/2210.17323
+  - title: 'Lin et al. (2023): AWQ, Activation-aware Weight Quantization for LLM Compression and Acceleration'
+    url: https://arxiv.org/abs/2306.00978
+  - title: 'OpenAI (2025): gpt-oss-120b & gpt-oss-20b Model Card'
+    url: https://arxiv.org/abs/2508.10925
+quiz:
+  - type: numeric
+    prompt: 'A model has 13 billion weights. How many gigabytes do they take at 4 bits each? (1 GB = 1 billion bytes.)'
+    answer: 6.5
+    tolerance: 0.05
+    explanation: '4 bits is half a byte, so 13 billion × 0.5 bytes = 6.5 GB. At 16 bits it would be 26 GB.'
+  - type: numeric
+    prompt: 'Symmetric 8-bit quantization of a group whose largest weight is 2.54 uses the scale 2.54 / 127 = 0.02. Which integer is stored for the weight 0.374?'
+    answer: 19
+    tolerance: 0
+    explanation: '0.374 / 0.02 = 18.7, which rounds to 19. Reading it back gives 19 × 0.02 = 0.38, an error of 0.006.'
+  - type: choice
+    prompt: 'A group of weights is 0.1, −0.2, 0.15 and 10, quantized to 4 bits (−7 to 7) with one shared scale. Predict what happens.'
+    options:
+      - Everything is stored almost perfectly
+      - The 10 is clipped and reads back as 7
+      - The three small weights all round to 0
+      - The small weights become 1, −1 and 1
+    answer: 2
+    explanation: 'The scale must cover the outlier: 10 / 7 ≈ 1.43. The small weights divided by 1.43 are all below 0.5, so they round to 0. One outlier wipes out its neighbours.'
+  - type: choice
+    prompt: 'Why does quantizing the weights usually make text generation faster, not just smaller?'
+    options:
+      - Fewer bits means the model makes fewer predictions
+      - Generating is mostly limited by moving weights from memory, and smaller weights move faster
+      - Rounded numbers make the model more confident
+      - It skips the attention layers
+    answer: 1
+    explanation: 'Each new token needs every weight streamed from memory. Halve the bytes and you roughly halve that traffic.'
+  - type: choice
+    prompt: 'Which approach simulates the rounding during training, so the model learns to cope with it?'
+    options:
+      - Post-training quantization (PTQ)
+      - Quantization-aware training (QAT)
+      - Distillation
+      - LoRA
+    answer: 1
+    explanation: 'QAT rounds the weights in the forward pass while training, so the model adapts. PTQ quantizes an already-trained model, usually with a small calibration set.'
+  - type: numeric
+    prompt: 'Each weight takes 4 bits, and every block of 32 weights also shares one 8-bit scale. How many bits per weight is that on average?'
+    answer: 4.25
+    tolerance: 0.001
+    explanation: '4 + 8 / 32 = 4.25 bits per weight. This is exactly the cost of the MXFP4 format.'
+---
+
+# Squeezing a giant into a backpack 🎒
+
+A large language model is a huge pile of numbers. A model with 70 billion weights, each stored as a 16-bit number, needs about **140 GB** just for the weights. That's far more memory than a laptop or a single typical GPU has.
+
+What if each number used only **4 bits**? Then the same model needs about **35 GB**.
+
+That's **quantization**: storing numbers more coarsely, like rounding prices to the nearest euro. You lose a little precision and gain a lot of room.
+
+---
+
+## Numbers have sizes
+
+Every weight is stored with some number of **bits**. Common choices:
+
+- **32-bit float** (FP32): 4 bytes. The classic for training.
+- **16-bit float** (FP16 or BF16): 2 bytes. The usual way to ship a model.
+- **8-bit** (INT8 or FP8): 1 byte.
+- **4-bit** (INT4, FP4 and friends): half a byte.
+
+Memory for the weights is simply **number of weights × bytes per weight**. For a 7-billion-weight model: 28 GB at 32 bits, 14 GB at 16 bits, 7 GB at 8 bits and 3.5 GB at 4 bits.
+
+🤔 Quick check: how big is that 70-billion-weight model at 8 bits? (70 GB.)
+
+The running model also needs memory for other things, like the KV cache (the context windows lesson covers this), so treat these as the floor, not the total.
+
+---
+
+## Smaller is faster, too
+
+When a model generates text, each new token needs **every weight** to be streamed from memory into the compute units. For big models that data movement, not the arithmetic, is usually the bottleneck. (The speculative decoding lesson has another trick built on the same fact.)
+
+So fewer bytes per weight means less to move, and more tokens per second. The GPTQ paper, for example, measured end-to-end speed-ups of about 3.25× over 16-bit on NVIDIA A100 GPUs for its quantized models.
+
+Quantization also lets you use cheaper hardware, or serve more users on the same machine.
+
+---
+
+## Rounding onto a grid
+
+How do you turn a weight like 0.5 into a tiny integer? Pick a **scale** $s$ and round:
+
+**stored integer = round(weight ÷ scale)** · **weight ≈ stored integer × scale**
+
+Take four weights: **0.5, −1.27, 0.03, 0.9**. The largest size is 1.27.
+
+**8-bit** (integers −127 to 127): scale = 1.27 ÷ 127 = 0.01. The stored integers are 50, −127, 3, 90. Multiply back by 0.01 and every weight comes back exactly. Lucky!
+
+**4-bit** (integers −7 to 7): scale = 1.27 ÷ 7 ≈ 0.181. Now 0.5 ÷ 0.181 ≈ 2.76 rounds to **3**, which reads back as 0.544. The 0.9 becomes 5 → 0.907, and the 0.03 rounds to **0**.
+
+Each weight moves by at most half a grid step. With fewer bits the grid is coarser, so the errors grow.
+
+<Deeper title="Go deeper: scales, zero points and the error bound">
+With $b$ bits, **symmetric** quantization uses integers $-(2^{b-1}-1), \dots, 2^{b-1}-1$ and a scale $s = \max_i |w_i| / (2^{b-1} - 1)$:
+
+$$
+q_i = \operatorname{round}\!\left(\frac{w_i}{s}\right), \qquad \hat w_i = s\, q_i, \qquad |w_i - \hat w_i| \le \frac{s}{2}
+$$
+
+When values aren't centred on zero (activations after a ReLU live in $[0, \infty)$), **affine** quantization adds an integer **zero point** $z$: $\hat w = s\,(q - z)$, so the grid covers exactly $[\min, \max]$. This is the scheme Jacob et al. use, with the convenient property that the real number 0 is represented exactly.
+
+Rounding errors don't vanish in a layer: an output $y = \sum_i w_i x_i$ picks up the error $\sum_i (\hat w_i - w_i)\, x_i$. If the errors were independent and uniform on $[-s/2, s/2]$, each would have variance $s^2/12$ and the output error would grow like $\sqrt{n}$ over $n$ inputs. That's why the weights paired with **large** inputs matter most, an idea AWQ builds on.
+
+</Deeper>
+
+---
+
+## The outlier problem 💥
+
+Now try a nastier group of weights: **0.1, −0.2, 0.15, 10**.
+
+🤔 Predict before you read on: what happens to the three small weights at 4 bits?
+
+The scale must stretch to fit the 10: 10 ÷ 7 ≈ 1.43. Divide the small weights by 1.43 and you get 0.07, −0.14 and 0.1. **All three round to 0.** One outlier has wiped out its neighbours.
+
+This isn't a made-up worry. Large transformers develop a few **outlier features**: hidden dimensions whose values are far bigger than the rest. Quantize them naively with everything else and quality collapses.
+
+---
+
+## Taming the outliers
+
+Researchers found several fixes, and real methods combine them:
+
+- **Smaller groups.** Give every block of, say, 32 or 128 weights its own scale, so one outlier only hurts its own block. Storing the extra scales costs a little: 4-bit weights with one 8-bit scale per 32 weights average **4.25 bits**.
+- **Keep outliers in high precision.** LLM.int8() (2022) multiplies the rare outlier dimensions in 16-bit and everything else in 8-bit, more than 99.9% of the values. It reported no loss in quality, even for 175-billion-parameter models.
+- **Protect what matters.** AWQ (2023) noticed that protecting about 1% of **salient** weights, chosen by the size of the activations they meet, greatly reduces the error.
+- **Round smarter.** GPTQ (2022) quantizes weights one at a time and nudges the not-yet-quantized ones to cancel the error so far. It reached 3–4 bits per weight with little accuracy loss, quantizing a 175-billion-parameter model in about four GPU hours.
+
+---
+
+## Recipes in practice
+
+**When** you quantize matters:
+
+- **Post-training quantization (PTQ):** take a finished model and quantize it, using a small **calibration** set of example inputs to choose the scales. Quick and cheap; GPTQ and AWQ work this way.
+- **Quantization-aware training (QAT):** simulate the rounding during training, so the model learns weights that survive it. More work, usually more accurate at low bit-widths.
+
+And **what** you quantize: the **weights** only (the most common for running models on your own machine), the **activations** too (so the arithmetic itself runs in low precision), or the **KV cache** for long contexts.
+
+Newer hardware also computes directly with tiny **floating-point** formats such as FP8 and FP4, where each block of numbers shares a scale. A concrete example: when OpenAI released its open-weight gpt-oss models in August 2025, the mixture-of-experts weights (over 90% of all parameters) were stored in the MXFP4 format at about 4.25 bits per parameter, which let the 120-billion-parameter model fit on a single 80 GB GPU.
+
+---
+
+## Common misconceptions
+
+- **"A quantized model is a different, smaller model."** It's the same model with coarser numbers. Making a genuinely smaller model is distillation (the distillation lesson covers it).
+- **"Quantization is free."** 8-bit is often nearly lossless and good 4-bit methods come close, but every bit you remove costs some accuracy, and going lower gets harder and harder. Always evaluate on your own task.
+- **"Fewer bits are always faster."** Only if the hardware and software support them. Otherwise the numbers are unpacked back to 16-bit on the fly: you still save memory and bandwidth, but not arithmetic.
+- **"It's only for inference."** Mostly, but QLoRA fine-tunes adapters on top of a 4-bit frozen model (the LoRA lesson covers this), and low-precision training is an active area.
+
+---
+
+## Quiz time 🧠
+
+Six questions, three of them numeric. A calculator helps.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- Weight memory is **weights × bytes per weight**; going from 16 to 4 bits cuts it by 4×.
+- Fewer bytes also means **faster generation**, because moving weights is the bottleneck.
+- Quantization picks a **scale**, rounds to a small integer grid, and multiplies back; each weight moves at most half a step.
+- **Outliers** stretch the grid and wreck their neighbours, so real methods use **small groups**, keep outliers in high precision, or **round smarter**.
+
+**Coming up:** the LoRA lesson combines a 4-bit frozen model with tiny trainable adapters, and the distillation lesson makes the model itself smaller.
+
+Hit **Finish** to collect your XP! 🏁

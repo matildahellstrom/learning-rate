@@ -80,3 +80,33 @@ lets the learner edit a column B and a row A by hand and watch the rank-1 produc
 3. For a matrix built as the sum of two outer products, `lowRankApprox(M, 2)` reproduces M within
    1e-9 and `lowRankApprox(M, 1)` does not.
 4. The Frobenius error of `lowRankApprox(M, r)` never increases as r grows, and is 0 at full rank.
+
+## llm/quantization: rounding-grid explorer
+
+**Idea:** a row of draggable weights on a number line with the quantization grid drawn
+underneath. Sliders for bit-width (2–8) and group size; each weight shows an arrow to where it
+lands after rounding, with the error. Dragging one weight far out (an outlier) visibly stretches
+the grid and snaps its neighbours to zero, and shrinking the group size rescues them. Readouts
+show bits per weight including the scale overhead and the memory for a chosen model size.
+
+**Pure functions:**
+
+- `quantizeSymmetric(weights: number[], bits: number): { scale: number; q: number[]; dequant: number[]; maxError: number }`:
+  `scale = max|w| / (2^(bits−1) − 1)`, `q_i = round(w_i / scale)`, `dequant_i = scale · q_i`.
+- `quantizeGrouped(weights: number[], bits: number, groupSize: number)`: applies
+  `quantizeSymmetric` to consecutive groups and concatenates the results.
+- `bitsPerWeight(bits: number, groupSize: number, scaleBits: number): number`:
+  `bits + scaleBits / groupSize`.
+- `weightMemoryGB(params: number, bitsPerWeight: number): number`: `params · bitsPerWeight / 8 / 1e9`.
+
+**Acceptance tests:**
+
+1. `quantizeSymmetric([0.5, -1.27, 0.03, 0.9], 8)` gives scale 0.01, q `[50, -127, 3, 90]` and
+   dequantized values equal to the input within 1e-12.
+2. `quantizeSymmetric([0.5, -1.27, 0.03, 0.9], 4)` gives q `[3, -7, 0, 5]`, and every
+   `|w − dequant|` is at most `scale / 2`.
+3. `quantizeSymmetric([0.1, -0.2, 0.15, 10], 4).q` is `[0, 0, 0, 7]`, while
+   `quantizeGrouped` with group size 2 keeps 0.1 and −0.2 non-zero (the 0.15, which shares a
+   group with the 10, still rounds to 0).
+4. An all-zero group returns zeros without dividing by zero.
+5. `bitsPerWeight(4, 32, 8)` is 4.25 and `weightMemoryGB(13e9, 4)` is 6.5.
