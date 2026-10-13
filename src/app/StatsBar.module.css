@@ -1,47 +1,109 @@
 .stats {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  font-weight: 800;
+  gap: var(--space-2);
+  min-width: 0;
+  font-weight: var(--weight-display);
   font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* HUD chips: pill-shaped, each with its own colour and a small 3D ledge. */
+.level,
+.streak {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 32px;
+  padding: 2px var(--space-3);
+  border-radius: 999px;
+  white-space: nowrap;
 }
 
 .level {
-  padding: 2px var(--space-3);
-  border-radius: 999px;
-  background: var(--primary);
-  color: var(--on-primary);
-  white-space: nowrap;
+  background: var(--btn);
+  color: var(--on-btn);
+  box-shadow:
+    0 3px 0 var(--btn-ledge),
+    inset 0 2px 0 rgb(255 255 255 / 0.2);
 }
 
 .xp {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  min-width: 0;
+}
+
+/* The bar is a real <progress> (accessible); the wrapper adds a glint over the filled part. */
+.barWrap {
+  position: relative;
+  display: block;
+  flex-shrink: 1;
+  width: 64px;
+  min-width: 36px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  box-shadow: inset 0 2px 0 rgb(0 0 0 / 0.08);
+  overflow: hidden;
 }
 
 .bar {
-  width: 64px;
-  height: 10px;
+  display: block;
+  width: 100%;
+  height: 100%;
   appearance: none;
   border: 0;
   border-radius: 999px;
-  background: var(--surface-2);
+  background: transparent;
   overflow: hidden;
 }
 
 .bar::-webkit-progress-bar {
-  background: var(--surface-2);
+  background: transparent;
 }
 
 .bar::-webkit-progress-value {
-  background: var(--xp);
+  background: linear-gradient(180deg, var(--gold), var(--gold-2));
   border-radius: 999px;
+  box-shadow: inset 0 3px 0 rgb(255 255 255 / 0.45);
+  transition: width 600ms var(--bounce);
 }
 
 .bar::-moz-progress-bar {
-  background: var(--xp);
+  background: linear-gradient(180deg, var(--gold), var(--gold-2));
   border-radius: 999px;
+}
+
+/* A white glint that sweeps across the filled part every few seconds (transform only). */
+.shine {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--fill) * 100%);
+  overflow: hidden;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.shine::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 18px;
+  background: linear-gradient(100deg, transparent, rgb(255 255 255 / 0.7), transparent);
+  transform: translateX(-30px);
+  animation: glint 3.2s ease-in-out infinite;
+}
+
+@keyframes glint {
+  0%,
+  55% {
+    transform: translateX(-30px);
+  }
+  100% {
+    transform: translateX(80px);
+  }
 }
 
 .xpText {
@@ -49,13 +111,43 @@
 }
 
 .streak {
-  display: inline-flex;
-  gap: 2px;
-  white-space: nowrap;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  box-shadow: 0 3px 0 var(--border);
+}
+
+.lit {
+  background: var(--flame-bg);
+  color: var(--on-flame-bg);
+  box-shadow: 0 3px 0 var(--flame);
+}
+
+.flame {
+  display: inline-block;
+  filter: grayscale(1);
+}
+
+.lit .flame {
+  filter: none;
+  transform-origin: 50% 90%;
+  animation: flicker 1.8s ease-in-out infinite;
+}
+
+@keyframes flicker {
+  50% {
+    transform: scale(1.12) rotate(-4deg);
+  }
 }
 
 @media (max-width: 380px) {
   .xpText {
     display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shine::after,
+  .lit .flame {
+    animation: none;
   }
 }

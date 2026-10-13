@@ -20,7 +20,10 @@ export function AppLayout() {
       </a>
       <header className={styles.header}>
         <Link to="/" className={styles.brand}>
-          <span aria-hidden="true">⚡</span> {t('appName')}
+          <span className={styles.logo} aria-hidden="true">
+            ⚡
+          </span>
+          <span className={styles.brandName}>{t('appName')}</span>
         </Link>
         <StatsBar />
       </header>
