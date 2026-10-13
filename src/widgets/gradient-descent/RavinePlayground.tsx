@@ -18,6 +18,8 @@ type Props = {
 
 const X_MAX = 4
 const Y_MAX = 2
+/** Decorative points never catch the pointer, so they can't block dragging the ball. */
+const DECORATIVE = { style: { pointerEvents: 'none' } } as const
 const CONTOUR_LEVELS = [0.125, 0.5, 1.125, 2, 3.125, 4.5, 6.125]
 
 /** Gradient descent on a long, narrow valley seen from above: contour lines plus the path. */
@@ -71,6 +73,8 @@ export function RavinePlayground({
         ))}
         <Point x={0} y={0} color={Theme.green} />
         <Polyline points={descent.path.map(([x, y]) => [x, y])} color={Theme.orange} weight={2} />
+        {visible && <Point x={cx} y={cy} color={Theme.orange} svgCircleProps={DECORATIVE} />}
+        {/* The draggable ball comes last so it sits on top: SVG has no z-index, later = higher. */}
         {startFixed ? (
           <Point x={p0[0]} y={p0[1]} color={Theme.pink} />
         ) : (
@@ -81,7 +85,6 @@ export function RavinePlayground({
             onMove={([x, y]) => restartFrom([x, y])}
           />
         )}
-        {visible && <Point x={cx} y={cy} color={Theme.orange} />}
       </Mafs>
 
       <figcaption className={styles.caption}>

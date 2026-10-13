@@ -8,6 +8,9 @@ import { landscapes, type LandscapeId, type Vector } from './model'
 import styles from './Playground.module.css'
 import { useDescent } from './useDescent'
 
+/** Path dots never catch the pointer, so they can't block dragging the ball underneath. */
+const DECORATIVE = { style: { pointerEvents: 'none' } } as const
+
 type Props = {
   landscape?: LandscapeId
   /** Let the player switch between these landscapes. */
@@ -68,8 +71,19 @@ export function GradientPlayground({
           strokeStyle="dashed"
         />
         {descent.path.slice(0, -1).map(([px], i) => (
-          <Point key={i} x={px} y={l.f(px)} color={Theme.orange} opacity={0.5} />
+          <Point
+            key={i}
+            x={px}
+            y={l.f(px)}
+            color={Theme.orange}
+            opacity={0.5}
+            svgCircleProps={DECORATIVE}
+          />
         ))}
+        {Number.isFinite(x) && (
+          <Point x={x} y={l.f(x)} color={Theme.orange} svgCircleProps={DECORATIVE} />
+        )}
+        {/* The draggable ball comes last so it sits on top: SVG has no z-index, later = higher. */}
         {startFixed ? (
           <Point x={x0} y={l.f(x0)} color={Theme.pink} />
         ) : (
@@ -83,7 +97,6 @@ export function GradientPlayground({
             onMove={([px]) => restartFrom(px)}
           />
         )}
-        {Number.isFinite(x) && <Point x={x} y={l.f(x)} color={Theme.orange} />}
       </Mafs>
 
       <figcaption className={styles.caption}>
