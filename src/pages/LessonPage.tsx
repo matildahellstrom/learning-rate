@@ -1,10 +1,10 @@
 import { MDXProvider } from '@mdx-js/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link, useParams } from 'react-router'
 import { gameStore, useGameState } from '../app/game'
 import { usePageTitle } from '../app/usePageTitle'
 import { mdxComponents } from '../components/mdxComponents'
-import { getLesson, lessonTitle, type Lesson } from '../content/lessons'
+import { getLesson, lessonTitle, tracks, type Lesson } from '../content/lessons'
 import type { Reward } from '../game/engine'
 import { t } from '../i18n'
 import { LessonContext, type LessonContextValue } from '../lesson/context'
@@ -59,6 +59,12 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
 
   const quizCorrect = Object.values(quizAttempt).filter(Boolean).length
   const isLast = step === lesson.stepCount - 1
+  // The lesson wears its track's colours (see the --track-* tokens).
+  const colour = tracks.find((tr) => tr.id === lesson.track)?.colour ?? 'violet'
+  const themed = {
+    '--track': `var(--track-${colour})`,
+    '--track-2': `var(--track-${colour}-2)`,
+  } as CSSProperties
 
   function finish() {
     gameStore.dispatch({
@@ -73,6 +79,7 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
   if (finished) {
     return (
       <CompletionScreen
+        style={themed}
         lesson={lesson}
         rewards={sessionRewards}
         quizCorrect={quizCorrect}
@@ -88,24 +95,31 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
 
   const { Content } = lesson
   return (
-    <div className={styles.lesson}>
+    <div className={styles.lesson} style={themed}>
       <header className={styles.top}>
         <Link to="/" className={styles.close} aria-label={t('lesson.close')}>
           ✕
         </Link>
-        <progress
-          className={styles.progress}
-          max={lesson.stepCount}
-          value={step + 1}
-          aria-label={t('lesson.progress', { step: step + 1, total: lesson.stepCount })}
-        />
+        <span
+          className={styles.progressWrap}
+          style={{ '--fill': (step + 1) / lesson.stepCount } as CSSProperties}
+        >
+          <progress
+            className={styles.progress}
+            max={lesson.stepCount}
+            value={step + 1}
+            aria-label={t('lesson.progress', { step: step + 1, total: lesson.stepCount })}
+          />
+          <span className={styles.shine} aria-hidden="true" />
+        </span>
         <span className={styles.counter} aria-hidden="true">
           {step + 1}/{lesson.stepCount}
         </span>
       </header>
 
       <main className={styles.content}>
-        <div ref={stepRef} tabIndex={-1} className={styles.step}>
+        {/* key: each step remounts, so its slide-in animation plays again. */}
+        <div key={step} ref={stepRef} tabIndex={-1} className={styles.step}>
           {step === 0 && <PrerequisiteHint lesson={lesson} />}
           <LessonContext.Provider value={context}>
             <MDXProvider components={mdxComponents}>
@@ -127,11 +141,11 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
             {t('lesson.back')}
           </button>
           {isLast ? (
-            <button type="button" className="btn" onClick={finish}>
+            <button type="button" className="btn btn-go" onClick={finish}>
               {t('lesson.finish')} <span aria-hidden="true">🏁</span>
             </button>
           ) : (
-            <button type="button" className="btn" onClick={() => setStep(step + 1)}>
+            <button type="button" className="btn btn-go" onClick={() => setStep(step + 1)}>
               {t('lesson.continue')}
             </button>
           )}

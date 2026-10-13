@@ -1,38 +1,78 @@
+/* A gold-framed "boss level" card. The tint is light, so body text keeps its full contrast. */
 .challenge {
   margin: var(--space-4) 0;
   padding: var(--space-4);
-  border: 3px solid var(--xp);
+  border: 3px solid var(--gold-2);
   border-radius: var(--radius-l);
-  background: var(--surface);
-  box-shadow: 0 4px 0 var(--xp-strong);
+  background-color: var(--surface);
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--gold) 18%, var(--surface)),
+    var(--surface) 140px
+  );
+  box-shadow: 0 6px 0 var(--gold-ledge);
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: var(--space-2);
 }
 
 .badge {
-  padding: 2px var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 3px var(--space-3);
   border-radius: 999px;
-  background: var(--xp);
-  color: var(--on-xp);
+  background-color: var(--gold-2);
+  background-image: linear-gradient(180deg, var(--gold), var(--gold-2));
+  color: var(--on-gold);
   font-size: 0.85rem;
-  font-weight: 800;
+  font-weight: var(--weight-display);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
+  box-shadow: 0 3px 0 var(--gold-ledge);
+}
+
+.best {
+  font-size: 1.2rem;
 }
 
 .title {
   margin: var(--space-3) 0 var(--space-1);
+  font-size: 1.3rem;
 }
 
 .goal {
   margin-top: 0;
+  font-weight: 600;
 }
 
 .result p {
   margin-bottom: 0;
-  font-weight: 700;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-m);
+  background: var(--surface-2);
+  font-weight: 800;
+}
+
+/* Three stars: a gold, bouncy result banner. */
+.result .perfect {
+  background: color-mix(in srgb, var(--gold) 30%, var(--surface));
+  border: 2px solid var(--gold-2);
+  animation: perfect 600ms var(--bounce);
+}
+
+@keyframes perfect {
+  from {
+    transform: scale(0.8) rotate(-2deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .result .perfect {
+    animation: none;
+  }
 }

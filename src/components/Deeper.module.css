@@ -1,16 +1,30 @@
+/* The optional maths layer: a "secret area" card with a dashed frame. */
 .deeper {
   margin: var(--space-4) 0;
-  border: 2px dashed var(--primary);
-  border-radius: var(--radius-m);
+  border: 3px dashed var(--primary);
+  border-radius: var(--radius-l);
   background: var(--surface);
 }
 
+.deeper[open] {
+  border-style: solid;
+  box-shadow: 0 4px 0 var(--primary);
+}
+
 .summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
   padding: var(--space-3) var(--space-4);
-  font-weight: 800;
+  font-weight: var(--weight-display);
   color: var(--primary);
   cursor: pointer;
-  min-height: 48px;
+  min-height: 52px;
+}
+
+.summary:hover {
+  background: var(--surface-2);
+  border-radius: calc(var(--radius-l) - 3px);
 }
 
 .body {

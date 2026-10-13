@@ -1,31 +1,51 @@
 /* Bottom of the screen, above the nav/footer bar, so toasts never cover headings. */
 .region {
   position: fixed;
-  bottom: calc(96px + env(safe-area-inset-bottom));
+  bottom: calc(100px + env(safe-area-inset-bottom));
   left: 50%;
   z-index: 50;
   display: grid;
-  gap: var(--space-2);
+  justify-items: center;
+  gap: 6px;
   width: min(92vw, 360px);
   transform: translateX(-50%);
   pointer-events: none;
 }
 
+/* Compact gold pills that pop up with a bounce. */
 .toast {
-  padding: var(--space-2) var(--space-4);
-  border: 2px solid var(--xp-strong);
-  border-radius: var(--radius-m);
-  background: var(--xp);
-  color: var(--on-xp);
-  font-weight: 800;
-  box-shadow: 0 4px 0 var(--xp-strong);
-  animation: slide-in var(--duration) ease-out both;
-  animation-duration: calc(var(--duration) * 1.5);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 100%;
+  padding: 2px var(--space-3);
+  font-size: 0.95rem;
+  line-height: 1.4;
+  border: 2px solid var(--gold-ledge);
+  border-radius: 999px;
+  background-color: var(--gold-2);
+  background-image: linear-gradient(180deg, var(--gold), var(--gold-2));
+  color: var(--on-gold);
+  font-weight: var(--weight-display);
+  box-shadow:
+    0 4px 0 var(--gold-ledge),
+    var(--shadow-soft);
+  animation: slide-in 360ms var(--bounce) both;
+}
+
+.toast > span:first-child {
+  font-size: 1.05rem;
 }
 
 /* Movement only, no fade: text stays at full contrast while it animates. */
 @keyframes slide-in {
   from {
-    transform: translateY(24px) scale(0.9);
+    transform: translateY(24px) scale(0.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
   }
 }

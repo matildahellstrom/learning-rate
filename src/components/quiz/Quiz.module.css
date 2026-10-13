@@ -4,14 +4,20 @@
 }
 
 .counter {
+  justify-self: start;
   margin: 0;
+  padding: 2px var(--space-3);
+  border-radius: 999px;
+  background: var(--surface-2);
   color: var(--text-muted);
-  font-weight: 700;
+  font-size: 0.9rem;
+  font-weight: var(--weight-display);
+  letter-spacing: 0.03em;
 }
 
 .fieldset {
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-3);
   margin: 0;
   padding: 0;
   border: 0;
@@ -19,28 +25,40 @@
 }
 
 .prompt {
-  margin: 0 0 var(--space-2);
+  margin: 0 0 var(--space-1);
   padding: 0;
-  font-size: 1.15rem;
-  font-weight: 800;
+  font-size: 1.25rem;
+  font-weight: var(--weight-display);
+  line-height: 1.35;
 }
 
+/* Answer tiles: chunky cards with a ledge that squash a little when picked. */
 .option {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  min-height: 52px;
+  min-height: 56px;
   padding: var(--space-2) var(--space-4);
   border: 2px solid var(--border);
-  border-radius: var(--radius-m);
+  border-radius: 16px;
   background: var(--surface);
-  box-shadow: 0 3px 0 var(--border);
+  box-shadow: 0 4px 0 var(--border);
+  font-weight: 700;
   cursor: pointer;
+  transition:
+    transform var(--duration),
+    box-shadow var(--duration);
+}
+
+.fieldset:not(:disabled) .option:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--primary) 50%, var(--border));
 }
 
 .option:has(input:checked) {
   border-color: var(--primary);
-  box-shadow: 0 3px 0 var(--primary);
+  background: var(--surface-2);
+  box-shadow: 0 4px 0 var(--primary);
 }
 
 .option:has(input:focus-visible) {
@@ -49,8 +67,9 @@
 }
 
 .option input {
-  width: 20px;
-  height: 20px;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
   accent-color: var(--primary);
 }
 
@@ -58,33 +77,73 @@
   cursor: default;
 }
 
+/* Right answer: green tile that bounces. Wrong pick: red tile with a gentle shake. */
 .correct,
 .fieldset:disabled .correct {
   border-color: var(--success);
   background: var(--success-bg);
-  box-shadow: 0 3px 0 var(--success);
+  box-shadow: 0 4px 0 var(--success-ledge);
+  animation: bounce 520ms var(--bounce);
 }
 
 .wrong,
 .fieldset:disabled .wrong {
   border-color: var(--danger);
   background: var(--danger-bg);
-  box-shadow: 0 3px 0 var(--danger);
+  box-shadow: 0 4px 0 var(--danger);
+  animation: shake 420ms ease-in-out;
+}
+
+.mark {
+  margin-left: auto;
+  font-size: 1.2rem;
+  font-weight: var(--weight-display);
+}
+
+@keyframes bounce {
+  40% {
+    transform: scale(1.04) translateY(-3px);
+  }
+  70% {
+    transform: scale(0.99);
+  }
+}
+
+@keyframes shake {
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
 }
 
 .numericLabel {
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .numeric {
-  min-height: 48px;
+  min-height: 52px;
   padding: var(--space-2) var(--space-3);
   border: 2px solid var(--border);
-  border-radius: var(--radius-m);
+  border-radius: 14px;
   background: var(--surface);
+  box-shadow: inset 0 3px 0 rgb(0 0 0 / 0.05);
   color: var(--text);
   font: inherit;
+  font-size: 1.2rem;
+  font-weight: 800;
   max-width: 12rem;
+}
+
+.numeric:focus {
+  border-color: var(--primary);
 }
 
 .numeric[aria-invalid='true'] {
@@ -97,10 +156,12 @@
   font-weight: 700;
 }
 
+/* Feedback banner: slides up like a game result panel (transform only). */
 .feedback {
   padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-m);
   border: 2px solid;
+  border-radius: var(--radius-l);
+  animation: rise 360ms var(--bounce);
 }
 
 .feedback p {
@@ -110,20 +171,52 @@
 .feedbackGood {
   border-color: var(--success);
   background: var(--success-bg);
+  box-shadow: 0 4px 0 var(--success-ledge);
 }
 
 .feedbackBad {
   border-color: var(--danger);
   background: var(--danger-bg);
+  box-shadow: 0 4px 0 var(--danger);
 }
 
 .verdict {
-  font-weight: 800;
+  font-size: 1.3rem;
+  font-weight: var(--weight-display);
+}
+
+.feedbackGood .verdict {
+  color: var(--success-ink);
+}
+
+.feedbackBad .verdict {
+  color: var(--danger-ink);
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(16px) scale(0.97);
+  }
 }
 
 .done {
   padding: var(--space-4);
-  border-radius: var(--radius-m);
+  border: 2px solid var(--success);
+  border-radius: var(--radius-l);
   background: var(--success-bg);
-  font-weight: 700;
+  box-shadow: 0 4px 0 var(--success-ledge);
+  font-size: 1.1rem;
+  font-weight: 800;
+  animation: rise 360ms var(--bounce);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .correct,
+  .wrong,
+  .feedback,
+  .done,
+  .fieldset:disabled .correct,
+  .fieldset:disabled .wrong {
+    animation: none;
+  }
 }
