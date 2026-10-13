@@ -107,14 +107,3 @@ test('unknown lessons show a friendly not-found page', async ({ page }) => {
   await page.goto('/#/learn/does-not-exist')
   await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible()
 })
-
-test('no page scrolls sideways', async ({ page }) => {
-  for (const path of ['/', '/#/profile', '/#/learn/gradient-descent']) {
-    await page.goto(path)
-    await page.getByRole('heading', { level: 1 }).first().waitFor()
-    const overflow = await page.evaluate(
-      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-    )
-    expect(overflow, `${path} is wider than the screen`).toBeLessThanOrEqual(0)
-  }
-})

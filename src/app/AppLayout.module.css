@@ -9,9 +9,11 @@
   top: 0;
   z-index: 10;
   display: flex;
+  /* Wrap instead of overflowing on narrow phones and with large text. */
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2) var(--space-3);
   padding: var(--space-2) var(--space-4);
   background: var(--surface);
   border-bottom: 2px solid var(--border);
@@ -23,6 +25,18 @@
   font-size: 1.05rem;
   text-decoration: none;
   white-space: nowrap;
+}
+
+/* Narrowest phones: just the ⚡ (the name stays for screen readers). */
+@media (max-width: 360px) {
+  .brandName {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 
 .main {
