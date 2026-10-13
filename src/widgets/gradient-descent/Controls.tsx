@@ -102,7 +102,9 @@ export function StatusLine({
         ? t('widget.diverged')
         : status === 'tooSlow'
           ? t('widget.tooSlow', { steps })
-          : null
+          : status === 'oscillating'
+            ? t('widget.oscillating', { steps })
+            : null
   return (
     <div className={styles.status}>
       <p className={styles.readout}>

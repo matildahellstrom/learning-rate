@@ -39,6 +39,7 @@ export function RavinePlayground({
   const descent = useDescent({
     start: p0,
     gradient: r.gradient,
+    loss: r.f,
     learningRate,
     limit: 50,
     maxSteps: 300,

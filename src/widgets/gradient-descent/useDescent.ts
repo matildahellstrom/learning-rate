@@ -1,12 +1,14 @@
 import { useEffect, useEffectEvent, useState } from 'react'
 import type { WidgetEvent } from '../events'
-import { descentStatus, gradientStep, type Vector } from './model'
+import { classifyStall, descentStatus, gradientStep, type Vector } from './model'
 
-export type PlaygroundStatus = 'running' | 'converged' | 'diverged' | 'tooSlow'
+export type PlaygroundStatus = 'running' | 'converged' | 'diverged' | 'tooSlow' | 'oscillating'
 
 type Options = {
   start: Vector
   gradient: (p: Vector) => Vector
+  /** The loss being minimised, to tell a crawling run from a bouncing one. */
+  loss: (p: Vector) => number
   learningRate: number
   /** Coordinates beyond this count as diverged. */
   limit: number
@@ -15,15 +17,24 @@ type Options = {
 }
 
 /** Step-by-step gradient descent with play/pause, shared by the 1D and 2D playgrounds. */
-export function useDescent({ start, gradient, learningRate, limit, maxSteps, onEvent }: Options) {
+export function useDescent({
+  start,
+  gradient,
+  loss,
+  learningRate,
+  limit,
+  maxSteps,
+  onEvent,
+}: Options) {
   const [path, setPath] = useState<number[][]>(() => [[...start]])
   const [playing, setPlaying] = useState(false)
 
   const current = path[path.length - 1]
   const steps = path.length - 1
   const mathStatus = descentStatus(current, gradient(current), { limit })
+  // Out of steps but still moving: crawling (rate too small) or bouncing (rate too big)?
   const status: PlaygroundStatus =
-    mathStatus === 'running' && steps >= maxSteps ? 'tooSlow' : mathStatus
+    mathStatus === 'running' && steps >= maxSteps ? classifyStall(path, loss) : mathStatus
 
   function step() {
     if (status !== 'running') return

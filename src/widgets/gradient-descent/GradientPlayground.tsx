@@ -41,6 +41,7 @@ export function GradientPlayground({
   const descent = useDescent({
     start: [x0],
     gradient,
+    loss: ([px]) => l.f(px),
     learningRate,
     limit: 100,
     maxSteps: 200,

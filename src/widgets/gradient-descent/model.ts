@@ -119,6 +119,36 @@ export function runDescent({
   return { path, status, steps: path.length - 1 }
 }
 
+export type StallKind = 'tooSlow' | 'oscillating'
+
+/**
+ * Why a run is still going when it hits the step limit, judged from its last `window` steps:
+ * - 'oscillating': it bounces. Most consecutive steps point in opposite directions, or the loss
+ *   went up at some point. The learning rate is too big.
+ * - 'tooSlow': it creeps steadily downhill. The learning rate is too small.
+ */
+export function classifyStall(
+  path: readonly Vector[],
+  loss: (p: Vector) => number,
+  window = 20,
+): StallKind {
+  const recent = path.slice(-(window + 1))
+  const steps = recent.slice(1).map((p, i) => p.map((pi, j) => pi - recent[i][j]))
+
+  let reversals = 0
+  for (let i = 1; i < steps.length; i++) {
+    const dot = steps[i].reduce((sum, d, j) => sum + d * steps[i - 1][j], 0)
+    if (dot < 0) reversals++
+  }
+
+  const lossWentUp = recent.slice(1).some((p, i) => {
+    const before = loss(recent[i])
+    return loss(p) > before + 1e-12 * Math.max(1, Math.abs(before))
+  })
+
+  return lossWentUp || reversals > (steps.length - 1) / 2 ? 'oscillating' : 'tooSlow'
+}
+
 /**
  * The 2D "ravine" f(x, y) = ½(x² + κy²): a valley that is κ times steeper across than along.
  * Its level sets are ellipses, so we can draw exact contours.

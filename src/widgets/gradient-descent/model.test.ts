@@ -1,6 +1,7 @@
 import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import {
+  classifyStall,
   descentStatus,
   gradientStep,
   landscapes,
@@ -99,5 +100,51 @@ describe('ravine stability', () => {
     const above = runDescent({ start: [3, 1], gradient, learningRate: limit * 1.05 })
     expect(below.status).toBe('converged')
     expect(above.status).toBe('diverged')
+  })
+})
+
+describe('classifyStall: why a run is still going at the step limit', () => {
+  const bowl = landscapes.bowl
+  const bowlGradient = ([x]: readonly number[]) => [bowl.df(x)]
+  const bowlLoss = ([x]: readonly number[]) => bowl.f(x)
+  const stalledBowl = (learningRate: number) => {
+    const run = runDescent({ start: [3], gradient: bowlGradient, learningRate, maxSteps: 200 })
+    expect(run.status).toBe('running')
+    return classifyStall(run.path, bowlLoss)
+  }
+
+  it('calls a bouncing run oscillating (learning rate too big)', () => {
+    expect(stalledBowl(1.0)).toBe('oscillating')
+    expect(stalledBowl(0.99)).toBe('oscillating')
+  })
+
+  it('calls a crawling run too slow (learning rate too small)', () => {
+    expect(stalledBowl(0.02)).toBe('tooSlow')
+  })
+
+  it('sees the ravine bouncing between its walls at η = 2/κ', () => {
+    const r = ravine(10)
+    const run = runDescent({
+      start: [3, 1.5],
+      gradient: r.gradient,
+      learningRate: 0.2,
+      maxSteps: 300,
+    })
+    expect(run.status).toBe('running')
+    expect(classifyStall(run.path, r.f)).toBe('oscillating')
+  })
+
+  it('sees chaotic bouncing in the two valleys', () => {
+    const l = landscapes.doubleWell
+    for (const learningRate of [0.5, 0.7]) {
+      const run = runDescent({
+        start: [2],
+        gradient: ([x]) => [l.df(x)],
+        learningRate,
+        maxSteps: 200,
+      })
+      expect(run.status).toBe('running')
+      expect(classifyStall(run.path, ([x]) => l.f(x))).toBe('oscillating')
+    }
   })
 })

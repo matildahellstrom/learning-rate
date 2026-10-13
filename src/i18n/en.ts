@@ -81,6 +81,7 @@ export const en = {
   'widget.diverged':
     'Diverged! Each step overshoots more than the last. Try a smaller learning rate.',
   'widget.tooSlow': 'Still going after {steps} steps. Try a bigger learning rate.',
+  'widget.oscillating': 'Still bouncing after {steps} steps. Try a smaller learning rate.',
   'widget.ball': 'Ball start position',
   'widget.ballRole': 'draggable ball',
   'widget.ball2d': 'Ball start position: x {x}, y {y}. Move it with the arrow keys.',
