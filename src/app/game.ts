@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { badges, getLesson } from '../content/lessons'
 import { toDayString } from '../game/dates'
-import { browserStorage, createGameStore } from '../game/store'
+import { browserStorage, createGameStore, STORAGE_KEY } from '../game/store'
 
 /** The app's single game store, wired to the real content, clock and localStorage. */
 export const gameStore = createGameStore({
@@ -15,6 +15,15 @@ export const gameStore = createGameStore({
     badges,
   }),
 })
+
+// Another tab saved progress: pick it up right away so both tabs show the same XP and stars.
+// (The store also re-reads storage before every action, so a stale tab never overwrites it.)
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    // key is null when the whole storage was cleared.
+    if (event.key === STORAGE_KEY || event.key === null) gameStore.sync()
+  })
+}
 
 // Ask the browser not to evict our storage under pressure (helps on Safari).
 gameStore.onRewards(() => {

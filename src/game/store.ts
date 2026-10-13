@@ -20,7 +20,7 @@ export function createGameStore({
   storage: KeyValueStorage | null
   context: () => GameContext
 }) {
-  let { state, readOnly } = load(storage)
+  let { state, readOnly, raw: lastRaw } = load(storage)
   const listeners = new Set<() => void>()
   const rewardListeners = new Set<(rewards: Reward[]) => void>()
 
@@ -28,10 +28,28 @@ export function createGameStore({
     state = next
     // Data from a newer version of the app is never overwritten (except by an explicit reset).
     if (!readOnly || force) {
-      save(storage, state)
+      const written = save(storage, state)
+      if (written !== null) lastRaw = written
       readOnly = false
     }
     listeners.forEach((l) => l())
+  }
+
+  /**
+   * Another tab may have saved since we last looked. If storage holds something other than what
+   * we last read or wrote, adopt it, so we never write a stale snapshot over newer progress.
+   */
+  function sync(): boolean {
+    let raw: string | null
+    try {
+      raw = storage?.getItem(STORAGE_KEY) ?? null
+    } catch {
+      return false
+    }
+    if (raw === lastRaw) return false
+    ;({ state, readOnly, raw: lastRaw } = load(storage))
+    listeners.forEach((l) => l())
+    return true
   }
 
   return {
@@ -52,7 +70,12 @@ export function createGameStore({
       }
     },
 
+    /** Re-read storage (e.g. on a `storage` event from another tab). True if it changed. */
+    sync,
+
     dispatch(action: GameAction): Reward[] {
+      // Read → apply → write, so two open tabs add up their progress instead of overwriting it.
+      sync()
       const result = applyAction(state, action, context())
       if (result.state !== state) commit(result.state)
       if (result.rewards.length > 0) rewardListeners.forEach((l) => l(result.rewards))
@@ -65,15 +88,22 @@ export function createGameStore({
   }
 }
 
-function load(storage: KeyValueStorage | null): { state: GameState; readOnly: boolean } {
-  let raw: string | null | undefined
+type Loaded = {
+  state: GameState
+  readOnly: boolean
+  /** The exact string read from storage, to notice later when another tab changed it. */
+  raw: string | null
+}
+
+function load(storage: KeyValueStorage | null): Loaded {
+  let raw: string | null
   try {
-    raw = storage?.getItem(STORAGE_KEY)
+    raw = storage?.getItem(STORAGE_KEY) ?? null
   } catch {
     // Storage blocked (private mode): play without saving.
-    return { state: initialGameState(), readOnly: false }
+    return { state: initialGameState(), readOnly: false, raw: null }
   }
-  if (!raw) return { state: initialGameState(), readOnly: false }
+  if (!raw) return { state: initialGameState(), readOnly: false, raw }
 
   let saved: unknown
   try {
@@ -84,14 +114,19 @@ function load(storage: KeyValueStorage | null): { state: GameState; readOnly: bo
   const { state, repaired, fromNewerVersion } = migrateSaved(saved)
   // About to replace data we couldn't fully read: keep a copy of the original first.
   if (repaired) backup(storage, raw)
-  return { state, readOnly: fromNewerVersion }
+  return { state, readOnly: fromNewerVersion, raw }
 }
 
-function save(storage: KeyValueStorage | null, state: GameState) {
+/** Returns what was written, or null if storage refused it. */
+function save(storage: KeyValueStorage | null, state: GameState): string | null {
+  const raw = JSON.stringify(state)
   try {
-    storage?.setItem(STORAGE_KEY, JSON.stringify(state))
+    if (!storage) return null
+    storage.setItem(STORAGE_KEY, raw)
+    return raw
   } catch {
     // Quota exceeded or storage blocked: the game still works for this visit.
+    return null
   }
 }
 

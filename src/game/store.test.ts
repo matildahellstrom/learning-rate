@@ -102,4 +102,54 @@ describe('createGameStore', () => {
     store.reset()
     expect(store.getState()).toEqual(initialGameState())
   })
+
+  it('two tabs sharing one storage both keep their rewards', () => {
+    const storage = memoryStorage()
+    const twoTabContext = (): GameContext => ({
+      today: '2026-10-12',
+      lesson: () => ({ xp: 100, challenges: ['bowl-speedrun'] }),
+      badges: [],
+    })
+    const tabA = createGameStore({ storage, context: twoTabContext })
+    const tabB = createGameStore({ storage, context: twoTabContext })
+
+    tabA.dispatch({
+      type: 'challengeScored',
+      lessonId: 'gd',
+      challengeId: 'bowl-speedrun',
+      stars: 3,
+    })
+    tabB.dispatch({ type: 'quizAnswered', lessonId: 'gd', questionIndex: 0, correct: true })
+
+    const saved = JSON.parse(storage.data.get(STORAGE_KEY)!)
+    expect(saved.xp).toBe(40)
+    expect(saved.lessons.gd.challengeStars).toEqual({ 'bowl-speedrun': 3 })
+    expect(saved.lessons.gd.quizCorrect).toEqual([0])
+    expect(tabB.getState()).toEqual(saved)
+  })
+
+  it("sync picks up another tab's changes and notifies subscribers", () => {
+    const storage = memoryStorage()
+    const tabA = createGameStore({ storage, context })
+    const tabB = createGameStore({ storage, context })
+    const onChange = vi.fn<() => void>()
+    tabB.subscribe(onChange)
+
+    expect(tabB.sync()).toBe(false)
+    tabA.dispatch(finish)
+    expect(tabB.sync()).toBe(true)
+    expect(tabB.getState().xp).toBe(100)
+    expect(onChange).toHaveBeenCalledOnce()
+  })
+
+  it("keeps this visit's progress when storage refuses to save", () => {
+    const storage = memoryStorage()
+    storage.setItem = () => {
+      throw new Error('QuotaExceededError')
+    }
+    const store = createGameStore({ storage, context })
+    store.dispatch(finish)
+    store.dispatch({ type: 'quizAnswered', lessonId: 'gd', questionIndex: 0, correct: true })
+    expect(store.getState().xp).toBe(110)
+  })
 })
