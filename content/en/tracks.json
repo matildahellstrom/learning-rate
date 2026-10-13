@@ -148,11 +148,6 @@
         "id": "lora",
         "title": "LoRA: fine-tuning on a budget",
         "order": 10
-      },
-      {
-        "id": "distillation",
-        "title": "Distillation",
-        "order": 11
       }
     ]
   },

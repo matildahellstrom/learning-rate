@@ -1,0 +1,211 @@
+---
+id: distillation
+title: Distillation
+summary: How a small student model learns from a big teacher's hunches, not just its answers.
+track: llm
+order: 11
+prerequisites: [softmax, cross-entropy, next-token-prediction]
+minutes: 10
+xp: 100
+volatility: evergreen
+lastVerified: 2026-10-13
+sources:
+  - title: 'Hinton, Vinyals & Dean (2015): Distilling the Knowledge in a Neural Network'
+    url: https://arxiv.org/abs/1503.02531
+  - title: 'Kim & Rush (2016): Sequence-Level Knowledge Distillation'
+    url: https://arxiv.org/abs/1606.07947
+  - title: 'Sanh et al. (2019): DistilBERT, a distilled version of BERT'
+    url: https://arxiv.org/abs/1910.01108
+  - title: 'Gemma Team (2024): Gemma 2, Improving Open Language Models at a Practical Size'
+    url: https://arxiv.org/abs/2408.00118
+  - title: 'DeepSeek-AI (2025): DeepSeek-R1, Incentivizing Reasoning Capability in LLMs via Reinforcement Learning (v1)'
+    url: https://arxiv.org/abs/2501.12948v1
+quiz:
+  - type: choice
+    prompt: "A teacher model labels a photo: 'dog 0.90, wolf 0.09, banana 0.01'. What does this tell the student that the plain label 'dog' doesn't?"
+    options:
+      - Nothing useful, only the top answer matters
+      - That the photo is 90% dog and 10% something else
+      - Which wrong answers are plausible, so which classes look alike
+      - That the teacher is unsure and should not be trusted
+    answer: 2
+    explanation: 'The small probabilities rank the wrong answers: a wolf is a far more understandable mix-up than a banana. That similarity structure is the extra knowledge distillation transfers.'
+  - type: choice
+    prompt: 'You raise the softmax temperature from 1 to 4 on the same logits. What happens to the probabilities?'
+    options:
+      - The ranking flips
+      - The ranking stays the same, but the probabilities become more even
+      - The top answer becomes even more certain
+      - They no longer add up to 1
+    answer: 1
+    explanation: 'Dividing every logit by the same T keeps their order but shrinks the gaps between them, so the distribution flattens and the small probabilities grow.'
+  - type: numeric
+    prompt: 'A teacher has logits 2 (cat) and 0 (dog). At temperature T = 2, what probability does it give "cat"? (Round to 2 decimals; e ≈ 2.718.)'
+    answer: 0.73
+    tolerance: 0.01
+    explanation: 'Divide by T: the logits become 1 and 0. Softmax gives e¹ / (e¹ + e⁰) = 2.718 / 3.718 ≈ 0.73. At T = 1 it would be about 0.88.'
+  - type: choice
+    prompt: 'Why is the soft-target part of the loss multiplied by T²?'
+    options:
+      - To make training at high temperature slower
+      - Because its gradients shrink roughly like 1/T², and this keeps the soft and hard parts in balance
+      - To turn the probabilities back into logits
+      - It is a historical accident with no effect
+    answer: 1
+    explanation: 'Softening by T makes the soft-target gradients about 1/T² as large. Multiplying by T² undoes that, so you can change T without re-tuning how much weight the soft targets get.'
+  - type: choice
+    prompt: 'The small DeepSeek-R1 models were trained on text the big model generated. Which kind of distillation is that?'
+    options:
+      - Matching the teacher's full probability distribution at every token
+      - Learning from the teacher's outputs (sequence-level distillation), no teacher probabilities needed
+      - Copying the teacher's weights into a smaller network
+      - Quantization
+    answer: 1
+    explanation: "Fine-tuning a student on teacher-written examples transfers behaviour through the text itself. It needs only the outputs, not the teacher's internals."
+  - type: choice
+    prompt: 'Which statement about the student model is true?'
+    options:
+      - It must have the same architecture as the teacher
+      - It always ends up exactly as good as the teacher
+      - It can be a different, much smaller network; it learns to imitate the teacher's behaviour
+      - It can only be trained on the teacher's original training data
+    answer: 2
+    explanation: 'Distillation transfers behaviour through outputs, so the student can be shaped differently. It usually gets close to the teacher, not equal, and the transfer data can differ from the original training set.'
+---
+
+# The chef and the apprentice 🧑‍🍳
+
+A world-class chef can't cook in every restaurant. So she trains an apprentice.
+
+She could hand over a recipe book: dish in, dish out. But a good apprentice learns more by watching her taste: _"Needs salt. Maybe lemon? Definitely not sugar."_ Her **hunches about the wrong options** say a lot about how she thinks.
+
+**Distillation** does the same with neural networks. A big, expensive **teacher** model trains a small, cheap **student** to imitate it, hunches and all.
+
+---
+
+## Why shrink a model at all?
+
+Big models are slow and costly to run. Every answer burns compute, and they won't fit on a phone.
+
+You could train a small model from scratch on the same data. But a small model trained to **imitate a big one** often ends up noticeably better than the same small model trained alone.
+
+The idea goes back to work by Caruana and colleagues on "model compression" in 2006. Hinton, Vinyals and Dean made it famous in 2015 by squeezing a whole ensemble of models into one network, and named it **distillation**.
+
+---
+
+## Hard labels vs soft labels
+
+Ordinary training uses **hard labels**: this picture is a "2", full stop. Every wrong answer counts as equally wrong.
+
+A trained teacher gives **soft labels**, a probability for every option. Hinton's paper uses handwritten digits: one particular 2 might get a one-in-a-million chance of being a 3, and a one-in-a-billion chance of being a 7. Those tiny numbers still say _this 2 looks a bit like a 3_.
+
+Language models work the same way. After _"The cat sat on the"_, a teacher might say:
+
+- **mat** 0.84 · **sofa** 0.11 · **floor** 0.04 · **moon** 0.002
+
+The hard label is just "mat". The soft label also teaches that sofa is fine and moon is silly. Hinton called this extra information **dark knowledge**.
+
+---
+
+## Turn up the temperature 🌡️
+
+There's a snag: the interesting probabilities are **tiny**. They barely move the loss, so the student hardly notices them.
+
+The fix is the same knob you meet in sampling: **temperature**. Divide the teacher's raw scores (logits) by a temperature $T$ before the softmax. (The softmax lesson covers this.)
+
+The logits behind the example above are 5, 3, 2 and −1. Watch what $T$ does:
+
+- **T = 1:** mat 0.84 · sofa 0.11 · floor 0.04 · moon 0.002
+- **T = 2:** mat 0.61 · sofa 0.22 · floor 0.14 · moon 0.03
+- **T = 4:** mat 0.43 · sofa 0.26 · floor 0.21 · moon 0.10
+
+🤔 Notice what stays the same and what changes before you read on.
+
+The **ranking** never changes; mat always wins. But the gaps shrink, so the hunches about sofa and floor become loud enough for the student to learn from. During distillation, teacher and student both use the high temperature. Afterwards, the student runs at $T = 1$ as usual.
+
+---
+
+## The training recipe
+
+The student sees the same inputs as the teacher and is trained on a mix of two goals:
+
+1. **Match the teacher:** make your softened probabilities close to the teacher's softened probabilities.
+2. **Get the right answer:** the usual loss against the hard label, at $T = 1$ (when labels exist).
+
+Usually the first part carries most of the weight. Notice the teacher only has to **run**, never train, so you can generate its soft labels once and reuse them.
+
+<Deeper title="Go deeper: the loss and the T² factor">
+Write $z$ for the student's logits, $v$ for the teacher's, and $\sigma_T(z)_i = \frac{e^{z_i/T}}{\sum_j e^{z_j/T}}$ for the softmax at temperature $T$. A common form of the loss is
+
+$$
+\mathcal{L} = \lambda\, T^2 \, \mathrm{KL}\big(\sigma_T(v) \,\|\, \sigma_T(z)\big) + (1 - \lambda)\, \mathrm{CE}\big(y, \sigma_1(z)\big)
+$$
+
+The gradient of the soft cross-entropy with respect to a student logit is
+
+$$
+\frac{\partial}{\partial z_i}\,\mathrm{CE}\big(\sigma_T(v), \sigma_T(z)\big) = \frac{1}{T}\big(\sigma_T(z)_i - \sigma_T(v)_i\big)
+$$
+
+and the difference in brackets itself shrinks roughly like $1/T$ when $T$ is large compared with the logits. So the soft-target gradients scale like $1/T^2$, and Hinton et al. multiply by $T^2$ to keep the balance between the two terms when $T$ changes.
+
+In the high-temperature limit (with zero-mean logits) minimising the soft loss becomes matching the logits themselves: $\tfrac12 \sum_i (z_i - v_i)^2$, an older compression trick.
+
+</Deeper>
+
+---
+
+## Worked example: two students
+
+The teacher's soft label for the next word is **mat 0.6 · sofa 0.3 · floor 0.1**. The true next word was "mat". Two students answer:
+
+- **Student A:** mat 0.6 · sofa 0.3 · floor 0.1 (a perfect copy)
+- **Student B:** mat 0.9 · sofa 0.05 · floor 0.05 (overconfident)
+
+🤔 Which student does each kind of training prefer?
+
+**Hard label** (cross-entropy, $-\ln$ of the probability on "mat"): A scores $-\ln 0.6 \approx 0.51$, B scores $-\ln 0.9 \approx 0.11$. Hard labels reward B for being sure.
+
+**Soft label** (cross-entropy against the teacher, $-\sum p \ln q$): A scores about **0.90**, B about **1.26**. Distillation prefers A, the student who learned that sofa is a reasonable answer too.
+
+You can check A's number: $-(0.6 \ln 0.6 + 0.3 \ln 0.3 + 0.1 \ln 0.1) \approx 0.31 + 0.36 + 0.23 = 0.90$.
+
+---
+
+## Two flavours in the wild
+
+**Match the probabilities.** The student copies the teacher's full distribution, as above. You need access to the teacher's logits. DistilBERT (2019) did this and came out 40% smaller and 60% faster than BERT, keeping 97% of its language-understanding performance. Google trained the 2B and 9B Gemma 2 models (2024) with distillation instead of plain next-token prediction.
+
+**Learn from the outputs.** Let the teacher write answers, then fine-tune the student on that text. Kim and Rush called this **sequence-level** distillation in 2016. DeepSeek used it in 2025 to pass the reasoning style of its big R1 model to six smaller models (1.5B to 70B parameters, built on Qwen and Llama).
+
+Distilled students also make great drafters for speculative decoding, since a drafter is only useful when it agrees with the big model.
+
+---
+
+## Common misconceptions
+
+- **"The student becomes as good as the teacher."** Usually it gets close, not equal. A smaller network has less room to store knowledge, so some gap usually remains.
+- **"Distillation copies weights."** The core idea is learning from the teacher's **outputs**, so the student can have a completely different shape. (Some recipes give the student a head start: DistilBERT began with every other layer of BERT.)
+- **"It's the same as quantization."** Quantization keeps the same model and stores its numbers more coarsely. Distillation trains a **new**, smaller model.
+- **"You need the original training data."** Any inputs that make the teacher show its knowledge can work, including text the teacher wrote itself.
+
+---
+
+## Quiz time 🧠
+
+Six questions on teachers, students and temperatures.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- **Distillation** trains a small **student** to imitate a big **teacher**.
+- **Soft labels** carry dark knowledge: which wrong answers are plausible.
+- A higher **temperature** flattens the teacher's probabilities so those hunches are loud enough to learn from; a $T^2$ factor keeps the loss balanced.
+- You can match the teacher's **probabilities**, or simply train on **text the teacher wrote**.
+
+**Coming up:** the quantization lesson shrinks a model without retraining it, and the speculative decoding lesson puts a small, distilled drafter to work speeding up a big model.
+
+Hit **Finish** to collect your XP! 🏁

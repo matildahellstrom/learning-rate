@@ -31,3 +31,29 @@ target pass, plus a "simulate 100 rounds" button with a histogram.
 4. For random p and q, `min(p, q) + (1 − Σ min(p, q)) · residual(p, q)` equals p (within 1e-12):
    the output distribution is exactly the target's.
 5. `expectedTokensPerPass(0.8, 4)` ≈ 3.3616, and `expectedTokensPerPass(0, k)` is 1 for any k.
+
+## llm/distillation: temperature and soft-label explorer
+
+**Idea:** a bar chart of a teacher's next-word probabilities with a temperature slider, next to a
+student whose bars the learner drags. Live readouts show the hard-label loss and the soft-label
+(distillation) loss, so the learner sees that an overconfident student wins on hard labels but
+loses on soft ones.
+
+**Pure functions:**
+
+- `softmaxT(logits: number[], T: number): number[]`: `exp(z_i / T) / Σ_j exp(z_j / T)`,
+  computed stably (subtract the max logit first).
+- `crossEntropy(p: number[], q: number[]): number`: `−Σ p_i ln q_i` (natural log).
+- `klDivergence(p: number[], q: number[]): number`: `Σ p_i ln(p_i / q_i)`, treating `0 · ln 0`
+  as 0.
+
+**Acceptance tests:**
+
+1. `softmaxT([5, 3, 2, -1], 1)` ≈ `[0.842, 0.114, 0.042, 0.002]` and at T = 4 ≈
+   `[0.434, 0.263, 0.205, 0.097]`.
+2. For any logits and T > 0 the output sums to 1 and keeps the ranking of the logits.
+3. `softmaxT([1000, 0], 1)` returns `[1, 0]` without overflowing to NaN.
+4. `crossEntropy([0.6, 0.3, 0.1], [0.6, 0.3, 0.1])` ≈ 0.898 and
+   `crossEntropy([0.6, 0.3, 0.1], [0.9, 0.05, 0.05])` ≈ 1.262.
+5. `klDivergence(p, p)` is 0, and `klDivergence(p, q)` equals
+   `crossEntropy(p, q) − crossEntropy(p, p)`.
