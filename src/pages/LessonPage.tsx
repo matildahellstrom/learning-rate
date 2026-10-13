@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperti
 import { Link, ScrollRestoration, useParams, useSearchParams } from 'react-router'
 import { gameStore, useGameState } from '../app/game'
 import { hasNavigated } from '../app/navigation'
+import { ReadOnlyBanner } from '../app/ReadOnlyBanner'
 import { useHeaderHeight } from '../app/useHeaderHeight'
 import { usePageTitle } from '../app/usePageTitle'
 import { mdxComponents } from '../components/mdxComponents'
@@ -144,6 +145,7 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
   const { Content } = lesson
   return (
     <div className={styles.lesson} style={themed}>
+      <ReadOnlyBanner />
       <header ref={headerRef} className={styles.top}>
         <Link to="/" className={styles.close} aria-label={t('lesson.close')}>
           ✕

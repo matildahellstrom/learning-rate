@@ -69,8 +69,10 @@ describe('createGameStore', () => {
     const store = createGameStore({ storage, context })
     expect(store.getState().xp).toBe(70)
 
-    store.dispatch(finish)
-    expect(store.getState().xp).toBe(170)
+    expect(store.isReadOnly()).toBe(true)
+    // Nothing can be saved, so nothing is earned (or celebrated) either.
+    expect(store.dispatch(finish)).toEqual([])
+    expect(store.getState().xp).toBe(70)
     expect(storage.data.get(STORAGE_KEY)).toBe(newer)
     expect(storage.data.has(BACKUP_KEY)).toBe(false)
   })
@@ -151,5 +153,14 @@ describe('createGameStore', () => {
     store.dispatch(finish)
     store.dispatch({ type: 'quizAnswered', lessonId: 'gd', questionIndex: 0, correct: true })
     expect(store.getState().xp).toBe(110)
+  })
+
+  it('is writable again after an explicit reset', () => {
+    const newer = JSON.stringify({ ...initialGameState(), version: GAME_STATE_VERSION + 1 })
+    const store = createGameStore({ storage: memoryStorage({ [STORAGE_KEY]: newer }), context })
+    store.reset()
+    expect(store.isReadOnly()).toBe(false)
+    store.dispatch(finish)
+    expect(store.getState().xp).toBe(100)
   })
 })

@@ -55,6 +55,12 @@ export function createGameStore({
   return {
     getState: () => state,
 
+    /**
+     * True while storage holds progress from a newer version of the app. This tab can't save
+     * without destroying it, so actions do nothing (and earn nothing) until a reload.
+     */
+    isReadOnly: () => readOnly,
+
     subscribe(listener: () => void) {
       listeners.add(listener)
       return () => {
@@ -76,6 +82,8 @@ export function createGameStore({
     dispatch(action: GameAction): Reward[] {
       // Read → apply → write, so two open tabs add up their progress instead of overwriting it.
       sync()
+      // Nothing can be saved, so don't pretend: no XP, no stars, no celebrations.
+      if (readOnly) return []
       const result = applyAction(state, action, context())
       if (result.state !== state) commit(result.state)
       if (result.rewards.length > 0) rewardListeners.forEach((l) => l(result.rewards))

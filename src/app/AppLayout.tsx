@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, ScrollRestoration, useLocation } from 'react-rou
 import { t } from '../i18n'
 import styles from './AppLayout.module.css'
 import { useFocusOnNavigation } from './navigation'
+import { ReadOnlyBanner } from './ReadOnlyBanner'
 import { StatsBar } from './StatsBar'
 import { useHeaderHeight } from './useHeaderHeight'
 
@@ -26,6 +27,7 @@ export function AppLayout() {
       >
         {t('skipToContent')}
       </a>
+      <ReadOnlyBanner />
       <header ref={headerRef} className={styles.header}>
         <Link to="/" className={styles.brand}>
           <span className={styles.logo} aria-hidden="true">

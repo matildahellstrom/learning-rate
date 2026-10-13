@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { LESSON, STORAGE_KEY } from './helpers.ts'
+import { expectAccessible, LESSON, STORAGE_KEY } from './helpers.ts'
 
 const saved = (page: Page) =>
   page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? 'null'), STORAGE_KEY)
@@ -68,4 +68,33 @@ test('finishing a lesson again says no new XP instead of "+0 XP"', async ({ page
     await expect(page.getByText(expected)).toBeVisible()
   }
   await expect(page.getByText('+0 XP')).toHaveCount(0)
+})
+
+test('a tab that cannot save says so and celebrates nothing', async ({ page }) => {
+  await page.goto('/')
+  await page.evaluate((key) => {
+    localStorage.setItem(
+      key,
+      JSON.stringify({
+        version: 2,
+        xp: 50,
+        lessons: {},
+        streak: { current: 0, best: 0, lastDay: null, freezes: 0 },
+        badges: {},
+      }),
+    )
+  }, STORAGE_KEY)
+  const before = await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY)
+  await page.reload()
+  await expect(page.getByText(/older version of Learning Rate/)).toBeVisible()
+  await expectAccessible(page)
+
+  await page.goto(`${LESSON}?step=11`)
+  await expect(page.getByText(/older version of Learning Rate/)).toBeVisible()
+  await page.getByRole('button', { name: /Finish/ }).click()
+  await expect(page.getByRole('heading', { name: 'Lesson complete!' })).toBeVisible()
+  await expect(page.getByText(/Nothing was saved in this tab/)).toBeVisible()
+  await expect(page.getByText('+100 XP')).toHaveCount(0)
+  await expect(page.getByText(/Level up!/)).toHaveCount(0)
+  expect(await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY)).toBe(before)
 })

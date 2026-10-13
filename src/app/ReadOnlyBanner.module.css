@@ -1,0 +1,20 @@
+.banner {
+  display: block;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 2px solid var(--danger);
+  background: var(--danger-bg);
+  color: var(--danger-ink);
+  font-weight: 700;
+  text-align: center;
+}
+
+.reload {
+  margin-left: var(--space-1);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}

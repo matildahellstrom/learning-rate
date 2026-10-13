@@ -1,6 +1,6 @@
 import { useEffect, useRef, type CSSProperties } from 'react'
 import { Link } from 'react-router'
-import { useGameState } from '../app/game'
+import { useGameState, useReadOnly } from '../app/game'
 import { useSuppressRewardToasts } from '../app/toastSuppression'
 import { Confetti } from '../components/Confetti'
 import { Eta } from '../components/Eta'
@@ -24,6 +24,7 @@ export function CompletionScreen({ lesson, rewards, quizCorrect, onReview, style
   // This screen lists everything that was earned, so pop-up toasts would only cover it.
   useSuppressRewardToasts()
   const state = useGameState()
+  const readOnly = useReadOnly()
   const headingRef = useRef<HTMLHeadingElement>(null)
   const stars = state.lessons[lesson.id]?.stars ?? 0
   const level = levelFromXp(state.xp)
@@ -54,7 +55,10 @@ export function CompletionScreen({ lesson, rewards, quizCorrect, onReview, style
       <p className={styles.goals}>{t('complete.starGoals')}</p>
 
       <div className={styles.tiles}>
-        {xp > 0 ? (
+        {readOnly ? (
+          // This tab can't save, so there is nothing to celebrate (see ReadOnlyBanner).
+          <p className={styles.quiz}>{t('readOnly.notSaved')}</p>
+        ) : xp > 0 ? (
           <p className={styles.xp}>
             <span className={styles.tileIcon} aria-hidden="true">
               ⭐

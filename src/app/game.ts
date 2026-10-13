@@ -30,6 +30,11 @@ gameStore.onRewards(() => {
   void navigator.storage?.persist?.()
 })
 
+/** True while this tab can't save (another tab runs a newer version of the app). */
+export function useReadOnly() {
+  return useSyncExternalStore(gameStore.subscribe, gameStore.isReadOnly)
+}
+
 /** Re-renders the component whenever the game state changes. */
 export function useGameState() {
   return useSyncExternalStore(gameStore.subscribe, gameStore.getState)

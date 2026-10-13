@@ -119,6 +119,11 @@ export const en = {
   'toast.streakExtended': '{days}-day streak!',
   'toast.freezeUsed': 'A streak freeze saved your {days}-day streak!',
 
+  'readOnly.banner':
+    "This tab is running an older version of Learning Rate, so progress can't be saved. Reload to update.",
+  'readOnly.reload': 'Reload',
+  'readOnly.notSaved':
+    'Nothing was saved in this tab: it runs an older version of the app. Reload to update, then finish the lesson again.',
   'notFound.title': 'Page not found',
   'notFound.back': 'Back to the map',
 } as const
