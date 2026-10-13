@@ -20,6 +20,8 @@ export const en = {
   'map.progress': '{done} of {total} lessons done',
   'map.minutes': '{minutes} min',
   'map.stars': '{stars} of 3 stars',
+  'map.world': 'World {n}',
+  'map.startHere': 'Start',
 
   'lesson.close': 'Close lesson',
   'lesson.progress': 'Step {step} of {total}',
