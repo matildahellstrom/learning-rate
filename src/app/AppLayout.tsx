@@ -10,8 +10,7 @@ import { useHeaderHeight } from './useHeaderHeight'
 /** Frame for the map and profile: header with stats, content, and navigation. */
 export function AppLayout() {
   const mainRef = useRef<HTMLElement>(null)
-  const headerRef = useRef<HTMLElement>(null)
-  useHeaderHeight(headerRef)
+  const headerRef = useHeaderHeight()
   useFocusOnNavigation(mainRef, useLocation().pathname)
 
   return (

@@ -51,8 +51,7 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
   )
   const finished = atDone && completion !== null
   const stepRef = useRef<HTMLDivElement>(null)
-  const headerRef = useRef<HTMLElement>(null)
-  useHeaderHeight(headerRef)
+  const headerRef = useHeaderHeight()
   const isFirstRender = useRef(true)
 
   useEffect(

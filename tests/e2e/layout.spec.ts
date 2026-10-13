@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { LESSON } from './helpers.ts'
+import { continueTo, LESSON } from './helpers.ts'
 
 const PAGES = ['/', '/#/profile', LESSON, `${LESSON}?step=6`, `${LESSON}?step=8`]
 
@@ -144,4 +144,22 @@ test('with text at 200% the reward toast stays one line below the header', async
   }
   // Screen readers still get every reward, even if the line is cut off visually.
   await expect(toast).toContainText('Streak started')
+})
+
+test('after the completion screen, the toast still sits below the lesson header', async ({
+  page,
+}) => {
+  await page.goto(`${LESSON}?step=11`)
+  await page.getByRole('button', { name: /Finish/ }).click()
+  await page.getByRole('button', { name: 'Review lesson' }).click()
+  await continueTo(page, 6)
+  await page.getByLabel('Learning rate η').fill('0.5')
+  await page.getByRole('button', { name: 'Step', exact: true }).click()
+
+  const toast = page.locator('[aria-live] > div').filter({ hasText: 'XP' })
+  await expect(toast).toBeVisible()
+  await toast.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
+  const toastBox = (await toast.boundingBox())!
+  const headerBox = (await page.locator('header').first().boundingBox())!
+  expect(toastBox.y).toBeGreaterThanOrEqual(headerBox.y + headerBox.height)
 })
