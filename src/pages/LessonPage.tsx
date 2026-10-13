@@ -15,7 +15,7 @@ import {
   saveQuizAttempt,
   type QuizAttempt,
 } from '../lesson/quizAttempt'
-import { parseStep, STEP_PARAM, stepToParam } from '../lesson/stepParam'
+import { DONE_PARAM, parseStep, STEP_PARAM, stepToParam } from '../lesson/stepParam'
 import { CompletionScreen } from './CompletionScreen'
 import styles from './LessonPage.module.css'
 import { NotFoundPage } from './NotFoundPage'
@@ -31,14 +31,23 @@ export function LessonPage() {
 function LessonPlayer({ lesson }: { lesson: Lesson }) {
   usePageTitle(lesson.title)
   // The step lives in the URL, so reload and the browser's Back/Forward keep your place.
+  // Finishing is in the URL too (?step=done), so Back from the completion screen returns to the
+  // last step and every screen change is a single navigation (no in-between frames).
   const [searchParams, setSearchParams] = useSearchParams()
-  const step = parseStep(searchParams.get(STEP_PARAM), lesson.stepCount)
+  const atDone = searchParams.get(STEP_PARAM) === DONE_PARAM
+  const step = atDone
+    ? lesson.stepCount - 1
+    : parseStep(searchParams.get(STEP_PARAM), lesson.stepCount)
   const setStep = (next: number) => setSearchParams({ [STEP_PARAM]: stepToParam(next) })
   const [quizAttempt, setQuizAttempt] = useState<QuizAttempt>(() =>
     loadQuizAttempt(browserSessionStorage(), lesson.id),
   )
   const [sessionRewards, setSessionRewards] = useState<Reward[]>([])
-  const [finished, setFinished] = useState(false)
+  // What the completion screen shows, captured when Finish was pressed in this visit.
+  const [completion, setCompletion] = useState<{ rewards: Reward[]; quizCorrect: number } | null>(
+    null,
+  )
+  const finished = atDone && completion !== null
   const stepRef = useRef<HTMLDivElement>(null)
   const isFirstRender = useRef(true)
 
@@ -52,6 +61,14 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
     () => gameStore.onRewards((rewards) => setSessionRewards((all) => [...all, ...rewards])),
     [],
   )
+
+  // ?step=done without a finish in this visit (a reload, a shared link): there's nothing to
+  // celebrate, so show the last step instead.
+  useEffect(() => {
+    if (atDone && completion === null) {
+      setSearchParams({ [STEP_PARAM]: stepToParam(lesson.stepCount - 1) }, { replace: true })
+    }
+  }, [atDone, completion, lesson.stepCount, setSearchParams])
 
   // Moving to a new step: scroll up and move focus to the new content, so screen-reader and
   // keyboard users start reading from the top of the step.
@@ -68,7 +85,8 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
     }
     window.scrollTo({ top: 0 })
     stepRef.current?.focus()
-  }, [step])
+    // atDone too: coming Back from the completion screen lands on the last step's content.
+  }, [step, atDone])
 
   const context = useMemo<LessonContextValue>(
     () => ({
@@ -91,7 +109,7 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
   } as CSSProperties
 
   function finish() {
-    gameStore.dispatch({
+    const rewards = gameStore.dispatch({
       type: 'lessonFinished',
       lessonId: lesson.id,
       quizCorrect,
@@ -99,7 +117,8 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
     })
     // The attempt is over: coming back to this lesson later starts a fresh quiz.
     saveQuizAttempt(browserSessionStorage(), lesson.id, {})
-    setFinished(true)
+    setCompletion({ rewards: [...sessionRewards, ...rewards], quizCorrect })
+    setSearchParams({ [STEP_PARAM]: DONE_PARAM })
   }
 
   if (finished) {
@@ -107,10 +126,10 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
       <CompletionScreen
         style={themed}
         lesson={lesson}
-        rewards={sessionRewards}
-        quizCorrect={quizCorrect}
+        rewards={completion.rewards}
+        quizCorrect={completion.quizCorrect}
         onReview={() => {
-          setFinished(false)
+          // One navigation to step 1: the screen switches when the URL does, never in between.
           setStep(0)
           setQuizAttempt({})
           setSessionRewards([])

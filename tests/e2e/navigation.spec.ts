@@ -79,3 +79,43 @@ test('a lesson that fails to load shows a friendly message', async ({ page }) =>
   await expect(page.getByRole('heading', { name: "Couldn't load the lesson" })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Reload' })).toBeVisible()
 })
+
+test('Back from the completion screen returns to the last step', async ({ page }) => {
+  await page.goto(`${LESSON}?step=${STEP_COUNT}`)
+  await page.getByRole('button', { name: /Finish/ }).click()
+  await expect(page.getByRole('heading', { name: 'Lesson complete!' })).toBeVisible()
+  expect(page.url()).toContain('step=done')
+
+  await page.goBack()
+  await expect(page.getByRole('progressbar', stepBar(STEP_COUNT))).toBeAttached()
+  await expect(page.getByRole('heading', { name: 'Lesson complete!' })).toHaveCount(0)
+
+  // Forward again shows the celebration from this visit.
+  await page.goForward()
+  await expect(page.getByRole('heading', { name: 'Lesson complete!' })).toBeVisible()
+
+  // A reload of the done URL has nothing to celebrate: it shows the last step.
+  await page.reload()
+  await expect(page.getByRole('progressbar', stepBar(STEP_COUNT))).toBeAttached()
+  await expect(page.getByRole('heading', { name: 'Lesson complete!' })).toHaveCount(0)
+})
+
+test('"Review lesson" goes straight to step 1 without flashing the last step', async ({ page }) => {
+  await page.goto(`${LESSON}?step=${STEP_COUNT}`)
+  await page.getByRole('button', { name: /Finish/ }).click()
+  await expect(page.getByRole('heading', { name: 'Lesson complete!' })).toBeVisible()
+
+  // Record every progress label that appears from now on.
+  await page.evaluate(() => {
+    const seen: string[] = []
+    ;(window as unknown as { seenSteps: string[] }).seenSteps = seen
+    new MutationObserver(() => {
+      const label = document.querySelector('header progress')?.getAttribute('aria-label')
+      if (label) seen.push(label)
+    }).observe(document.body, { subtree: true, childList: true, attributes: true })
+  })
+  await page.getByRole('button', { name: 'Review lesson' }).click()
+  await expect(page.getByRole('progressbar', stepBar(1))).toBeAttached()
+  const seen = await page.evaluate(() => (window as unknown as { seenSteps: string[] }).seenSteps)
+  expect(seen).not.toContain(`Step ${STEP_COUNT} of ${STEP_COUNT}`)
+})

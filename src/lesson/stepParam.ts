@@ -4,6 +4,8 @@
  * inside the app steps are 0-based.
  */
 export const STEP_PARAM = 'step'
+/** `?step=done`: the completion screen, so Back from it returns to the last step. */
+export const DONE_PARAM = 'done'
 
 /** 0-based step from the URL value. Missing or invalid → 0; out of range → clamped. */
 export function parseStep(value: string | null, stepCount: number): number {
