@@ -3,6 +3,9 @@ import { defineConfig, devices } from '@playwright/test'
 // End-to-end tests run against the production build (`npm run build` first).
 export default defineConfig({
   testDir: 'tests/e2e',
+  // Not the default `test-results/`: Playwright wipes its outputDir on every run, and
+  // test-results/explore/ holds the exploratory QA specs.
+  outputDir: 'test-results/e2e',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
