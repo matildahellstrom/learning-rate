@@ -16,28 +16,71 @@
   --primary-strong: #4c1d95;
   --on-primary: #ffffff;
 
+  /* Buttons stay vivid in both themes: white text on violet (7.1:1 light, 5.7:1 dark). */
+  --btn: #6d28d9;
+  --btn-ledge: #4c1d95;
+  --on-btn: #ffffff;
+  /* "Go" buttons (Continue, Finish): white on green, 5:1. */
+  --go: #15803d;
+  --go-ledge: #14532d;
+
   --xp: #f59e0b;
   --xp-strong: #b45309;
   --on-xp: #2b1700;
+  /* Gold coins and medals: dark brown text on light gold, 10:1. */
+  --gold: #fcd34d;
+  --gold-2: #f59e0b;
+  --gold-ledge: #b45309;
+  --on-gold: #3b1d00;
+
+  --flame: #ea580c;
+  --flame-bg: #ffedd5;
+  --on-flame-bg: #7c2d12;
 
   --success: #15803d;
   --success-bg: #dcfce7;
+  --success-ledge: #15803d;
+  --success-ink: #14532d;
   --danger: #b91c1c;
   --danger-bg: #fee2e2;
+  --danger-ink: #7f1d1d;
   --focus: #2563eb;
 
-  --track-violet: #6d28d9;
-  --track-blue: #1d4ed8;
+  /*
+   * Track identities: each track is a two-stop gradient (--track-x → --track-x-2).
+   * Both stops carry white text at ≥ 4.5:1, so headings and descriptions can sit on them.
+   */
+  --track-violet: #7c3aed;
+  --track-violet-2: #a21caf;
+  --track-blue: #2563eb;
+  --track-blue-2: #4338ca;
   --track-green: #15803d;
+  --track-green-2: #047857;
   --track-orange: #c2410c;
-  --track-pink: #be185d;
+  --track-orange-2: #9a3412;
+  --track-pink: #db2777;
+  --track-pink-2: #be123c;
   --track-teal: #0f766e;
-  --track-red: #b91c1c;
+  --track-teal-2: #0e7490;
+  --track-red: #dc2626;
+  --track-red-2: #be123c;
+  --on-track: #ffffff;
   --locked: #9a93ad;
+
+  /* The "Up next" hero: violet → fuchsia → pink, white text ≥ 4.6:1 at every stop. */
+  --hero-gradient: linear-gradient(135deg, #5b21b6 0%, #a21caf 55%, #db2777 100%);
+  --hero-ledge: #4c1d95;
+
+  /* Soft colour blobs behind everything; low alpha so text contrast barely moves. */
+  --blob-1: rgb(124 58 237 / 0.1);
+  --blob-2: rgb(219 39 119 / 0.08);
+  --blob-3: rgb(37 99 235 / 0.08);
+  --dot: rgb(109 40 217 / 0.07);
 
   --radius-s: 8px;
   --radius-m: 14px;
   --radius-l: 22px;
+  --radius-xl: 28px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -45,10 +88,15 @@
   --space-5: 24px;
   --space-6: 32px;
 
-  --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font: 'Nunito Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --weight-display: 900;
   --shadow-card: 0 2px 0 var(--border);
+  --shadow-soft: 0 8px 24px rgb(76 29 149 / 0.12);
   --content-width: 640px;
   --duration: 200ms;
+  --bounce: cubic-bezier(0.3, 1.6, 0.5, 1);
+  /* Set to 0 under reduced motion; multiply decorative motion distances by it. */
+  --motion: 1;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -64,28 +112,37 @@
     --primary-strong: #7c3aed;
     --on-primary: #1c1530;
 
+    --btn: #7c3aed;
+    --btn-ledge: #4c1d95;
+
     --xp: #fbbf24;
     --xp-strong: #b45309;
 
+    --flame-bg: #3b1a0a;
+    --on-flame-bg: #fed7aa;
+
     --success: #4ade80;
     --success-bg: #12301f;
+    --success-ledge: #166534;
+    --success-ink: #4ade80;
     --danger: #fca5a5;
     --danger-bg: #3a1518;
+    --danger-ink: #fca5a5;
     --focus: #93c5fd;
 
-    --track-violet: #8b5cf6;
-    --track-blue: #3b82f6;
-    --track-green: #16a34a;
-    --track-orange: #ea580c;
-    --track-pink: #db2777;
-    --track-teal: #0d9488;
-    --track-red: #dc2626;
     --locked: #5d5577;
+
+    --blob-1: rgb(124 58 237 / 0.18);
+    --blob-2: rgb(219 39 119 / 0.1);
+    --blob-3: rgb(37 99 235 / 0.12);
+    --dot: rgb(196 181 253 / 0.06);
+    --shadow-soft: 0 8px 24px rgb(0 0 0 / 0.35);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   :root {
     --duration: 0ms;
+    --motion: 0;
   }
 }
