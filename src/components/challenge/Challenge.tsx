@@ -28,7 +28,11 @@ export function Challenge({ id, title, goal, stars: thresholds, children }: Prop
 
   const report = useCallback(
     (event: WidgetEvent) => {
-      if (event.type !== 'converged') return
+      // A new run, or one that blew up: the last result no longer describes what's on screen.
+      if (event.type !== 'converged') {
+        setLast(null)
+        return
+      }
       const stars = starsForSteps(event.steps, thresholds)
       setLast({ steps: event.steps, stars })
       if (stars > 0) {

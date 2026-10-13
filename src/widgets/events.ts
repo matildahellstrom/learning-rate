@@ -1,7 +1,11 @@
 import { createContext, useContext } from 'react'
 
 /** What interactive widgets report. A <Challenge> turns these into stars; widgets never touch the game. */
-export type WidgetEvent = { type: 'converged'; steps: number } | { type: 'diverged'; steps: number }
+export type WidgetEvent =
+  | { type: 'converged'; steps: number }
+  | { type: 'diverged'; steps: number }
+  /** The run was restarted (Reset, a new learning rate or start): earlier results are stale. */
+  | { type: 'reset' }
 
 export type ChallengeContextValue = {
   report: (event: WidgetEvent) => void

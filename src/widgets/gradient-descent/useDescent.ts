@@ -76,6 +76,7 @@ export function useDescent({
     reset: (from: Vector = start) => {
       setPlaying(false)
       setPath([[...from]])
+      onEvent?.({ type: 'reset' })
     },
   }
 }

@@ -141,3 +141,15 @@ test('axis labels are not cut off at the plot edges', async ({ page }) => {
     }
   }
 })
+
+test('the challenge result clears when a new run starts', async ({ page }) => {
+  await openStep(page, 6)
+  await page.getByLabel('Learning rate η').fill('0.4')
+  const step = page.getByRole('button', { name: 'Step', exact: true })
+  while ((await step.getAttribute('aria-disabled')) !== 'true') await step.click()
+  const result = page.getByText(/^Reached the bottom in 6 steps\./)
+  await expect(result).toBeVisible()
+
+  await page.getByLabel('Learning rate η').fill('1.2')
+  await expect(result).toHaveCount(0)
+})
