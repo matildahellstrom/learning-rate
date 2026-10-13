@@ -110,9 +110,15 @@ export function Quiz() {
                   onChange={() => setChoice(i)}
                 />
                 <span>{option}</span>
-                {answered && i === question.answer && <span aria-hidden="true"> ✓</span>}
+                {answered && i === question.answer && (
+                  <span className={styles.mark} aria-hidden="true">
+                    ✓
+                  </span>
+                )}
                 {answered && i === choice && i !== question.answer && (
-                  <span aria-hidden="true"> ✗</span>
+                  <span className={styles.mark} aria-hidden="true">
+                    ✗
+                  </span>
                 )}
               </label>
             )
@@ -163,14 +169,14 @@ export function Quiz() {
       {answered ? (
         // Distinct keys: React must not reuse the "Next" button's DOM node (and its focus) for
         // "Check", which starts out disabled.
-        <button key="next" ref={nextRef} type="button" className="btn" onClick={next}>
+        <button key="next" ref={nextRef} type="button" className="btn btn-go" onClick={next}>
           {t('quiz.next')}
         </button>
       ) : (
         <button
           key="check"
           type="submit"
-          className="btn"
+          className="btn btn-go"
           disabled={question.type === 'choice' ? choice === null : text.trim() === ''}
         >
           {t('quiz.check')}

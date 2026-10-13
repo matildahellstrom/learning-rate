@@ -17,13 +17,31 @@ body {
   font-family: var(--font);
   font-size: 1.0625rem;
   line-height: 1.6;
+  font-optical-sizing: auto;
+}
+
+/*
+ * Playful backdrop: a few soft colour blobs and a faint dot grid, fixed behind everything.
+ * The alphas are low, so text on the page background keeps (almost exactly) its contrast.
+ */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 8% 12%, var(--blob-1), transparent 38%),
+    radial-gradient(circle at 92% 30%, var(--blob-2), transparent 34%),
+    radial-gradient(circle at 20% 88%, var(--blob-3), transparent 36%),
+    radial-gradient(var(--dot) 1.5px, transparent 1.7px) 0 0 / 22px 22px;
 }
 
 h1,
 h2,
 h3 {
   line-height: 1.2;
-  font-weight: 800;
+  font-weight: var(--weight-display);
   letter-spacing: -0.01em;
 }
 
@@ -64,50 +82,73 @@ svg {
   top: var(--space-2);
 }
 
-/* Chunky game-style buttons: a solid "ledge" underneath that squashes when pressed. */
+/*
+ * Chunky game-style buttons: a solid "ledge" underneath (a box-shadow with no blur) that
+ * squashes when pressed, plus a thin inner highlight on top so they look glossy and 3D.
+ */
 .btn {
+  --ledge: var(--btn-ledge);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  min-height: 48px;
+  min-height: 50px;
   padding: var(--space-2) var(--space-5);
-  border: 2px solid var(--primary-strong);
-  border-radius: var(--radius-m);
-  background: var(--primary);
-  color: var(--on-primary);
+  border: 2px solid var(--ledge);
+  border-radius: 16px;
+  background: var(--btn);
+  color: var(--on-btn);
   font: inherit;
-  font-weight: 800;
+  font-weight: 900;
+  letter-spacing: 0.02em;
   text-decoration: none;
-  box-shadow: 0 4px 0 var(--primary-strong);
+  box-shadow:
+    0 5px 0 var(--ledge),
+    inset 0 3px 0 rgb(255 255 255 / 0.2);
   cursor: pointer;
-  transition: transform var(--duration);
+  transition:
+    transform var(--duration),
+    box-shadow var(--duration);
 }
 
+.btn:hover:not(:disabled, [aria-disabled='true']) {
+  transform: translateY(-1px);
+  box-shadow:
+    0 6px 0 var(--ledge),
+    inset 0 3px 0 rgb(255 255 255 / 0.2);
+}
+
+/* aria-disabled buttons (Step/Play at the end of a run) keep focus, so they look disabled too. */
 .btn:active:not(:disabled, [aria-disabled='true']) {
-  transform: translateY(3px);
-  box-shadow: 0 1px 0 var(--primary-strong);
+  transform: translateY(4px);
+  box-shadow:
+    0 1px 0 var(--ledge),
+    inset 0 3px 0 rgb(255 255 255 / 0.2);
 }
 
+/* Disabled: flat and grey, like a game button you can't press yet. */
 .btn:disabled,
 .btn[aria-disabled='true'] {
-  opacity: 0.5;
+  --ledge: var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
   cursor: not-allowed;
 }
 
 .btn-secondary {
+  --ledge: var(--border);
   background: var(--surface);
   color: var(--text);
-  border-color: var(--border);
-  box-shadow: 0 4px 0 var(--border);
 }
 
-.btn-secondary:active:not(:disabled, [aria-disabled='true']) {
-  box-shadow: 0 1px 0 var(--border);
+.btn-go {
+  --ledge: var(--go-ledge);
+  background: var(--go);
+  color: #ffffff;
 }
 
 .btn-small {
-  min-height: 40px;
+  min-height: 42px;
   padding: var(--space-1) var(--space-4);
   font-size: 0.95rem;
 }
@@ -117,6 +158,7 @@ svg {
   border: 2px solid var(--border);
   border-radius: var(--radius-l);
   padding: var(--space-4);
+  box-shadow: 0 4px 0 var(--border);
 }
 
 /* KaTeX display maths can be wider than a phone: scroll it instead of the page. */
@@ -134,4 +176,20 @@ svg {
   --mafs-line-color: var(--border);
   border-radius: var(--radius-m);
   touch-action: none;
+}
+
+/*
+ * Reduced-motion safety net: every animation and transition finishes instantly, so elements
+ * land in their final, fully visible state. Components also switch decorative loops off.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

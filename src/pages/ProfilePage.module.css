@@ -1,6 +1,6 @@
 .title {
   margin: var(--space-2) 0 var(--space-4);
-  font-size: 1.6rem;
+  font-size: 1.75rem;
 }
 
 .muted {
@@ -8,24 +8,43 @@
   font-size: 0.9rem;
 }
 
+/* ---------- Level card with a progress ring ---------- */
+
 .levelCard {
   display: flex;
   align-items: center;
   gap: var(--space-4);
 }
 
-.levelNumber {
+/* The ring is a conic-gradient: gold up to --fill, track colour after it. */
+.levelRing {
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  width: 72px;
-  height: 72px;
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
-  background: var(--primary);
-  color: var(--on-primary);
-  font-size: 2rem;
-  font-weight: 900;
-  box-shadow: 0 5px 0 var(--primary-strong);
+  background: conic-gradient(
+    var(--gold-2) calc(var(--fill) * 1turn),
+    var(--surface-2) calc(var(--fill) * 1turn)
+  );
+  box-shadow: 0 4px 0 var(--border);
+}
+
+.levelNumber {
+  display: grid;
+  place-items: center;
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  background-color: var(--btn);
+  background-image: linear-gradient(160deg, var(--track-violet), var(--track-violet-2));
+  color: #ffffff;
+  font-size: 2.3rem;
+  font-weight: var(--weight-display);
+  box-shadow:
+    inset 0 -4px 0 rgb(0 0 0 / 0.18),
+    inset 0 3px 0 rgb(255 255 255 / 0.25);
 }
 
 .levelInfo {
@@ -34,30 +53,81 @@
   gap: var(--space-1);
 }
 
+.levelInfo strong {
+  font-size: 1.3rem;
+  font-weight: var(--weight-display);
+}
+
 .levelInfo progress {
   width: 100%;
-  height: 14px;
-  accent-color: var(--xp);
+  height: 16px;
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
 }
+
+.levelInfo progress::-webkit-progress-bar {
+  background: var(--surface-2);
+}
+
+.levelInfo progress::-webkit-progress-value {
+  background: linear-gradient(180deg, var(--gold), var(--gold-2));
+  border-radius: 999px;
+  box-shadow: inset 0 4px 0 -1px rgb(255 255 255 / 0.45);
+}
+
+.levelInfo progress::-moz-progress-bar {
+  background: linear-gradient(180deg, var(--gold), var(--gold-2));
+  border-radius: 999px;
+}
+
+/* ---------- Stat tiles, each with its own colour ---------- */
 
 .stats {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: var(--space-3);
-  margin: var(--space-4) 0 var(--space-2);
+  margin: var(--space-5) 0 var(--space-2);
+}
+
+/* A faint wash of the tile's colour (12%) keeps both body and muted text well above AA. */
+.stat {
+  padding: var(--space-3) var(--space-4);
+  border: 2px solid color-mix(in srgb, var(--tint) 45%, var(--border));
+  border-radius: var(--radius-l);
+  background: color-mix(in srgb, var(--tint) 12%, var(--surface));
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--tint) 45%, var(--border));
 }
 
 .stat dt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   color: var(--text-muted);
   font-size: 0.85rem;
-  font-weight: 700;
+  font-weight: 800;
+}
+
+.statIcon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--surface);
+  font-size: 1rem;
 }
 
 .stat dd {
-  margin: 0;
-  font-size: 1.3rem;
-  font-weight: 900;
+  margin: var(--space-1) 0 0;
+  font-size: 1.6rem;
+  font-weight: var(--weight-display);
+  font-variant-numeric: tabular-nums;
 }
+
+/* ---------- Trophy shelf ---------- */
 
 .badges {
   display: grid;
@@ -77,20 +147,54 @@
   text-align: center;
   background: var(--surface);
   border: 2px solid var(--border);
+  box-shadow: 0 4px 0 var(--border);
 }
 
 .earned {
-  border-color: var(--xp);
-  box-shadow: 0 4px 0 var(--xp-strong);
+  border-color: var(--gold-2);
+  background: color-mix(in srgb, var(--gold) 14%, var(--surface));
+  box-shadow: 0 4px 0 var(--gold-ledge);
+}
+
+/* Medallions: a gold coin with a rim when earned, a dashed empty socket when locked. */
+.medal {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  margin-bottom: var(--space-2);
+  border-radius: 50%;
+}
+
+.earned .medal {
+  border: 3px solid var(--gold-ledge);
+  background: radial-gradient(circle at 35% 30%, #fffbeb, var(--gold) 45%, var(--gold-2));
+  box-shadow:
+    0 5px 0 var(--gold-ledge),
+    inset 0 -4px 0 rgb(0 0 0 / 0.1);
+}
+
+.locked .medal {
+  border: 3px dashed var(--locked);
+  background: var(--surface-2);
+}
+
+.badgeIcon {
+  font-size: 2.1rem;
+  line-height: 1;
+}
+
+.earned .badgeIcon {
+  transition: transform var(--duration) var(--bounce);
+}
+
+.earned:hover .badgeIcon {
+  transform: scale(1.15) rotate(-8deg);
 }
 
 .locked .badgeIcon {
   filter: grayscale(1);
   opacity: 0.6;
-}
-
-.badgeIcon {
-  font-size: 2.2rem;
 }
 
 .storage {

@@ -1,154 +1,381 @@
 .title {
   margin: var(--space-2) 0 var(--space-4);
-  font-size: 1.6rem;
+  font-size: 1.75rem;
 }
 
+/* ---------- "Up next" hero card ---------- */
+
 .upNext {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
   padding: var(--space-5);
-  border-radius: var(--radius-l);
-  background: var(--primary);
-  color: var(--on-primary);
-  box-shadow: 0 6px 0 var(--primary-strong);
+  border-radius: var(--radius-xl);
+  background-color: #6d28d9;
+  background-image: var(--hero-gradient);
+  color: #ffffff;
+  box-shadow:
+    0 7px 0 var(--hero-ledge),
+    var(--shadow-soft),
+    inset 0 3px 0 rgb(255 255 255 / 0.18);
+}
+
+.upNextText {
+  flex: 1;
+  min-width: 0;
+}
+
+.mascot {
+  order: 2;
+  flex-shrink: 0;
+  width: 112px;
+  align-self: flex-end;
+  margin: 0 calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) 0;
 }
 
 .upNext :global(.btn) {
-  background: var(--xp);
-  color: var(--on-xp);
-  border-color: var(--xp-strong);
-  box-shadow: 0 4px 0 var(--xp-strong);
+  --ledge: var(--gold-ledge);
+  background-color: var(--gold-2);
+  background-image: linear-gradient(180deg, var(--gold), var(--gold-2));
+  color: var(--on-gold);
+  font-size: 1.15rem;
+  min-width: 140px;
 }
 
 .upNextLabel {
+  display: inline-block;
   margin: 0;
-  font-size: 0.85rem;
-  font-weight: 800;
+  padding: 2px var(--space-3);
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.22);
+  font-size: 0.8rem;
+  font-weight: var(--weight-display);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  opacity: 0.85;
+  letter-spacing: 0.1em;
 }
 
 .upNextTitle {
-  margin: var(--space-1) 0;
-  font-size: 1.5rem;
+  margin: var(--space-2) 0 var(--space-1);
+  font-size: 1.65rem;
 }
 
 .upNextSummary {
   margin: 0 0 var(--space-4);
+  font-weight: 600;
 }
+
+/* Narrow phones: normal flow, Eta floats top-right and the text wraps around it. */
+@media (max-width: 440px) {
+  .upNext {
+    display: flow-root;
+    padding: var(--space-4);
+  }
+
+  .mascot {
+    float: right;
+    width: 84px;
+    margin: 0 calc(-1 * var(--space-1)) var(--space-1) var(--space-2);
+  }
+}
+
+/* ---------- Worlds (tracks) ---------- */
 
 .track {
   margin-top: var(--space-6);
 }
 
+/* Each world's banner uses its own gradient; white text passes AA on both stops. */
 .trackHeader {
   display: flex;
   gap: var(--space-3);
   align-items: flex-start;
   padding: var(--space-4);
   border-radius: var(--radius-l);
-  background: var(--surface);
-  border: 2px solid var(--border);
-  border-left: 8px solid var(--track);
+  background-color: var(--track);
+  background-image: linear-gradient(135deg, var(--track), var(--track-2));
+  color: var(--on-track);
+  box-shadow:
+    0 6px 0 color-mix(in srgb, var(--track-2) 60%, #000),
+    inset 0 3px 0 rgb(255 255 255 / 0.18);
 }
 
 .trackIcon {
-  font-size: 2rem;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: rgb(255 255 255 / 0.92);
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--track-2) 50%, #000);
+  font-size: 1.9rem;
   line-height: 1;
+}
+
+.trackText {
+  min-width: 0;
+}
+
+.world {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: var(--weight-display);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 
 .trackTitle {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.35rem;
 }
 
-.trackDescription,
-.trackProgress {
+.trackDescription {
   margin: var(--space-1) 0 0;
-  color: var(--text-muted);
+  font-weight: 600;
 }
 
 .trackProgress {
-  font-weight: 800;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  margin-top: var(--space-2);
 }
+
+.trackProgress p {
+  margin: 0;
+  font-weight: var(--weight-display);
+}
+
+.trackBar {
+  display: block;
+  width: 96px;
+  height: 12px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.25);
+  overflow: hidden;
+}
+
+.trackBar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--gold), var(--gold-2));
+}
+
+/* ---------- The path ---------- */
 
 .path {
+  /* How far nodes swing sideways: smaller on narrow phones so nothing overflows at 320px. */
+  --amp: clamp(0px, (100vw - 220px) / 2, 76px);
+  --coin: 76px;
+  --gap: 40px;
+  --bubble-room: 40px;
   list-style: none;
-  margin: var(--space-4) 0 0;
+  margin: var(--space-5) 0 0;
   padding: 0;
   display: grid;
-  gap: var(--space-4);
+  gap: var(--gap);
 }
 
 .stop {
+  --pad: 0px;
+  position: relative;
   display: flex;
   justify-content: center;
+  padding-top: var(--pad);
+}
+
+.hasBubble {
+  --pad: var(--bubble-room);
 }
 
 /* Shift the node, not the full-width row: moving the row would overflow the screen. */
-.stop > * {
-  transform: translateX(var(--shift));
+.stop > .node {
+  position: relative;
+  z-index: 1;
+  transform: translateX(calc(var(--a) * var(--amp)));
+}
+
+.connector {
+  position: absolute;
+  z-index: 0;
+  top: calc(var(--pad) + var(--coin) / 2);
+  left: calc(50% + var(--lo) * var(--amp) - 3px);
+  width: calc(var(--span) * var(--amp) + 6px);
+  height: calc(100% - var(--pad) + var(--gap) + var(--next-pad));
+  overflow: visible;
+  fill: none;
+  stroke-width: 9px;
+  stroke-linecap: round;
+  stroke-dasharray: 0.1 15;
+}
+
+.roadOpen {
+  stroke: color-mix(in srgb, var(--track) 70%, var(--bg));
+}
+
+.roadDone {
+  stroke: var(--gold-2);
+}
+
+.roadLocked {
+  stroke: var(--locked);
 }
 
 .node {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-1);
-  width: 160px;
+  gap: var(--space-2);
+  width: 168px;
   color: var(--text);
   text-decoration: none;
   text-align: center;
 }
 
-.circle {
+.coinWrap {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 68px;
-  height: 68px;
+}
+
+/*
+ * 3D coins: a gradient face, a glossy highlight (inset shadow), and a solid "ledge"
+ * (a box-shadow with no blur) that makes the coin look thick.
+ */
+.coin {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--coin);
+  height: var(--coin);
   border-radius: 50%;
-  background: var(--track);
-  color: #fff;
-  font-size: 1.6rem;
-  font-weight: 900;
-  box-shadow: 0 6px 0 color-mix(in srgb, var(--track) 60%, #000);
-  transition: transform var(--duration);
+  background-color: var(--track);
+  background-image:
+    radial-gradient(circle at 30% 22%, rgb(255 255 255 / 0.32), transparent 28%),
+    linear-gradient(160deg, var(--track), var(--track-2));
+  color: var(--on-track);
+  font-size: 1.85rem;
+  font-weight: var(--weight-display);
+  box-shadow:
+    0 7px 0 color-mix(in srgb, var(--track-2) 55%, #000),
+    inset 0 -5px 0 rgb(0 0 0 / 0.15),
+    inset 0 3px 0 rgb(255 255 255 / 0.3);
+  transition: transform var(--duration) var(--bounce);
 }
 
-a.node:hover .circle {
-  transform: translateY(-2px);
+a.node:hover .coin {
+  transform: translateY(-3px) scale(1.04);
 }
 
-a.node:active .circle {
-  transform: translateY(4px);
-  box-shadow: 0 2px 0 color-mix(in srgb, var(--track) 60%, #000);
+a.node:active .coin {
+  transform: translateY(5px);
+  box-shadow:
+    0 2px 0 color-mix(in srgb, var(--track-2) 55%, #000),
+    inset 0 -5px 0 rgb(0 0 0 / 0.15);
 }
 
-.done {
-  background: var(--xp);
-  color: var(--on-xp);
-  box-shadow: 0 6px 0 var(--xp-strong);
+.doneCoin {
+  background-color: var(--gold-2);
+  background-image:
+    radial-gradient(circle at 30% 22%, rgb(255 255 255 / 0.5), transparent 28%),
+    linear-gradient(160deg, var(--gold), var(--gold-2));
+  color: var(--on-gold);
+  font-size: 2.1rem;
+  box-shadow:
+    0 7px 0 var(--gold-ledge),
+    inset 0 -5px 0 rgb(0 0 0 / 0.1),
+    inset 0 3px 0 rgb(255 255 255 / 0.45);
 }
 
-.next {
-  outline: 4px solid var(--track);
-  outline-offset: 5px;
-  animation: pulse 1.6s ease-in-out infinite;
+/* The next lesson: a ring that keeps pulsing outwards (transform + opacity on a ring, no text). */
+.next::before,
+.next::after {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  border: 4px solid var(--track);
+  border-radius: 50%;
+  pointer-events: none;
 }
 
+.next::after {
+  animation: ripple 1.8s ease-out infinite;
+}
+
+@keyframes ripple {
+  from {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  to {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+/* The floating "START" speech bubble above the next node. */
+.bubble {
+  position: absolute;
+  bottom: calc(100% + 14px);
+  left: 50%;
+  padding: 3px var(--space-3);
+  border-radius: 12px;
+  background: var(--track-2);
+  color: var(--on-track);
+  font-size: 0.95rem;
+  font-weight: var(--weight-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--track-2) 55%, #000);
+  transform: translateX(-50%);
+  animation: float 1.6s ease-in-out infinite;
+}
+
+.bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  border: 8px solid transparent;
+  border-top-color: var(--track-2);
+  transform: translateX(-50%);
+}
+
+@keyframes float {
+  50% {
+    transform: translateX(-50%) translateY(-5px);
+  }
+}
+
+/* Coming soon: flat grey coins, still readable (the number keeps ≥ 3:1). */
 .locked {
   background: var(--surface-2);
-  /* Muted, but still readable: the number must meet 3:1 contrast even though it's decorative. */
   color: var(--text-muted);
-  border: 3px dashed var(--locked);
-  box-shadow: none;
+  border: 3px solid var(--border);
+  box-shadow: 0 6px 0 var(--border);
 }
 
+/* Labels sit on their own little card, so the road behind never crosses the text. */
 .label {
   display: flex;
   flex-direction: column;
   align-items: center;
+  max-width: 100%;
+  padding: var(--space-1) var(--space-3);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+  box-shadow: 0 3px 0 var(--border);
   font-weight: 800;
   line-height: 1.3;
+}
+
+a.node:hover .label {
+  border-color: var(--track);
 }
 
 .soon {
@@ -157,14 +384,13 @@ a.node:active .circle {
   color: var(--text-muted);
 }
 
-@keyframes pulse {
-  50% {
-    outline-offset: 9px;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .next {
+  .next::after,
+  .bubble {
     animation: none;
+  }
+
+  .next::after {
+    display: none;
   }
 }

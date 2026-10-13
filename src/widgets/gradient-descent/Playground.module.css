@@ -1,9 +1,18 @@
+/*
+ * A game "console": surface card with a track-coloured frame and ledge. The background is
+ * --surface (not --surface-2) so the green/red outcome messages keep ≥ 4.5:1 contrast.
+ */
 .playground {
   margin: var(--space-4) 0;
   padding: var(--space-3);
-  border: 2px solid var(--border);
+  border: 3px solid color-mix(in srgb, var(--track, var(--primary)) 55%, var(--border));
   border-radius: var(--radius-l);
-  background: var(--surface-2);
+  background: var(--surface);
+  box-shadow: 0 5px 0 color-mix(in srgb, var(--track, var(--primary)) 55%, var(--border));
+}
+
+.playground :global(.MafsView) {
+  border: 2px solid var(--border);
 }
 
 .caption {
@@ -30,10 +39,34 @@
 
 .converged {
   color: var(--success);
+  animation: cheer 500ms var(--bounce);
 }
 
 .diverged {
   color: var(--danger);
+  animation: wobble 400ms ease-in-out;
+}
+
+@keyframes cheer {
+  from {
+    transform: scale(0.85);
+  }
+}
+
+@keyframes wobble {
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .converged,
+  .diverged {
+    animation: none;
+  }
 }
 
 .controls {
@@ -96,12 +129,16 @@
   border: 2px solid var(--border);
   border-radius: 999px;
   background: var(--surface);
+  box-shadow: 0 3px 0 var(--border);
+  font-weight: 700;
   cursor: pointer;
 }
 
 .choice:has(input:checked) {
   border-color: var(--primary);
-  font-weight: 800;
+  background: var(--surface-2);
+  box-shadow: 0 3px 0 var(--primary);
+  font-weight: 900;
 }
 
 .choice:has(input:focus-visible) {

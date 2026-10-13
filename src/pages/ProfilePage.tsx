@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { gameStore, useGameState } from '../app/game'
 import { usePageTitle } from '../app/usePageTitle'
 import { useToday } from '../app/useToday'
@@ -15,27 +16,38 @@ export function ProfilePage() {
   const currentStreak = activeStreak(state.streak, today)
 
   const stats = [
-    { label: t('profile.level'), value: level.level, icon: '⬆️' },
-    { label: t('profile.totalXp'), value: state.xp, icon: '⭐' },
+    { label: t('profile.level'), value: level.level, icon: '⬆️', tint: 'var(--track-violet)' },
+    { label: t('profile.totalXp'), value: state.xp, icon: '⭐', tint: 'var(--gold-2)' },
     {
       label: t('profile.streak'),
       value: tn('profile.days', currentStreak, { days: currentStreak }),
       icon: '🔥',
+      tint: 'var(--flame)',
     },
     {
       label: t('profile.bestStreak'),
       value: tn('profile.days', state.streak.best, { days: state.streak.best }),
       icon: '🏆',
+      tint: 'var(--track-pink)',
     },
-    { label: t('profile.freezes'), value: `${state.streak.freezes} / ${MAX_FREEZES}`, icon: '🧊' },
+    {
+      label: t('profile.freezes'),
+      value: `${state.streak.freezes} / ${MAX_FREEZES}`,
+      icon: '🧊',
+      tint: 'var(--track-blue)',
+    },
   ]
+  const fill = level.xpForNextLevel > 0 ? level.xpIntoLevel / level.xpForNextLevel : 0
 
   return (
     <>
       <h1 className={styles.title}>{t('profile.title')}</h1>
 
       <div className={`card ${styles.levelCard}`}>
-        <span className={styles.levelNumber}>{level.level}</span>
+        {/* The ring fills up (conic-gradient) as you earn XP towards the next level. */}
+        <span className={styles.levelRing} style={{ '--fill': fill } as CSSProperties}>
+          <span className={styles.levelNumber}>{level.level}</span>
+        </span>
         <div className={styles.levelInfo}>
           <strong>{t('stats.level', { level: level.level })}</strong>
           <progress
@@ -59,9 +71,11 @@ export function ProfilePage() {
 
       <dl className={styles.stats}>
         {stats.map((s) => (
-          <div key={s.label} className={`card ${styles.stat}`}>
+          <div key={s.label} className={styles.stat} style={{ '--tint': s.tint } as CSSProperties}>
             <dt>
-              <span aria-hidden="true">{s.icon} </span>
+              <span className={styles.statIcon} aria-hidden="true">
+                {s.icon}
+              </span>
               {s.label}
             </dt>
             <dd>{s.value}</dd>
@@ -76,8 +90,8 @@ export function ProfilePage() {
           const earned = b.id in state.badges
           return (
             <li key={b.id} className={`${styles.badge} ${earned ? styles.earned : styles.locked}`}>
-              <span className={styles.badgeIcon} aria-hidden="true">
-                {earned ? b.icon : '🔒'}
+              <span className={styles.medal} aria-hidden="true">
+                <span className={styles.badgeIcon}>{earned ? b.icon : '🔒'}</span>
               </span>
               <strong>{b.title}</strong>
               <span className={styles.muted}>

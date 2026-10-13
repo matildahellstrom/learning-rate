@@ -3,6 +3,7 @@ import { gameStore, useGameState } from '../../app/game'
 import { t } from '../../i18n'
 import { useLesson } from '../../lesson/context'
 import { ChallengeContext, type WidgetEvent } from '../../widgets/events'
+import { Confetti } from '../Confetti'
 import { Stars } from '../Stars'
 import styles from './Challenge.module.css'
 import { starsForSteps, stepsForNextStar, type StepThresholds } from './scoring'
@@ -20,6 +21,8 @@ export function Challenge({ id, title, goal, stars: thresholds, children }: Prop
   const { lesson } = useLesson()
   const best = useGameState().lessons[lesson.id]?.challengeStars[id] ?? 0
   const [last, setLast] = useState<{ steps: number; stars: number } | null>(null)
+  // Counts three-star results; each one remounts <Confetti> for a fresh burst.
+  const [bursts, setBursts] = useState(0)
   const headingId = useId()
 
   if (import.meta.env.DEV && !lesson.challenges.includes(id)) {
@@ -35,6 +38,7 @@ export function Challenge({ id, title, goal, stars: thresholds, children }: Prop
       }
       const stars = starsForSteps(event.steps, thresholds)
       setLast({ steps: event.steps, stars })
+      if (stars === 3) setBursts((n) => n + 1)
       if (stars > 0) {
         gameStore.dispatch({ type: 'challengeScored', lessonId: lesson.id, challengeId: id, stars })
       }
@@ -60,9 +64,10 @@ export function Challenge({ id, title, goal, stars: thresholds, children }: Prop
       </h3>
       <p className={styles.goal}>{goal}</p>
       <ChallengeContext.Provider value={context}>{children}</ChallengeContext.Provider>
+      {bursts > 0 && <Confetti key={bursts} count={90} originY={0.45} />}
       <div aria-live="polite" className={styles.result}>
         {last && (
-          <p>
+          <p className={last.stars === 3 ? styles.perfect : undefined}>
             {last.steps === 1
               ? t('challenge.resultOne')
               : t('challenge.result', { steps: last.steps })}{' '}
