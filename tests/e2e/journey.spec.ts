@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test'
-import { continueTo, expectAccessible, QUIZ_ANSWERS } from './helpers.ts'
+import { continueTo, expectAccessible, QUIZ_ANSWERS, watchConsole } from './helpers.ts'
 
 test('a new player finishes the gradient descent lesson and keeps their progress', async ({
   page,
 }) => {
+  const consoleMessages = watchConsole(page)
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Your learning map' })).toBeVisible()
   await expectAccessible(page)
@@ -70,6 +71,12 @@ test('a new player finishes the gradient descent lesson and keeps their progress
   await page.getByRole('link', { name: 'Profile' }).click()
   await expect(page.getByRole('heading', { name: 'Your profile' })).toBeVisible()
   await expectAccessible(page)
+
+  // Deep link + reload into a lesson (the lazy route), then check the console stayed clean.
+  await page.goto('/#/learn/gradient-descent?step=2')
+  await page.reload()
+  await expect(page.getByRole('heading', { name: /Why would a computer/ })).toBeVisible()
+  expect(consoleMessages).toEqual([])
 })
 
 test('the lesson can be played with the keyboard alone', async ({ page }) => {

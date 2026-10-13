@@ -30,6 +30,11 @@ export const en = {
   'lesson.recommendedFirst': 'Recommended first: {lessons}. You can still dive straight in!',
   'lesson.comingSoon': '(coming soon)',
   'lesson.sources': 'Sources',
+  'lesson.loading': 'Loading the lesson…',
+  'lesson.loadErrorTitle': "Couldn't load the lesson",
+  'lesson.loadErrorText':
+    'Maybe the connection dropped, or the app was just updated. Reloading the page usually fixes it. Your progress is safe.',
+  'lesson.reload': 'Reload',
 
   'complete.title': 'Lesson complete!',
   'complete.xp': '+{xp} XP',

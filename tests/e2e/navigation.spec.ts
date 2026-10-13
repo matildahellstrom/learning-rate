@@ -72,3 +72,10 @@ test('a fresh page load leaves focus at the start of the document', async ({ pag
   await expect(page.getByRole('heading', { name: /Lost in the fog/ })).toBeVisible()
   expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true)
 })
+
+test('a lesson that fails to load shows a friendly message', async ({ page }) => {
+  await page.route('**/assets/LessonPage-*.js', (route) => route.abort())
+  await page.goto(LESSON)
+  await expect(page.getByRole('heading', { name: "Couldn't load the lesson" })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Reload' })).toBeVisible()
+})

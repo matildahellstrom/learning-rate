@@ -1,4 +1,5 @@
 import { createHashRouter } from 'react-router'
+import { LessonLoadError, LessonLoading } from '../pages/LessonLoading'
 import { MapPage } from '../pages/MapPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { ProfilePage } from '../pages/ProfilePage'
@@ -17,6 +18,9 @@ export const router = createHashRouter([
   },
   {
     path: 'learn/:lessonId',
+    // Shown while the lesson chunk loads on a deep link/reload, and if it fails to load.
+    HydrateFallback: LessonLoading,
+    ErrorBoundary: LessonLoadError,
     // Loaded on demand: the lesson player pulls in Mafs and the widgets, which the map doesn't need.
     lazy: async () => ({ Component: (await import('../pages/LessonPage')).LessonPage }),
   },
