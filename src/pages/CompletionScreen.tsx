@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Link } from 'react-router'
 import { useGameState } from '../app/game'
+import { useSuppressRewardToasts } from '../app/toastSuppression'
 import { Stars } from '../components/Stars'
 import { badges, type Lesson } from '../content/lessons'
 import type { Reward } from '../game/engine'
@@ -16,6 +17,8 @@ type Props = {
 }
 
 export function CompletionScreen({ lesson, rewards, quizCorrect, onReview }: Props) {
+  // This screen lists everything that was earned, so pop-up toasts would only cover it.
+  useSuppressRewardToasts()
   const state = useGameState()
   const headingRef = useRef<HTMLHeadingElement>(null)
   const stars = state.lessons[lesson.id]?.stars ?? 0

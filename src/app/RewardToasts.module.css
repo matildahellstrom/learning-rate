@@ -1,7 +1,10 @@
-/* Bottom of the screen, above the nav/footer bar, so toasts never cover headings. */
+/*
+ * Top of the screen, just below the sticky header: the controls you are using (and their
+ * results) are usually lower down, near the bottom bar.
+ */
 .region {
   position: fixed;
-  bottom: calc(96px + env(safe-area-inset-bottom));
+  top: calc(76px + env(safe-area-inset-top));
   left: 50%;
   z-index: 50;
   display: grid;
@@ -21,11 +24,16 @@
   box-shadow: 0 4px 0 var(--xp-strong);
   animation: slide-in var(--duration) ease-out both;
   animation-duration: calc(var(--duration) * 1.5);
+  /* Several rewards share one compact toast. */
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  column-gap: var(--space-3);
 }
 
 /* Movement only, no fade: text stays at full contrast while it animates. */
 @keyframes slide-in {
   from {
-    transform: translateY(24px) scale(0.9);
+    transform: translateY(-24px) scale(0.9);
   }
 }
