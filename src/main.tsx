@@ -1,3 +1,4 @@
+import '@fontsource-variable/nunito/wght.css'
 import 'katex/dist/katex.min.css'
 import 'mafs/core.css'
 import { StrictMode } from 'react'
