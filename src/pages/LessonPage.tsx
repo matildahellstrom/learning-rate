@@ -1,6 +1,6 @@
 import { MDXProvider } from '@mdx-js/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 import { gameStore, useGameState } from '../app/game'
 import { usePageTitle } from '../app/usePageTitle'
 import { mdxComponents } from '../components/mdxComponents'
@@ -8,6 +8,13 @@ import { getLesson, lessonTitle, type Lesson } from '../content/lessons'
 import type { Reward } from '../game/engine'
 import { t } from '../i18n'
 import { LessonContext, type LessonContextValue } from '../lesson/context'
+import {
+  browserSessionStorage,
+  loadQuizAttempt,
+  saveQuizAttempt,
+  type QuizAttempt,
+} from '../lesson/quizAttempt'
+import { parseStep, STEP_PARAM, stepToParam } from '../lesson/stepParam'
 import { CompletionScreen } from './CompletionScreen'
 import styles from './LessonPage.module.css'
 import { NotFoundPage } from './NotFoundPage'
@@ -22,12 +29,22 @@ export function LessonPage() {
 
 function LessonPlayer({ lesson }: { lesson: Lesson }) {
   usePageTitle(lesson.title)
-  const [step, setStep] = useState(0)
-  const [quizAttempt, setQuizAttempt] = useState<Record<number, boolean>>({})
+  // The step lives in the URL, so reload and the browser's Back/Forward keep your place.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const step = parseStep(searchParams.get(STEP_PARAM), lesson.stepCount)
+  const setStep = (next: number) => setSearchParams({ [STEP_PARAM]: stepToParam(next) })
+  const [quizAttempt, setQuizAttempt] = useState<QuizAttempt>(() =>
+    loadQuizAttempt(browserSessionStorage(), lesson.id),
+  )
   const [sessionRewards, setSessionRewards] = useState<Reward[]>([])
   const [finished, setFinished] = useState(false)
   const stepRef = useRef<HTMLDivElement>(null)
   const isFirstRender = useRef(true)
+
+  useEffect(
+    () => saveQuizAttempt(browserSessionStorage(), lesson.id, quizAttempt),
+    [lesson.id, quizAttempt],
+  )
 
   // Collect everything earned during this lesson for the celebration screen.
   useEffect(
@@ -67,6 +84,8 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
       quizCorrect,
       quizTotal: lesson.quiz.length,
     })
+    // The attempt is over: coming back to this lesson later starts a fresh quiz.
+    saveQuizAttempt(browserSessionStorage(), lesson.id, {})
     setFinished(true)
   }
 

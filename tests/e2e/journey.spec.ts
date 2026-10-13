@@ -1,30 +1,5 @@
-import { AxeBuilder } from '@axe-core/playwright'
-import { expect, test, type Page } from '@playwright/test'
-
-/** Fails on serious or critical WCAG A/AA violations. */
-async function expectAccessible(page: Page) {
-  const results = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-    .analyze()
-  const serious = results.violations.filter(
-    (v) => v.impact === 'serious' || v.impact === 'critical',
-  )
-  expect(serious.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(', ')}`)).toEqual([])
-}
-
-async function continueTo(page: Page, step: number, total: number) {
-  while (!(await page.getByRole('progressbar', { name: `Step ${step} of ${total}` }).count())) {
-    await page.getByRole('button', { name: 'Continue' }).click()
-  }
-}
-
-const QUIZ_ANSWERS: (string | number)[] = [
-  'Opposite the gradient, downhill',
-  1,
-  'It zig-zags across the valley but still reaches the bottom',
-  'It only feels the local slope, so it cannot see the deeper valley',
-  'The steep direction across the walls',
-]
+import { expect, test } from '@playwright/test'
+import { continueTo, expectAccessible, QUIZ_ANSWERS } from './helpers.ts'
 
 test('a new player finishes the gradient descent lesson and keeps their progress', async ({
   page,
