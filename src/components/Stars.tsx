@@ -13,7 +13,8 @@ export function Stars({ count, size = 'small' }: { count: number; size?: 'small'
           className={i < count ? styles.on : styles.off}
           style={{ '--i': i } as CSSProperties}
         >
-          ★
+          {/* Unearned stars are hollow, so they differ in shape, not only in colour. */}
+          {i < count ? '★' : '☆'}
         </span>
       ))}
     </span>

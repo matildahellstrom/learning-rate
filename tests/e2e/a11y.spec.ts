@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { expectAccessible, openStep } from './helpers.ts'
+import { expectAccessible, LESSON, openStep } from './helpers.ts'
 
 test('wide equations in "Go deeper" can be scrolled with the keyboard', async ({ page }) => {
   for (const width of [320, 375, 412]) {
@@ -29,3 +29,34 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await expectAccessible(page)
   })
 }
+
+test('the focus ring on the hero Start button is a double ring that shows on the gradient', async ({
+  page,
+}) => {
+  await page.goto('/')
+  const start = page.getByRole('link', { name: /Start/ })
+  await start.focus()
+  await page.keyboard.press('Shift+Tab')
+  await page.keyboard.press('Tab')
+  await expect(start).toBeFocused()
+  const ring = await start.evaluate(async (el) => {
+    // .btn animates its shadow; read it once the transition has finished.
+    await Promise.all(el.getAnimations().map((a) => a.finished))
+    const style = getComputedStyle(el)
+    return { outline: style.outlineColor, shadow: style.boxShadow }
+  })
+  expect(ring.outline).toBe('rgb(255, 255, 255)')
+  expect(ring.shadow).toContain('rgb(28, 21, 48) 0px 0px 0px 2px')
+})
+
+test('unearned stars are hollow, earned ones filled', async ({ page }) => {
+  await page.goto(`${LESSON}?step=11`)
+  await page.getByRole('button', { name: /Finish/ }).click()
+  // Finished without a perfect quiz or the challenges: 1 of 3 stars.
+  const glyphs = await page
+    .getByRole('main')
+    .locator('[aria-hidden="true"]')
+    .filter({ hasText: /^[★☆]$/ })
+    .allTextContents()
+  expect(glyphs.slice(0, 3)).toEqual(['★', '☆', '☆'])
+})

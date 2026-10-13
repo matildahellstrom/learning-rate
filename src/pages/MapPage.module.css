@@ -43,6 +43,23 @@
   min-width: 140px;
 }
 
+/*
+ * Over the violet-to-pink hero the standard blue focus ring almost vanishes (1.1-1.7:1).
+ * Double ring instead: a white outline (4.6:1 or more against the gradient) with a dark inner
+ * edge (12:1 against the gold button), visible whatever is behind it.
+ */
+.upNext :focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.upNext :global(.btn):focus-visible {
+  box-shadow:
+    0 5px 0 var(--ledge),
+    inset 0 3px 0 rgb(255 255 255 / 0.2),
+    0 0 0 2px #1c1530;
+}
+
 .upNextLabel {
   display: inline-block;
   margin: 0;
