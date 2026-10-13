@@ -55,9 +55,9 @@ test('changing page starts at the top and moves focus to the new content', async
   await expect(page.getByRole('heading', { name: 'Your learning map' })).toBeVisible()
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(100)
 
-  // Map → lesson: focus lands in the lesson, not on the stale Start link.
+  // Map → lesson: focus lands in the lesson, not on the stale map link.
   await page.evaluate(() => window.scrollTo(0, 0))
-  await page.getByRole('link', { name: /Start/ }).click()
+  await page.getByRole('link', { name: /^Gradient descent/ }).click()
   await expect(page.getByRole('heading', { name: /Lost in the fog/ })).toBeVisible()
   await expect.poll(() => focusIsInMain(page)).toBe(true)
 

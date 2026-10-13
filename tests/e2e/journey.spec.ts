@@ -9,8 +9,8 @@ test('a new player finishes the gradient descent lesson and keeps their progress
   await expect(page.getByRole('heading', { name: 'Your learning map' })).toBeVisible()
   await expectAccessible(page)
 
-  // Start from the "Up next" card.
-  await page.getByRole('link', { name: /Start/ }).click()
+  // Start from the lesson's stop on the map (the "Up next" card may point at another lesson).
+  await page.getByRole('link', { name: /^Gradient descent/ }).click()
   await expect(page.getByRole('heading', { name: /Lost in the fog/ })).toBeVisible()
   await expect(page.getByText(/Recommended first/)).toBeVisible()
   await expectAccessible(page)
@@ -66,7 +66,7 @@ test('a new player finishes the gradient descent lesson and keeps their progress
   await page.reload()
   await expect(page.getByText('Level 2').first()).toBeVisible()
   await expect(page.getByText('180 XP')).toBeVisible()
-  await expect(page.getByText('You have finished every lesson so far')).toBeVisible()
+  await expect(page.getByRole('link', { name: /^Gradient descent/ })).toContainText('2 of 3 stars')
 
   await page.getByRole('link', { name: 'Profile' }).click()
   await expect(page.getByRole('heading', { name: 'Your profile' })).toBeVisible()
