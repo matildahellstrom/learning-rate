@@ -27,6 +27,15 @@ describe('numericalDerivative', () => {
 })
 
 describe('landscapes', () => {
+  it.each(Object.values(landscapes))('$label stays inside its plot over the whole domain', (l) => {
+    const [a, b] = l.domain
+    for (let i = 0; i <= 400; i++) {
+      const y = l.f(a + ((b - a) * i) / 400)
+      expect(y).toBeGreaterThanOrEqual(l.range[0])
+      expect(y).toBeLessThanOrEqual(l.range[1])
+    }
+  })
+
   it.each(Object.values(landscapes))(
     '$label is marked convex exactly when it curves up everywhere',
     (l) => {

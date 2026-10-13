@@ -26,7 +26,8 @@ export const landscapes = {
     f: (x) => x * x,
     df: (x) => 2 * x,
     domain: [-4, 4],
-    range: [-1, 12],
+    // f(±4) = 16: tall enough that the ball stays in view anywhere it can start.
+    range: [-1, 17],
     convex: true,
   },
   doubleWell: {
