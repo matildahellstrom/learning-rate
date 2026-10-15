@@ -129,11 +129,6 @@
     "colour": "teal",
     "upcoming": [
       {
-        "id": "images-as-tensors",
-        "title": "Images as tensors",
-        "order": 1
-      },
-      {
         "id": "convolutions",
         "title": "Convolutions",
         "order": 2

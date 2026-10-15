@@ -210,3 +210,25 @@ far away moves the mean marker but not the median.
 2. `huber` is continuous at `|z| = eps` and equals `z²` below it; `huber(10, 1)` is 19.
 3. `pinball(y, c, 0.5)` is half of `absoluteLoss(y, c)` for any `y` and `c`.
 4. For `y = [1, 2, …, 100]` the minimiser of `pinball` with alpha 0.75 is between 75 and 76.
+
+## vision/images-as-tensors: pixel and channel explorer
+
+**Idea:** a small photo next to a zoomed 8 × 8 patch showing each pixel's numbers. Toggles show
+the red, green and blue channels on their own, and a layout switch shows the same values as
+(H, W, C) and (C, H, W). Three sliders mix one RGB pixel and show its colour live.
+
+**Pure functions:**
+
+- `shapeOf(height: number, width: number, channels: number, layout: 'HWC' | 'CHW'): number[]`
+- `toCHW(hwc: number[], height: number, width: number, channels: number): number[]`: reorders a
+  flat channels-last array into channels-first.
+- `normalise(value: number, mean: number, std: number): number`: `(value / 255 − mean) / std`.
+
+**Acceptance tests:**
+
+1. `shapeOf(224, 224, 3, 'CHW')` is `[3, 224, 224]` and `'HWC'` gives `[224, 224, 3]`.
+2. For a 1 × 2 image stored channels-last as `[255, 0, 0, 0, 0, 255]` (a red pixel, then a blue
+   one), `toCHW` returns `[255, 0, 0, 0, 0, 255]` read as R `[255, 0]`, G `[0, 0]`, B `[0, 255]`.
+   For a 1 × 2 image `[10, 20, 30, 40, 50, 60]` it returns `[10, 40, 20, 50, 30, 60]`.
+3. `toCHW` followed by its inverse returns the original array for random inputs.
+4. `normalise(200, 0.485, 0.229)` ≈ 1.307.

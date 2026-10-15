@@ -1,0 +1,250 @@
+---
+id: images-as-tensors
+title: Images as tensors
+summary: How a photo becomes a block of numbers a model can work with, and why its shape matters.
+track: vision
+order: 1
+prerequisites: [vectors-matrices, gradient-descent]
+minutes: 11
+xp: 100
+volatility: evergreen
+sources:
+  - title: 'CS231n (Stanford): Image classification, data-driven approach'
+    url: https://cs231n.github.io/classification/
+  - title: 'CS231n (Stanford): Convolutional Neural Networks'
+    url: https://cs231n.github.io/convolutional-networks/
+  - title: 'Pillow docs: Concepts, modes'
+    url: https://pillow.readthedocs.io/en/stable/handbook/concepts.html
+  - title: 'PyTorch docs: torchvision.transforms.ToTensor'
+    url: https://docs.pytorch.org/vision/stable/generated/torchvision.transforms.ToTensor.html
+  - title: 'PyTorch docs: torchvision.models.resnet50'
+    url: https://docs.pytorch.org/vision/stable/models/generated/torchvision.models.resnet50.html
+  - title: 'Keras docs: Conv2D layer'
+    url: https://keras.io/api/layers/convolution_layers/convolution2d/
+  - title: 'Goodfellow, Bengio & Courville: Deep Learning, ch. 9 Convolutional Networks'
+    url: https://www.deeplearningbook.org/contents/convnets.html
+quiz:
+  - type: numeric
+    prompt: 'A colour (RGB) image is 100 pixels wide and 50 pixels tall. How many numbers does it hold?'
+    answer: 15000
+    tolerance: 0
+    explanation: '100 × 50 = 5,000 pixels, and each pixel has three numbers (red, green, blue): 5,000 × 3 = 15,000.'
+  - type: choice
+    prompt: 'An RGB pixel has the value (0, 255, 255). What colour is it?'
+    options:
+      - Red
+      - White
+      - Cyan, a green-blue
+      - Black
+    answer: 2
+    explanation: 'Red is off, green and blue are fully on. Green plus blue light makes cyan. White would need all three at 255.'
+  - type: choice
+    prompt: 'You give a PyTorch model a batch of 8 colour images, each 64 × 64 pixels. Which tensor shape does it expect?'
+    options:
+      - (8, 3, 64, 64)
+      - (64, 64, 3)
+      - (8, 64, 64, 3)
+      - (3, 8, 64, 64)
+    answer: 0
+    explanation: 'PyTorch puts the batch first, then channels, then height and width: (N, C, H, W). (8, 64, 64, 3) is the channels-last layout that image files and Keras use by default; same numbers, different order.'
+  - type: numeric
+    prompt: 'A pixel value of 51 (on the usual 0 to 255 scale) is rescaled to the range 0 to 1 by dividing by 255. What is the result?'
+    answer: 0.2
+    tolerance: 0.001
+    explanation: '51 ÷ 255 = 0.2. This is exactly what PyTorch ToTensor does to 8-bit images.'
+  - type: choice
+    prompt: 'Why does flattening a photo into one long list and feeding it to an ordinary fully connected network work badly?'
+    options:
+      - Because computers cannot store lists that long
+      - Because colour is lost when you flatten
+      - Because flattening changes the pixel values
+      - Because each neuron needs a weight for every number, and shifting the picture by one pixel changes which number sits where
+    answer: 3
+    explanation: 'Flattening keeps every value, but throws away which pixels are neighbours. A 200 × 200 colour image means 120,000 weights per neuron, and the same cat one pixel to the left lands on different weights entirely.'
+  - type: choice
+    prompt: 'You convert an image stored as 8-bit integers into 32-bit floats. Roughly how much more memory does it need?'
+    options:
+      - The same
+      - Four times as much
+      - Twice as much
+      - Thirty-two times as much
+    answer: 1
+    explanation: 'Each 8-bit number takes 1 byte and each 32-bit float takes 4 bytes. The count of numbers stays the same, so memory grows four times.'
+---
+
+# What does a computer see? 👁️
+
+You look at a photo and see a cat on a sofa, instantly.
+
+A computer sees something more like this, for a small patch near the cat's ear:
+
+```
+112 118 121 130
+109 115 160 201
+104 158 210 214
+101 150 207 219
+```
+
+Just numbers. No "cat", no "ear", not even "edge". Every vision model, from a phone's face unlock to an image generator, starts from a grid like this.
+
+This lesson shows how a picture becomes numbers, how those numbers are arranged into a **tensor**, and why that arrangement matters for everything that comes later.
+
+---
+
+## Pixels are numbers
+
+A digital image is a grid of tiny squares called **pixels**. In a **greyscale** image each pixel is one number saying how bright it is.
+
+The usual scale runs from **0 (black)** to **255 (white)**, with greys in between. Why 255? It's the largest number that fits in **8 bits** (one byte), which the Pillow image library calls mode `L`: "8-bit pixels, grayscale".
+
+So the grid in the hook is a patch that's darker at the top left and brighter at the bottom right: perhaps where a dark background meets a pale ear.
+
+A greyscale image that's 28 pixels wide and 28 tall is simply a 28 × 28 grid: a **matrix** of 784 numbers, just like the ones in the vectors and matrices lesson.
+
+---
+
+## Colour: three numbers per pixel
+
+Screens mix colours from red, green and blue light. So a colour pixel stores three numbers, one for each, each from 0 to 255. Pillow calls this mode `RGB`: "3x8-bit pixels, true color".
+
+- (255, 0, 0) is pure red.
+- (0, 0, 0) is black; (255, 255, 255) is white.
+- (128, 128, 128) is a mid grey: equal amounts of all three.
+
+🤔 Predict: what colour is (255, 255, 0)?
+
+Red and green fully on, blue off. Mixing red and green **light** gives **yellow**. (Paint mixes differently, which is why this one surprises people.)
+
+Each of these three layers (all the red values, all the green values, all the blue values) is called a **channel**. A colour image is three greyscale-like grids stacked on top of each other.
+
+---
+
+## From grid to tensor
+
+Stack three grids and you get a block of numbers with three directions: height, width and channels. A block of numbers with any number of directions is called a **tensor**.
+
+- A single number is a 0-D tensor (a scalar).
+- A list is 1-D (a vector).
+- A grid is 2-D (a matrix).
+- A colour image is **3-D**.
+
+Each direction is an **axis** (or dimension), and the list of their sizes is the tensor's **shape**. Stanford's CS231n course uses a cat photo that's 248 pixels wide and 400 tall: its shape is 400 × 248 × 3, which is **297,600 numbers**.
+
+🤔 Predict: many vision models take 224 × 224 colour images. How many numbers is that?
+
+224 × 224 = 50,176 pixels, times 3 channels = **150,528 numbers**. A small picture by phone standards, but already a lot of inputs.
+
+---
+
+## Same numbers, different order
+
+Here's a detail that trips up almost everyone at least once. The three axes can be stored in different orders.
+
+- **Channels last (H, W, C):** height, width, then the three colour values. This is how image files load in Pillow and NumPy, and it's the default in Keras.
+- **Channels first (C, H, W):** all the red values, then all the green, then all the blue. This is what PyTorch models expect.
+
+PyTorch's `ToTensor` converts between them: its docs say it turns an image of shape "(H x W x C) in the range [0, 255]" into a tensor "of shape (C x H x W) in the range [0.0, 1.0]".
+
+Neither order is better. They're the same numbers, laid out differently in memory. Mix them up and you'll often get a shape error, which is the lucky case. The unlucky case is forcing the numbers into the right shape without actually reordering the axes: the shape looks correct, there's no error, and the pixels are scrambled.
+
+---
+
+## Batches: a fourth axis
+
+Models rarely see one image at a time. Training takes each gradient step on a small random **batch** of examples (the gradient descent lesson mentions this), and the images in a batch are processed together.
+
+So images are stacked along one more axis, the batch axis, which comes first. A batch of 32 colour images of 224 × 224 in PyTorch has shape
+
+**(32, 3, 224, 224)**, often written **(N, C, H, W)**.
+
+That's 32 × 150,528 = **4,816,896 numbers**, all fed through the model together. Keras's channels-last layout is (N, H, W, C) instead.
+
+Video adds yet another axis, for time. The idea scales: each new kind of "direction" in the data becomes one more axis.
+
+---
+
+## Scaling the numbers
+
+Models learn best when their inputs are small numbers centred near zero, rather than integers up to 255. So images go through two common steps.
+
+1. **Rescale** to 0 to 1 by dividing by 255. A pixel of 200 becomes 200 ÷ 255 ≈ 0.784.
+2. **Normalise** each channel: subtract an average and divide by a typical spread (the standard deviation).
+
+For PyTorch's ImageNet-trained ResNet-50, the docs list the averages as 0.485, 0.456 and 0.406 (red, green, blue) and the spreads as 0.229, 0.224 and 0.225. So a red value of 0.784 becomes (0.784 − 0.485) ÷ 0.229 ≈ **1.31**.
+
+A pre-trained model expects exactly the preprocessing it was trained with. Skip it, and the model sees inputs that look nothing like its training data.
+
+<Deeper title="Go deeper: memory and number types">
+Stored as 8-bit integers (`uint8`), each number takes 1 byte, so one 224 × 224 RGB image is 150,528 bytes, about 150 kB.
+
+After conversion to 32-bit floats (`float32`), each number takes 4 bytes:
+
+$$
+\begin{aligned}
+150{,}528 \times 4 &= 602{,}112 \text{ bytes} \\
+&\approx 602 \text{ kB}
+\end{aligned}
+$$
+
+The batch of 32 from earlier is then about 19 MB, before the model has computed anything. This is one reason training images are often kept as compressed files or `uint8` until the last moment.
+
+Normalisation per channel $c$ is
+
+$$
+x' = \frac{x / 255 - \mu_c}{\sigma_c}
+$$
+
+with $\mu_c$ and $\sigma_c$ measured on the training set.
+
+</Deeper>
+
+---
+
+## Why not just flatten it?
+
+You could unroll the whole tensor into one long list and feed it to an ordinary neural network, where every input connects to every neuron.
+
+CS231n does the maths. A 32 × 32 × 3 image gives each neuron 3,072 weights. That "still seems manageable", but a 200 × 200 × 3 image needs **120,000 weights per neuron**, and you want many neurons.
+
+There's a deeper problem.
+
+🤔 Predict: you shift a photo one pixel to the right. What happens to the flattened list?
+
+Almost every number moves to a new position. To the network, it's a very different input, even though you'd call it the same picture. CS231n shows the same issue the other way round: images that are close in raw pixel distance are often nothing alike to a person.
+
+Flattening throws away the one thing images give you for free: which pixels are **neighbours**. The Deep Learning book describes images as data with "a known grid-like topology". Models that respect that grid are the subject of the next lessons.
+
+---
+
+## Common misconceptions
+
+- **"The computer sees the picture."** It gets a tensor of brightness values. Everything else (edges, ears, cats) has to be computed from those numbers.
+- **"RGB means three separate images."** It's one image with three channels. Each pixel's three values belong together.
+- **"Channels-first and channels-last are different data."** Same numbers, different order. The danger is mixing them up silently.
+- **"Normalising changes what's in the picture."** It shifts and scales every value in a channel the same way, so within a channel brighter stays brighter. It changes the scale, not the content.
+- **"Bigger tensors just need a bigger plain network."** Weight counts grow with every pixel, and a plain network still treats a shifted image as brand new. That's why vision uses special architectures.
+
+---
+
+## Quiz time 🧠
+
+Six questions on pixels, shapes and scaling.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- An image is a grid of **pixels**; each is a number from **0 to 255** in 8-bit images.
+- Colour images have three **channels** (red, green, blue), making a **3-D tensor**.
+- **Shape** lists the axis sizes: (H, W, C) channels-last or (C, H, W) channels-first.
+- A **batch** adds a fourth axis: (N, C, H, W) in PyTorch.
+- Inputs are **rescaled** and **normalised** to match how a model was trained.
+- **Flattening** loses which pixels are neighbours, which motivates models built for grids.
+
+**Coming up:** the convolutions lesson slides a small filter over this grid to find edges and patterns.
+
+**Related:** the tokenisation lesson shows how text becomes numbers for language models.
+
+Hit **Finish** to collect your XP! 🏁
