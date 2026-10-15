@@ -20,6 +20,8 @@ sources:
     url: https://huggingface.co/docs/peft/main/en/conceptual_guides/lora
   - title: 'Rajbhandari et al. (2019): ZeRO, Memory Optimizations Toward Training Trillion Parameter Models'
     url: https://arxiv.org/abs/1910.02054
+  - title: 'Eckart & Young (1936): The approximation of one matrix by another of lower rank'
+    url: https://link.springer.com/article/10.1007/BF02288367
 quiz:
   - type: numeric
     prompt: 'A layer has a 1000 × 1000 weight matrix. How many numbers does a rank-4 LoRA adapter train for it?'
@@ -89,7 +91,7 @@ Fine-tuning means continuing to train a pre-trained model on your own examples. 
 
 That's painful for big models:
 
-- **Memory.** Besides the weights, training stores a gradient and optimiser state for every one of them. With the popular Adam optimiser and mixed precision, that's about 16 bytes per parameter: around **112 GB** for a 7-billion-parameter model.
+- **Memory.** Besides the weights, training stores a gradient and optimiser state for every one of them (the popular Adam optimiser keeps two running averages per weight). With Adam and mixed precision (a 16-bit working copy plus a 32-bit master copy of the weights), that's about 16 bytes per parameter: around **112 GB** for a 7-billion-parameter model, before counting activations.
 - **Storage.** Every fine-tuned version is a full copy of the model. Ten customers, ten giant files.
 
 So people asked: do we really need to change all those numbers?
@@ -102,7 +104,7 @@ The LoRA authors bet that the **change** a model needs for a new task is simple,
 
 Think of a giant spreadsheet: songs as columns, people as rows, each cell a rating. It looks like millions of independent numbers, but much of it is explained by a few hidden "taste" factors, like how much each person likes guitars and how guitar-heavy each song is.
 
-A matrix that can be built from a few such factors is called **low-rank**. (The SVD lesson covers this properly.) LoRA assumes the fine-tuning **update** to each weight matrix is low-rank, even if the weights themselves aren't.
+A matrix that can be built from a few such factors is called **low-rank**. (The SVD lesson covers this properly.) LoRA assumes the fine-tuning **update** to each adapted weight matrix is low-rank, even if the weights themselves aren't.
 
 ---
 
@@ -115,7 +117,7 @@ LoRA freezes $W$ and adds a detour through two skinny matrices:
 - $A$, size $r \times k$, squeezes the input down to just $r$ numbers,
 - $B$, size $d \times r$, spreads them back out.
 
-The layer now computes $W x + B A x$. The **rank** $r$ is tiny, often 4 to 16, while $d$ and $k$ can be in the thousands.
+The layer now computes $W x + B A x$. The **rank** $r$ is tiny (the LoRA paper mostly used 4 or 8), while $d$ and $k$ can be in the thousands.
 
 Only $A$ and $B$ are trained. And $B$ starts at **zero**, so at the start $BA = 0$ and the model behaves exactly like the original. Training then grows the sticky notes from nothing.
 
@@ -182,7 +184,7 @@ And one combo: **QLoRA** stores the frozen base model in 4-bit precision (the qu
 
 ## Common misconceptions
 
-- **"LoRA always matches full fine-tuning."** Not always. A 2024 study on code and maths found standard LoRA learned less of the new domain than full fine-tuning, but **forgot less** of what the model already knew. Often a fine trade.
+- **"LoRA always matches full fine-tuning."** Not always. A 2024 study on code and maths found standard LoRA learned less of the new domain than full fine-tuning, but **forgot less** of what the model already knew. Whether that trade is worth it depends on your task.
 - **"LoRA makes the model smaller or faster."** It makes **training** and **storing fine-tunes** cheaper. The model itself is as big as before.
 - **"Bigger rank is always better."** Higher ranks cost more and often help little. Start small and check.
 - **"LoRA is only for language models."** It works on any big weight matrix; it's popular for image generators too.
