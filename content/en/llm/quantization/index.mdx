@@ -20,6 +20,10 @@ sources:
     url: https://arxiv.org/abs/2306.00978
   - title: 'OpenAI (2025): gpt-oss-120b & gpt-oss-20b Model Card'
     url: https://arxiv.org/abs/2508.10925
+  - title: 'Liu et al. (2023): LLM-QAT, Data-Free Quantization Aware Training for Large Language Models'
+    url: https://arxiv.org/abs/2305.17888
+  - title: 'Rouhani et al. (2023): Microscaling Data Formats for Deep Learning'
+    url: https://arxiv.org/abs/2310.10537
 quiz:
   - type: numeric
     prompt: 'A model has 13 billion weights. How many gigabytes do they take at 4 bits each? (1 GB = 1 billion bytes.)'
@@ -142,7 +146,7 @@ Now try a nastier group of weights: **0.1, −0.2, 0.15, 10**.
 
 The scale must stretch to fit the 10: 10 ÷ 7 ≈ 1.43. Divide the small weights by 1.43 and you get 0.07, −0.14 and 0.1. **All three round to 0.** One outlier has wiped out its neighbours.
 
-This isn't a made-up worry. Large transformers develop a few **outlier features**: hidden dimensions whose values are far bigger than the rest. Quantise them naively with everything else and quality collapses.
+This isn't a made-up worry. Large transformers develop a few **outlier features**: hidden dimensions where the activations (the numbers flowing between layers) are far bigger than the rest. Quantise them naively with everything else and quality collapses. Weights have outliers too, though usually milder ones.
 
 ---
 
@@ -153,7 +157,7 @@ Researchers found several fixes, and real methods combine them:
 - **Smaller groups.** Give every block of, say, 32 or 128 weights its own scale, so one outlier only hurts its own block. Storing the extra scales costs a little: 4-bit weights with one 8-bit scale per 32 weights average **4.25 bits**.
 - **Keep outliers in high precision.** LLM.int8() (2022) multiplies the rare outlier dimensions in 16-bit and everything else in 8-bit, more than 99.9% of the values. It reported no loss in quality, even for 175-billion-parameter models.
 - **Protect what matters.** AWQ (2023) noticed that protecting about 1% of **salient** weights, chosen by the size of the activations they meet, greatly reduces the error.
-- **Round smarter.** GPTQ (2022) quantises weights one at a time and nudges the not-yet-quantised ones to cancel the error so far. It reached 3–4 bits per weight with little accuracy loss, quantising a 175-billion-parameter model in about four GPU hours.
+- **Round smarter.** GPTQ (2022) quantises the weights one column at a time and nudges the not-yet-quantised ones to cancel the error so far. It reached 3–4 bits per weight with little accuracy loss, quantising a 175-billion-parameter model in about four GPU hours.
 
 ---
 
@@ -162,18 +166,18 @@ Researchers found several fixes, and real methods combine them:
 **When** you quantise matters:
 
 - **Post-training quantisation (PTQ):** take a finished model and quantise it, using a small **calibration** set of example inputs to choose the scales. Quick and cheap; GPTQ and AWQ work this way.
-- **Quantisation-aware training (QAT):** simulate the rounding during training, so the model learns weights that survive it. More work, usually more accurate at low bit-widths.
+- **Quantisation-aware training (QAT):** simulate the rounding during training, so the model learns weights that survive it. More work, but it holds up better at low bit-widths: one 2023 study found that post-training methods which work well down to 8 bits broke down at lower precision in its tests (which also quantised activations and the KV cache), while QAT did much better.
 
 And **what** you quantise: the **weights** only (the most common for running models on your own machine), the **activations** too (so the arithmetic itself runs in low precision), or the **KV cache** for long contexts.
 
-Newer hardware also computes directly with tiny **floating-point** formats such as FP8 and FP4, where each block of numbers shares a scale. A concrete example: when OpenAI released its open-weight gpt-oss models in August 2025, the mixture-of-experts weights (over 90% of all parameters) were stored in the MXFP4 format at about 4.25 bits per parameter, which let the 120-billion-parameter model fit on a single 80 GB GPU.
+Newer hardware also computes directly with tiny **floating-point** formats such as FP8 and FP4; the newest "microscaling" (MX) formats give each block of 32 numbers its own shared 8-bit scale. A concrete example: when OpenAI released its open-weight gpt-oss models in August 2025, the mixture-of-experts weights (over 90% of all parameters) were stored in the MXFP4 format at about 4.25 bits per parameter, which let gpt-oss-120b (about 117 billion parameters) fit on a single 80 GB GPU.
 
 ---
 
 ## Common misconceptions
 
 - **"A quantised model is a different, smaller model."** It's the same model with coarser numbers. Making a genuinely smaller model is distillation (the distillation lesson covers it).
-- **"Quantisation is free."** 8-bit is often nearly lossless and good 4-bit methods come close, but every bit you remove costs some accuracy, and going lower gets harder and harder. Always evaluate on your own task.
+- **"Quantisation is free."** 8-bit is often nearly lossless and good 4-bit weight-only methods come close, but every bit you remove costs some accuracy, and going lower gets harder and harder. Always evaluate on your own task.
 - **"Fewer bits are always faster."** Only if the hardware and software support them. Otherwise the numbers are unpacked back to 16-bit on the fly: you still save memory and bandwidth, but not arithmetic.
 - **"It's only for inference."** Mostly, but QLoRA fine-tunes adapters on top of a 4-bit frozen model (the LoRA lesson covers this), and low-precision training is an active area.
 
