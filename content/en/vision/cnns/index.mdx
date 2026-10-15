@@ -1,0 +1,269 @@
+---
+id: cnns
+title: Convolutional neural networks
+summary: How stacking small, shared filters lets a network go from pixels to edges to whole objects.
+track: vision
+order: 3
+prerequisites: [images-as-tensors, convolutions, neural-networks, gradient-descent]
+minutes: 12
+xp: 100
+volatility: evergreen
+sources:
+  - title: 'CS231n (Stanford): Convolutional Neural Networks'
+    url: https://cs231n.github.io/convolutional-networks/
+  - title: 'Goodfellow, Bengio & Courville: Deep Learning, ch. 9 Convolutional Networks'
+    url: https://www.deeplearningbook.org/contents/convnets.html
+  - title: 'Krizhevsky, Sutskever & Hinton (2012): ImageNet Classification with Deep Convolutional Neural Networks'
+    url: https://papers.nips.cc/paper_files/paper/2012/file/c399862d3b9d6b76c8436e924a68c45b-Paper.pdf
+  - title: 'Zeiler & Fergus (2013): Visualizing and Understanding Convolutional Networks'
+    url: https://arxiv.org/abs/1311.2901
+  - title: 'He et al. (2015): Deep Residual Learning for Image Recognition'
+    url: https://arxiv.org/abs/1512.03385
+quiz:
+  - type: numeric
+    prompt: 'A convolutional layer has 10 filters, each 5 × 5, applied to a colour image (3 channels). Each filter has one bias. How many parameters does the layer have?'
+    answer: 760
+    tolerance: 0
+    explanation: 'Each filter covers 5 × 5 × 3 = 75 weights, plus 1 bias = 76. Ten filters: 76 × 10 = 760. The size of the image does not appear anywhere.'
+  - type: numeric
+    prompt: 'You stack four 3 × 3 convolutional layers (stride 1, no pooling). How many pixels wide is the patch of the input image that one neuron in the fourth layer can see?'
+    answer: 9
+    tolerance: 0
+    explanation: 'Each extra 3 × 3 layer widens the view by 2 pixels: 3, 5, 7, then 9.'
+  - type: choice
+    prompt: 'A feature map is 32 × 32. You apply 2 × 2 max pooling with a stride of 2. What size is the result?'
+    options:
+      - 30 × 30
+      - 64 × 64
+      - 8 × 8
+      - 16 × 16
+    answer: 3
+    explanation: 'Each 2 × 2 block becomes one number, so width and height both halve: 16 × 16. That keeps a quarter of the values and discards 75%.'
+  - type: choice
+    prompt: 'What assumption makes it sensible to use the same filter weights at every position in the image?'
+    options:
+      - A pattern that is worth detecting in one place is probably worth detecting in other places too
+      - Every part of an image looks the same
+      - Objects are always in the centre of the photo
+      - Colour does not matter for recognising objects
+    answer: 0
+    explanation: "An edge or an eye is the same pattern wherever it appears, so one detector can be reused everywhere. CS231n calls this 'one reasonable assumption' and it cuts the parameter count enormously."
+  - type: choice
+    prompt: 'Zeiler and Fergus visualised what each layer of a trained network responds to. What did they find in the deepest layers?'
+    options:
+      - The same simple edges as the first layer
+      - Random noise with no structure
+      - Class-specific parts and whole objects, like dog faces and keyboards
+      - Exact copies of individual training images
+    answer: 2
+    explanation: 'In their network, layer 2 responded to corners and edge/colour combinations, layer 3 to textures, layer 4 to parts like dog faces and birds’ legs, and layer 5 to whole objects in varied poses.'
+  - type: choice
+    prompt: 'You move a cat 10 pixels to the right in a photo. What happens to the feature map of an early convolutional layer?'
+    options:
+      - It changes completely, like a flattened input would
+      - Its pattern moves about 10 pixels to the right as well
+      - It stays exactly the same
+      - It flips upside down
+    answer: 1
+    explanation: 'Convolution is equivariant to translation: shift the input and the output shifts the same way (apart from effects at the edges). Pooling later makes some outputs approximately unchanged by small shifts.'
+---
+
+# One cat, many places 🐈
+
+Show a network a cat in the top-left corner of a photo. Then show it the same cat in the bottom-right.
+
+To you, nothing important changed. To an ordinary neural network fed the flattened pixels, it's a completely different input: different numbers hitting different weights. Nothing in its design says the two are the same; it would have to learn that from examples of cats in many positions. And for a 200 × 200 colour image, each neuron alone needs 120,000 weights.
+
+**Convolutional neural networks** (CNNs) solve both problems with one idea: look at small patches, and reuse the same detector everywhere.
+
+This lesson shows how that works, how stacking layers builds up from edges to objects, and why CNNs changed computer vision in 2012.
+
+---
+
+## The building block: a sliding filter
+
+The convolutions lesson covers this in detail, so here's the short version.
+
+A **filter** (or kernel) is a small grid of weights, say 3 × 3. You place it on a patch of the image, multiply each weight by the pixel under it, and add everything up. That gives one number. Then you slide the filter along and repeat, covering the whole image.
+
+The result is a new grid called a **feature map**: high where the patch matched the filter's pattern, low where it didn't. A filter with the right weights lights up on vertical edges, for example.
+
+The big change in a CNN: nobody designs these filters by hand. Their weights are **learned** by gradient descent, just like any other weights in a neural network.
+
+---
+
+## Two ideas that save millions of weights
+
+A convolutional layer differs from a fully connected one in two ways.
+
+- **Local connections.** Each output looks at only a small patch of the input, not every pixel. CS231n calls the size of that patch the neuron's **receptive field**.
+- **Shared weights.** Every position uses the **same** filter. The bet is that a pattern worth detecting in one place (an edge, an eye) is worth detecting anywhere.
+
+🤔 Predict: how much difference does sharing make?
+
+CS231n works it out for the first layer of AlexNet, a famous 2012 network: 290,400 neurons, each with 363 weights and a bias. With no sharing, that's **105,705,600** parameters in one layer. With sharing, only one set of weights per filter is needed: **34,944** parameters. About 3,000 times fewer.
+
+Fewer parameters means less memory, and less to learn from the same data.
+
+---
+
+## Many filters, many channels
+
+One filter finds one kind of pattern. A layer uses many, each producing its own feature map. Those maps are stacked into the output, just like the red, green and blue channels of the input. So a layer with 16 filters outputs **16 channels**.
+
+Each filter also looks through **all** the channels of its input. On a colour image, a 3 × 3 filter is really 3 × 3 × 3: it sees colour as well as shape.
+
+🤔 Predict: how many parameters in a layer of 16 filters, each 3 × 3, on a colour image?
+
+Each filter has 3 × 3 × 3 = 27 weights plus 1 bias, so 28. Times 16 filters: **448**. Notice what's missing: the size of the image. A 4K photo and a thumbnail use the same 448 numbers.
+
+<Deeper title="Go deeper: counting parameters and output sizes">
+A layer with $K$ filters of size $F \times F$ on an input with $C$ channels has
+
+$$
+K \cdot (F \cdot F \cdot C + 1)
+$$
+
+parameters. CS231n gives the output width for input width $W$, padding $P$ (zeros added around the border) and stride $S$ (how far the filter jumps each step):
+
+$$
+\frac{W - F + 2P}{S} + 1
+$$
+
+For a 7 × 7 input and a 3 × 3 filter with stride 1 and no padding, that's a 5 × 5 output; with stride 2 it's 3 × 3.
+
+</Deeper>
+
+---
+
+## Stacking layers: seeing further
+
+A 3 × 3 filter sees a tiny patch. How does a network ever recognise a whole face?
+
+By stacking layers. A neuron in the second layer looks at a 3 × 3 patch of the **first layer's** feature maps, and each of those already summarised a 3 × 3 patch of the image.
+
+CS231n traces it: one layer sees 3 × 3 pixels, two layers see **5 × 5**, three layers see **7 × 7**. Each extra layer adds a ring of 1 pixel on every side.
+
+Between layers sits a simple **non-linearity**, usually ReLU, which replaces negative numbers with zero. Without it, stacked layers would collapse into one big linear filter (the neural networks lesson explains why).
+
+The Deep Learning book notes that this is how a network with very sparse direct connections can still have deep units "indirectly connected to all or most of the input image".
+
+---
+
+## Pooling: shrinking the map
+
+Feature maps are big. **Pooling** shrinks them by summarising small blocks.
+
+The most common kind, per CS231n, is **max pooling** with 2 × 2 blocks and a stride of 2: each block of four numbers is replaced by the largest one.
+
+```
+1 3      →   3
+2 0
+```
+
+That halves the width and the height and discards 75% of the values. The next layer has less to compute, and its 3 × 3 filters now cover twice as much of the original image.
+
+There's a bonus. Nudge the input by a pixel and the maximum of a block often stays the same. The Deep Learning book says pooling makes the representation "approximately invariant to small translations", useful when you care more about **whether** a feature is present than exactly **where**.
+
+---
+
+## From edges to objects
+
+What do all these layers learn? In 2013, Matthew Zeiler and Rob Fergus built a way to project what a trained network's units respond to back into pixels.
+
+Their findings, in their own words:
+
+- **Layer 2** "responds to corners and other edge/color conjunctions".
+- **Layer 3** captures "similar textures", such as mesh patterns and text.
+- **Layer 4** is "more class-specific": dog faces, birds' legs.
+- **Layer 5** "shows entire objects with significant pose variation", such as keyboards and dogs.
+
+Nobody told the network to look for edges or dog faces. That hierarchy emerged from training on labelled photos. It's a nice illustration of why depth helps: each layer builds bigger patterns out of the smaller ones below.
+
+---
+
+## The whole network
+
+A classic CNN repeats a simple pattern. CS231n writes the most common shape as:
+
+**input → [conv → ReLU] × N → pool, repeated M times → fully connected layers → output**
+
+The early part turns pixels into ever smaller, ever richer feature maps. The final fully connected layers turn those features into scores for each class ("cat", "dog", "car"), and softmax turns the scores into probabilities.
+
+The whole stack is trained end to end: show an image, compare the prediction with the label using a loss, and let gradient descent adjust every filter at once.
+
+---
+
+## The 2012 moment
+
+The idea is old. The Deep Learning book credits convolutional networks to LeCun (1989), and by the end of the 1990s a CNN system deployed by NCR was reading over 10% of all cheques in the United States.
+
+The breakthrough came in 2012. Alex Krizhevsky, Ilya Sutskever and Geoffrey Hinton trained a CNN, now called **AlexNet**, with 60 million parameters and five convolutional layers on two GTX 580 graphics cards, which took five to six days. In the ImageNet challenge (1,000 categories), a variant of it reached a **top-5 error of 15.3%**, compared with **26.2%** for the second-best entry. Top-5 error counts an answer as wrong only if the true label isn't among the model's five best guesses.
+
+According to the Deep Learning book, this win is when "the current intensity of commercial interest in deep learning began".
+
+---
+
+## Going deeper: ResNets
+
+If depth helps, why not 100 layers? Because, as the ResNet paper opens, "deeper neural networks are more difficult to train".
+
+In 2015, Kaiming He and colleagues introduced **residual networks** (ResNets). Each block learns only a change to its input, and the input is added back on top through a shortcut, a **skip connection**. The authors hypothesised this is easier to optimise: if a block has nothing useful to add, it only needs to learn a change of zero.
+
+They trained networks up to **152 layers** deep, and an ensemble of them reached **3.57% top-5 error** on the ImageNet test set, winning first place in the 2015 classification challenge.
+
+<Deeper title="Go deeper: the residual block">
+A plain block tries to learn a mapping $H(x)$ directly. A residual block learns $F(x) = H(x) - x$ and outputs
+
+$$
+y = F(x) + x
+$$
+
+The authors hypothesise that this is easier to optimise. In their words, if an identity mapping were optimal, "it would be easier to push the residual to zero than to fit an identity mapping by a stack of nonlinear layers". The paper's abstract describes this as learning "residual functions with reference to the layer inputs".
+
+</Deeper>
+
+---
+
+## What CNNs build in, and what they don't
+
+Sharing weights gives convolution a property called **equivariance to translation**: shift the input, and the feature map shifts the same way. A cat 10 pixels to the right produces roughly the same activations, 10 pixels to the right (apart from effects at the borders, and rounding when a layer skips pixels).
+
+That's a built-in assumption, and assumptions cut both ways. The Deep Learning book points out that convolution is "not naturally equivariant" to changes in **scale** or **rotation**; those need other mechanisms, for example training on varied examples. And pooling throws away exact positions, which hurts tasks where precise location matters.
+
+The vision transformers lesson looks at a different design, built on attention instead of convolution.
+
+---
+
+## Common misconceptions
+
+- **"Engineers design the filters."** In a CNN the filter weights are learned from data. Hand-designed filters were the older approach.
+- **"Bigger images need more parameters."** A convolutional layer's parameter count depends on filter size and channel counts, not image size.
+- **"Each layer only sees a 3 × 3 patch of the image."** Each layer sees 3 × 3 of the layer below; stacking and pooling widen the view to most of the image.
+- **"CNNs recognise objects at any size and angle automatically."** They handle shifts well by design. Scale and rotation have to be learned, usually from varied training data.
+- **"Deeper is always better."** Deeper networks are harder to train. ResNet's skip connections made much deeper networks easier to optimise.
+
+---
+
+## Quiz time 🧠
+
+Six questions, including two small calculations.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- A **CNN** slides small, **learned filters** over the image, producing **feature maps**.
+- **Local connections** and **shared weights** cut parameters enormously and suit a world where patterns can appear anywhere.
+- **Stacking** layers widens the **receptive field**; **pooling** shrinks maps and adds tolerance to small shifts.
+- Trained CNNs learn a **hierarchy**: edges, textures, parts, objects.
+- **AlexNet** (2012) made CNNs famous; **ResNets** (2015) used **skip connections** to go 152 layers deep.
+- Convolution is **equivariant to translation**, but not naturally to scale or rotation.
+
+**Coming up:** the vision transformers lesson cuts images into patches and uses attention instead of convolution.
+
+**Related:** the images as tensors lesson shows the input these networks start from.
+
+Hit **Finish** to collect your XP! 🏁

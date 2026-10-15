@@ -232,3 +232,26 @@ the red, green and blue channels on their own, and a layout switch shows the sam
    For a 1 × 2 image `[10, 20, 30, 40, 50, 60]` it returns `[10, 40, 20, 50, 30, 60]`.
 3. `toCHW` followed by its inverse returns the original array for random inputs.
 4. `normalise(200, 0.485, 0.229)` ≈ 1.307.
+
+## vision/cnns: receptive field and parameter counter
+
+**Idea:** a stack of layer cards (conv 3 × 3, conv 5 × 5, max pool 2 × 2) the learner adds and
+removes. A grid highlights the input pixels one top-layer neuron can see, and a counter compares
+the stack's parameters with an equivalent fully connected layer.
+
+**Pure functions:**
+
+- `convParams(filterSize: number, inChannels: number, filters: number): number`:
+  `filters · (filterSize² · inChannels + 1)`.
+- `receptiveField(layers: { size: number; stride: number }[]): number`: grows by
+  `(size − 1) · product of earlier strides` per layer, starting from 1.
+- `outputSize(width: number, size: number, stride: number, padding: number): number`:
+  `(width − size + 2 · padding) / stride + 1`.
+
+**Acceptance tests:**
+
+1. `convParams(3, 3, 16)` is 448 and `convParams(11, 3, 96)` is 34,944.
+2. Three 3 × 3 stride-1 layers give a receptive field of 7; adding a 2 × 2 stride-2 pool and
+   then another 3 × 3 layer gives 7 + 1 + 2 · 2 = 12 (the pool adds 1, and the stride of 2
+   doubles what the last layer adds).
+3. `outputSize(7, 3, 1, 0)` is 5 and `outputSize(7, 3, 2, 0)` is 3.
