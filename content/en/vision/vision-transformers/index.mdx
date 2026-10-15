@@ -1,0 +1,239 @@
+---
+id: vision-transformers
+title: Vision transformers
+summary: What happens when you cut an image into patches and read it like a sentence.
+track: vision
+order: 4
+prerequisites: [cnns, attention, embeddings]
+minutes: 12
+xp: 100
+volatility: evergreen
+sources:
+  - title: 'Dosovitskiy et al. (2020): An Image is Worth 16x16 Words, Transformers for Image Recognition at Scale'
+    url: https://arxiv.org/abs/2010.11929
+  - title: 'Touvron et al. (2020): Training data-efficient image transformers & distillation through attention (DeiT)'
+    url: https://arxiv.org/abs/2012.12877
+  - title: 'Liu et al. (2022): A ConvNet for the 2020s (ConvNeXt)'
+    url: https://arxiv.org/abs/2201.03545
+quiz:
+  - type: numeric
+    prompt: 'A vision transformer cuts a 256 × 256 image into 16 × 16 patches. How many patches (tokens) does it get?'
+    answer: 256
+    tolerance: 0
+    explanation: '256 ÷ 16 = 16 patches across and 16 down, so 16 × 16 = 256 patches. In the paper’s formula, N = HW / P² = 65,536 / 256 = 256.'
+  - type: numeric
+    prompt: 'The ViT-H/14 model uses 14 × 14 patches on colour (RGB) images. How many numbers does one flattened patch hold?'
+    answer: 588
+    tolerance: 0
+    explanation: '14 × 14 = 196 pixels, times 3 colour channels = 588 numbers. A linear projection then maps these to the model’s embedding size.'
+  - type: choice
+    prompt: 'Why does ViT add position embeddings to the patch embeddings?'
+    options:
+      - To make the patches brighter
+      - To reduce the number of parameters
+      - Because attention on its own does not know which patch came from where
+      - To replace the class token
+    answer: 2
+    explanation: 'Attention compares every token with every other, but nothing in it says which patch was top-left and which was bottom-right. Position embeddings put that information back in.'
+  - type: choice
+    prompt: 'The ViT paper trained models on ImageNet alone (about 1.3 million images), without strong regularisation. How did they compare with ResNets of similar size?'
+    options:
+      - A few percentage points worse
+      - Far better on every benchmark
+      - Exactly the same
+      - They failed to train at all
+    answer: 0
+    explanation: 'The authors report "modest accuracies of a few percentage points below ResNets of comparable size". Without the built-in assumptions of convolution, ViT needed more data, and it pulled ahead once pre-trained on 14 to 300 million images.'
+  - type: choice
+    prompt: 'You halve the patch size from 16 × 16 to 8 × 8 on the same image. What happens to the number of tokens?'
+    options:
+      - It halves
+      - It stays the same
+      - It doubles
+      - It goes up four times
+    answer: 3
+    explanation: 'Halving the patch size doubles the patches across and doubles them down: 2 × 2 = 4 times as many. Since attention compares every pair of tokens, the attention work grows about 16 times.'
+  - type: choice
+    prompt: "What is the job of ViT's extra learnable [class] token?"
+    options:
+      - It stores the image’s file name
+      - Its output at the last layer is used as the summary of the whole image for classification
+      - It marks the end of the sequence
+      - It holds the largest patch
+    answer: 1
+    explanation: 'The token starts as a learned vector, gathers information from all the patches through attention, and its final state is fed to the classification head.'
+---
+
+# An image is worth 16 × 16 words 🧩
+
+By 2020, the transformer had become, in one paper's words, "the de-facto standard for natural language processing". In vision, attention was mostly used alongside convolutional networks, or to replace parts of them while keeping their overall structure.
+
+So a team at Google Research asked a cheeky question: what if you **didn't** design anything special for images? Chop a picture into squares, treat each square like a word, and hand the sequence to an ordinary transformer.
+
+Their paper was titled _"An Image is Worth 16x16 Words"_, and the model became known as the **Vision Transformer**, or **ViT**.
+
+This lesson walks through how ViT turns pixels into tokens, what it gains over a CNN, what it gives up, and why the story didn't end with "transformers win".
+
+---
+
+## A quick transformer refresher
+
+The attention lesson covers this properly. The short version:
+
+1. Text is split into **tokens**, and each becomes an **embedding**: a list of numbers (the embeddings lesson explains these).
+2. In each layer, **attention** lets every token look at every other token and pull in information from the relevant ones.
+3. After many layers, each token's embedding reflects its context.
+
+Nothing in that recipe is specific to words. It needs a **sequence of vectors**. The trick is getting an image into that form.
+
+---
+
+## Cut the image into patches
+
+ViT slices the image into a grid of square **patches**, like cutting a photo into tiles.
+
+🤔 Predict: a 224 × 224 image is cut into 16 × 16 patches. How many patches is that?
+
+224 ÷ 16 = 14 across and 14 down, so **196 patches**. That's ViT's "sentence": 196 tokens long.
+
+The paper writes this as $N = HW / P^2$, where $H$ and $W$ are the image's height and width and $P$ is the patch size. It also notes that the sequence length is "inversely proportional to the square of the patch size", so smaller patches mean many more tokens and more computation.
+
+Each patch is 16 × 16 pixels with 3 colour channels: **768 numbers**.
+
+---
+
+## From patch to embedding
+
+Each patch's 768 numbers are flattened into one list and passed through a learned **linear projection**: a multiplication by a weight matrix that maps the patch to an embedding of size $D$. The paper calls the results **patch embeddings**.
+
+For the ViT-Base model, $D$ is 768 as well. ViT-Base has 12 layers, 12 attention heads and 86 million parameters.
+
+The same weight matrix is used for every patch. That's the only image-specific step, and it's small.
+
+<Deeper title="Go deeper: the patch projection is a convolution">
+Applying one weight matrix $E$ to every flattened patch $x_p$ gives $x_p E$. Each output number is a dot product between a column of $E$ and the patch's pixels.
+
+That's exactly what a convolution with a $16 \times 16$ kernel does at one position. Using the same $E$ for every patch, with patches that don't overlap, is a convolution with kernel size 16 and **stride 16**. So ViT does start with one convolutional layer, just a very coarse one.
+
+</Deeper>
+
+---
+
+## Where is each patch?
+
+Here's a problem. Attention compares tokens by their content. Nothing in it records which patch was top-left and which was bottom-right.
+
+🤔 Predict: if you shuffled the patches like a jigsaw, and the model had no position information, would its answer change?
+
+No. Every token would still meet the same set of other tokens, so the final summary would be identical. A shuffled cat and a real cat would look the same.
+
+The fix: add a **position embedding** to each patch embedding, a learned vector for "position 1", "position 2", and so on. The paper used simple learnable 1-D position embeddings. It tried more "2D-aware" versions too, but "have not observed significant performance gains" from them.
+
+---
+
+## The [class] token
+
+To classify an image, ViT needs a single summary of all 196 patches.
+
+Borrowing a trick from the language model BERT, it adds one extra token at the front of the sequence: a learnable **[class]** token. It starts out the same for every image and doesn't come from any patch. Through attention it gathers information from all 196 patches, layer after layer.
+
+At the end, the [class] token's final embedding is the image's summary. A small classification head turns it into scores for each class.
+
+So the whole model is: **patches → embeddings + positions → [class] token in front → standard transformer → head**.
+
+---
+
+## Seeing the whole picture at once
+
+In a CNN, early layers only see small patches; the view widens slowly with depth (the CNN lesson covers this).
+
+In ViT, every patch can attend to every other patch **from the first layer**. Did the model actually use that?
+
+The authors measured an "attention distance", which they call "analogous to receptive field size in CNNs". They found that "some heads attend to most of the image already in the lowest layers". Other heads stayed local in the early layers, which they suggest "may serve a similar function as early convolutional layers".
+
+So ViT learned a mix: some local looking, like a CNN, and some global looking, which a CNN can't do so early.
+
+---
+
+## The catch: data
+
+🤔 Predict: train a ViT and a ResNet of similar size on ImageNet (about 1.3 million labelled photos). Which does better?
+
+In the paper, the **ResNet**. Trained on mid-sized datasets like ImageNet "without strong regularization", the ViTs reached "modest accuracies of a few percentage points below ResNets of comparable size".
+
+The authors' explanation: transformers "lack some of the inductive biases inherent to CNNs, such as translation equivariance and locality". An **inductive bias** is an assumption built into a model's design. A CNN assumes that nearby pixels belong together and that a pattern means the same thing anywhere. A ViT has to **learn** those facts from examples.
+
+Then they scaled up, pre-training on 14 million to 300 million images, and "the picture changes". Their summary: "large scale training trumps inductive bias". Their best model reached 88.55% accuracy on ImageNet after pre-training on JFT-300M, Google's in-house dataset of about 300 million images.
+
+---
+
+## Making ViTs practical
+
+Hundreds of millions of images and big compute clusters aren't available to most people. A few months later, Hugo Touvron and colleagues at Facebook AI showed a way around it with **DeiT**.
+
+They trained a "competitive convolution-free transformer" on **ImageNet only**, "on a single computer in less than 3 days". Their 86-million-parameter model reached 83.1% top-1 accuracy with no external data.
+
+They also added a **distillation token**: a second extra token that learns to match the predictions of a teacher network. It worked especially well when the teacher was a CNN. The authors suggest that a convolutional teacher can pass some of the biases of convolution on to the transformer "in a soft way".
+
+<Deeper title="Go deeper: why smaller patches cost so much">
+With 16 × 16 patches, a 224 × 224 image gives 196 tokens. With 8 × 8 patches it gives $28 \times 28 = 784$ tokens: four times as many.
+
+Attention compares every token with every other token, so the number of pairs grows with the square:
+
+$$
+\begin{aligned}
+196^2 &= 38{,}416 \\
+784^2 &= 614{,}656
+\end{aligned}
+$$
+
+That's 16 times as many comparisons in every attention layer. This is why the paper describes models with smaller patches as "computationally more expensive", and why ViT doesn't simply use one token per pixel.
+
+</Deeper>
+
+---
+
+## CNNs strike back
+
+Did transformers make CNNs obsolete? The research didn't settle that neatly.
+
+In 2022, Zhuang Liu and colleagues wrote that ViTs had "quickly superseded ConvNets as the state-of-the-art image classification model", but that a plain ViT "faces difficulties" on tasks like object detection and segmentation. Popular fixes, such as the Swin Transformer, "reintroduced several ConvNet priors".
+
+So they went the other way: they gradually "modernized" a standard ResNet with design ideas from transformers. The result, a pure CNN called **ConvNeXt**, reached 87.8% top-1 accuracy on ImageNet and "compete[s] favorably with Transformers" in their tests.
+
+The lesson isn't "CNNs good" or "transformers good". Built-in assumptions help most when data is scarce; with enough data, models can learn them. And training recipes matter as much as architecture labels.
+
+---
+
+## Common misconceptions
+
+- **"ViT looks at the image pixel by pixel."** It works on patches, typically 16 × 16; one token per pixel would make attention far too expensive.
+- **"Transformers have no idea where things are in an image."** On their own they don't, which is why ViT adds position embeddings.
+- **"ViT is better than a CNN, full stop."** In the original paper it lost on ImageNet-sized data and won with much larger pre-training. Later work closed the gap in both directions.
+- **"ViT contains no convolution at all."** Its patch projection is mathematically a convolution with stride equal to the patch size, though there are no further convolutions.
+- **"Inductive bias is a flaw."** It's an assumption. A good one saves data; a wrong one limits what the model can learn.
+
+---
+
+## Quiz time 🧠
+
+Six questions, two with a little arithmetic.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- A **Vision Transformer** cuts an image into **patches** and treats them as tokens: 196 for a 224 × 224 image with 16 × 16 patches.
+- Each patch becomes a **patch embedding** via a shared linear projection, plus a **position embedding**.
+- A learnable **[class] token** gathers a summary of the image through attention.
+- Attention lets ViT combine information from **across the whole image** from the first layer.
+- ViT lacks the CNN's **inductive biases**, so it needs **more data**; DeiT showed better training can make it work on ImageNet alone.
+- **ConvNeXt** showed modernised CNNs can compete, so architecture isn't the whole story.
+
+**Coming up:** the CLIP lesson trains an image model and a text model together, so pictures and words share one embedding space.
+
+**Related:** the convolutional neural networks lesson covers the design ViT is compared against.
+
+Hit **Finish** to collect your XP! 🏁

@@ -129,11 +129,6 @@
     "colour": "teal",
     "upcoming": [
       {
-        "id": "vision-transformers",
-        "title": "Vision transformers",
-        "order": 4
-      },
-      {
         "id": "clip",
         "title": "Contrastive learning (CLIP)",
         "order": 5

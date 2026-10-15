@@ -275,3 +275,23 @@ pixel highlights the input patch and shows the nine products being added up.
 3. Sobel vertical `[[1, 0, -1], [2, 0, -2], [1, 0, -1]]` on a patch with columns 10, 10, 200
    returns `[[-760]]`, and on any constant patch returns `[[0]]`.
 4. A 7 × 7 input with a 3 × 3 kernel gives 5 × 5 at stride 1 and 3 × 3 at stride 2.
+
+## vision/vision-transformers: patchifier
+
+**Idea:** an image with a patch-size slider (8, 14, 16, 32). The image splits into tiles that
+fly into a numbered row of tokens, with a [class] token in front. Readouts show the token count
+and the number of attention pairs, and a "shuffle" button scrambles the tiles to show why
+position embeddings are needed.
+
+**Pure functions:**
+
+- `patchCount(height: number, width: number, patch: number): number`: `(H / P) · (W / P)`.
+- `patchLength(patch: number, channels: number): number`: `P² · C`.
+- `attentionPairs(tokens: number): number`: `tokens²`.
+
+**Acceptance tests:**
+
+1. `patchCount(224, 224, 16)` is 196 and `patchCount(224, 224, 8)` is 784.
+2. `patchLength(16, 3)` is 768 and `patchLength(14, 3)` is 588.
+3. `attentionPairs(784) / attentionPairs(196)` is 16.
+4. `patchCount` throws when the image size is not a multiple of the patch size.
