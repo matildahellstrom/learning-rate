@@ -295,3 +295,32 @@ position embeddings are needed.
 2. `patchLength(16, 3)` is 768 and `patchLength(14, 3)` is 588.
 3. `attentionPairs(784) / attentionPairs(196)` is 16.
 4. `patchCount` throws when the image size is not a multiple of the patch size.
+
+## safety/hallucination-calibration: answer-or-abstain game
+
+**Idea:** the learner sees short trivia questions with a model's answer and its stated confidence,
+and chooses "answer" or "I don't know" under a scoring rule set by a threshold slider t (wrong
+answers cost t / (1 − t)). A running score compares the learner with "always answer" and with
+"answer when confidence > t". A second panel draws a reliability diagram from the round's
+questions, so the learner sees an overconfident model's bars fall below the diagonal.
+
+**Pure functions:**
+
+- `penalty(t: number): number`: `t / (1 − t)` for 0 ≤ t < 1.
+- `expectedScore(p: number, t: number): number`: `p − (1 − p) · penalty(t)`.
+- `shouldAnswer(p: number, t: number): boolean`: true when `expectedScore(p, t) > 0`.
+- `reliabilityBins(items: { confidence: number; correct: boolean }[], bins: number):
+{ meanConfidence: number; accuracy: number; count: number }[]`: groups items into equal-width
+  confidence bins, skipping empty ones.
+- `expectedCalibrationError(items, bins): number`: the count-weighted mean of
+  `|accuracy − meanConfidence|` over the bins.
+
+**Acceptance tests:**
+
+1. `penalty(0.5)` is 1 and `penalty(0.9)` is 9 (within 1e-12); `penalty(0)` is 0.
+2. `expectedScore(0.95, 0.9)` ≈ 0.5 and `expectedScore(0.8, 0.9)` ≈ −1.0.
+3. `shouldAnswer(p, t)` flips from false to true as p crosses t, for several values of t.
+4. Items all at confidence 0.8 with 60% correct give one bin with accuracy 0.6 and an expected
+   calibration error of 0.2.
+5. A perfectly calibrated synthetic set (confidence equals the true correctness rate in each
+   bin) has an expected calibration error below 0.01 with 10,000 items.

@@ -236,11 +236,6 @@
     "colour": "red",
     "upcoming": [
       {
-        "id": "hallucination-calibration",
-        "title": "Hallucination & calibration",
-        "order": 1
-      },
-      {
         "id": "inside-a-model",
         "title": "What's inside a model: features & SAEs",
         "order": 2

@@ -1,0 +1,229 @@
+---
+id: hallucination-calibration
+title: Hallucination & calibration
+summary: Why language models confidently make things up, and how to tell when a model's confidence can be trusted.
+track: safety
+order: 1
+prerequisites: [next-token-prediction, sampling-temperature, fine-tuning-rlhf]
+minutes: 12
+xp: 100
+volatility: fast-moving
+lastVerified: 2026-10-15
+sources:
+  - title: 'Kalai, Nachum, Vempala & Zhang (2025): Why Language Models Hallucinate'
+    url: https://arxiv.org/abs/2509.04664
+  - title: 'Guo, Pleiss, Sun & Weinberger (2017): On Calibration of Modern Neural Networks'
+    url: https://arxiv.org/abs/1706.04599
+  - title: 'Kadavath et al. (2022): Language Models (Mostly) Know What They Know'
+    url: https://arxiv.org/abs/2207.05221
+  - title: 'OpenAI (2023): GPT-4 Technical Report'
+    url: https://arxiv.org/abs/2303.08774
+  - title: 'Kuhn, Gal & Farquhar (2023): Semantic Uncertainty, Linguistic Invariances for Uncertainty Estimation in Natural Language Generation'
+    url: https://arxiv.org/abs/2302.09664
+  - title: 'Zong et al. (2026): I-CALM, Incentivizing Confidence-Aware Abstention for LLM Selective Answering'
+    url: https://arxiv.org/abs/2604.03904
+  - title: 'Anthropic (2025): Tracing the thoughts of a large language model'
+    url: https://www.anthropic.com/research/tracing-thoughts-language-model
+quiz:
+  - type: choice
+    prompt: "A model gets Einstein's birthday right every time, but invents a date for a little-known researcher. What best explains the difference?"
+    options:
+      - The model was told to ignore researchers
+      - Einstein's birthday is easier to calculate
+      - "Einstein's birthday appears many times in the training data, while a one-off fact has no pattern the model could learn"
+      - The model is lying on purpose about the researcher
+    answer: 2
+    explanation: 'Facts that appear often are learned reliably. A fact seen once or never is, for the model, like an arbitrary number: it can only guess, and next-token prediction always produces something.'
+  - type: numeric
+    prompt: "A benchmark gives 1 point for a correct answer and 0 for anything else, including “I don't know”. A model has no idea and guesses among 4 options. What is its expected score?"
+    answer: 0.25
+    tolerance: 0.001
+    explanation: "It's right 1 time in 4, so the expected score is 0.25. Saying “I don't know” scores 0, so under this grading, guessing always wins."
+  - type: numeric
+    prompt: "New rules: correct = 1 point, wrong = −1 point, “I don't know” = 0. A model is 60% sure of its answer. What is its expected score if it answers?"
+    answer: 0.2
+    tolerance: 0.001
+    explanation: "0.6 × 1 + 0.4 × (−1) = 0.2. That beats 0 for “I don't know”, so it should answer. At 40% sure it would score −0.2 and should hold back."
+  - type: choice
+    prompt: 'A model says "80% sure" on 200 different answers, and 120 of them are correct. What is it?'
+    options:
+      - Overconfident, because 120 out of 200 is only 60%
+      - Well calibrated, because most answers are right
+      - Underconfident, because it should have said 100%
+      - Impossible to say without more answers
+    answer: 0
+    explanation: 'Calibration compares stated confidence with how often the model is actually right. It claimed 80% but was right 60% of the time, so its confidence runs too high.'
+  - type: choice
+    prompt: 'You ask a model the same question five times and get five different dates. What does that suggest?'
+    options:
+      - The model is broken and should be restarted
+      - The question is badly worded
+      - The most common date is certainly correct
+      - The model is uncertain, so any single answer is likely a guess
+    answer: 3
+    explanation: 'When a model knows a fact, its answers tend to agree in meaning. Wide disagreement signals high uncertainty, which is what semantic entropy measures.'
+  - type: choice
+    prompt: "According to the GPT-4 Technical Report, what happened to the model's calibration on multiple-choice questions after post-training?"
+    options:
+      - It improved a lot
+      - It was reduced compared with the pre-trained model
+      - It stayed exactly the same
+      - It could no longer be measured
+    answer: 1
+    explanation: 'The pre-trained model was highly calibrated; after post-training, calibration was reduced, so the confidence behind its answers became a less reliable signal.'
+---
+
+# Three birthdays 🎂
+
+In 2025, researchers asked a state-of-the-art open-source language model a simple question: _"What is Adam Tauman Kalai's birthday? If you know, just respond with DD-MM."_ Kalai is one of the researchers.
+
+Three attempts gave three answers: **03-07**, **15-06** and **01-01**. All three were wrong. The model had been told to answer only if it knew, and it still answered.
+
+This is a **hallucination**: a plausible-sounding statement that isn't true. This lesson covers why language models hallucinate, why training doesn't simply fix it, what it means for a model to be **calibrated**, and how to catch a model that's guessing.
+
+---
+
+## Fluent is not the same as true
+
+A language model writes by predicting the next token, again and again. That process always produces **something**: there is no built-in step where the model checks a fact against the world.
+
+So a hallucination isn't a glitch in an otherwise truthful machine. It's the same machinery producing text that sounds right, in a case where sounding right and being right come apart.
+
+It also isn't **lying**. Lying means knowing the truth and saying something else. A hallucinating model is better described as a confident guesser, like a student bluffing through an exam question they can't answer.
+
+---
+
+## Why one-off facts get invented
+
+🤔 Predict: a model reliably gets Einstein's birthday right. Will it do as well on a little-known researcher's birthday?
+
+No. Kalai and colleagues point out that models seldom get frequently mentioned facts wrong, like Einstein's birthday. A fact that appears **once** in the training data is different: birthdays follow no pattern, so there's nothing to generalise from.
+
+Their analysis turns this into a rough rule for pre-trained models. If, say, 20% of birthday facts appear exactly once in the training data, expect the model to hallucinate on **at least 20%** of birthday questions.
+
+So hallucinations aren't mysterious. Some facts simply can't be learned from the data, and a model trained to always produce text will produce a guess.
+
+---
+
+## The exam that rewards guessing
+
+You'd hope later training would teach the model to say "I don't know". Kalai and colleagues argue the way models are **graded** works against that.
+
+Most benchmarks score answers as simply right or wrong. "I don't know" scores zero, the same as a wrong answer.
+
+🤔 Predict: a model has no idea which of 4 options is right. Should it guess or abstain?
+
+Guess. A random guess is right 1 time in 4, an expected score of **0.25**, while abstaining always scores **0**. Under right-or-wrong grading, the authors write, abstaining is "strictly sub-optimal". Models get tuned to score well on these benchmarks, so they're pushed to behave like students who never leave a question blank.
+
+---
+
+## Change the scoring, change the behaviour
+
+The proposed fix is to grade differently: say up front how confident the model should be before answering, and **penalise wrong answers**.
+
+Kalai and colleagues suggest instructions like: answer only if you're more than _t_ confident; a correct answer scores 1, "I don't know" scores 0, and a mistake costs _t_ ÷ (1 − _t_) points.
+
+With _t_ = 0.9, a mistake costs 9 points:
+
+- 95% sure: 0.95 × 1 − 0.05 × 9 = **+0.5**. Answer.
+- 80% sure: 0.80 × 1 − 0.20 × 9 = **−1.0**. Say "I don't know".
+
+A 2026 study tried a related idea using prompts alone: it asked models for their confidence and spelled out the rewards for answering and abstaining. Across the models and fact-based question sets tested, it shifted error-prone answers into "I don't know" while keeping most of the answers the models would have got right.
+
+<Deeper title="Go deeper: why the break-even point is exactly t">
+If the model is $p$ confident, answering earns
+
+$$
+\begin{aligned}
+&p \cdot 1 - (1 - p) \cdot \frac{t}{1 - t}
+\end{aligned}
+$$
+
+in expectation, and "I don't know" earns 0. Setting the two equal and multiplying by $1 - t$ gives $p(1 - t) = (1 - p)\,t$, so $p = t$. Above $t$, answering pays; below it, abstaining pays. A threshold of $t = 0$ (no penalty) is ordinary right-or-wrong grading, where guessing always pays.
+
+</Deeper>
+
+---
+
+## What calibration means
+
+A weather forecaster is **calibrated** if, on all the days they say "70% chance of rain", it rains on about 70% of them. Not 100%: a 70% forecast that's never wrong is badly calibrated too.
+
+For a model, calibration means its confidence matches how often it's actually right. Say a model claims 90% confidence on 100 answers.
+
+🤔 Predict: it gets 70 of those 100 right. Is it overconfident or underconfident?
+
+**Overconfident**: it claimed 90% but delivered 70%.
+
+A 2017 study by Guo and colleagues found that modern deep networks, though more accurate, were often worse calibrated than older, smaller ones, and tended to be overconfident. Their simple fix was **temperature scaling**: divide the model's raw scores by one number, tuned on held-out data, before turning them into probabilities. It's the same temperature knob you meet in sampling, and on most of the datasets they tested, it worked surprisingly well.
+
+---
+
+## Do language models know what they know?
+
+Partly, it seems. A 2022 study by Kadavath and colleagues found that larger models were well calibrated on multiple-choice and true/false questions, when the questions were presented in the right format. Models could also judge fairly well whether their own proposed answers were correct. Predicting in advance whether they'd know an answer at all worked too, but was less well calibrated on new kinds of task.
+
+But there's a twist. The GPT-4 Technical Report found that the **pre-trained** model was highly calibrated on a set of multiple-choice questions. **After post-training** (the fine-tuning and RLHF lesson covers it), calibration was **reduced**. Kalai and colleagues also note that base models are often calibrated while post-trained models may drift.
+
+So a model can carry useful information about its own uncertainty that doesn't show up in the confident tone of its answer.
+
+---
+
+## Catching a guess: ask more than once
+
+Back to the three birthdays. Asking once gave a confident date. Asking three times gave three different ones, and that disagreement is the giveaway.
+
+When a model knows something, repeated samples tend to agree. When it's guessing, they scatter. But answers can differ in wording and still mean the same thing: "Paris" and "It's Paris" are one answer, not two.
+
+**Semantic entropy**, introduced by Kuhn, Gal and Farquhar in 2023, handles this: sample several answers, group the ones that **mean** the same thing, then measure how spread out the groups are. One big group: confident. Many small groups: probably a guess. In their tests on question answering, it predicted whether an answer would be right better than the methods it was compared with.
+
+What else helps in practice:
+
+- **Give the model sources** to answer from, and check its citations. This reduces hallucinations, but Kalai and colleagues note it's no cure: when search comes up empty, right-or-wrong grading still rewards a guess.
+- **Invite uncertainty**: make "I don't know" an acceptable answer.
+
+---
+
+## A glimpse inside
+
+Researchers can now look for the machinery behind this. In 2025, Anthropic traced how Claude handles questions about people.
+
+They found that "I can't answer that" is the **default**: a circuit that is on unless something switches it off. When the model recognises a well-known name, such as the basketball player Michael Jordan, "known entity" features switch the default off and the model answers.
+
+Ask about an unknown name, and the default stays on. But when the researchers artificially switched on the "known answer" features, the model consistently invented facts about the unknown person. Sometimes this misfire happens by itself, when a name seems familiar but the model knows nothing else about the person.
+
+The inside-a-model lesson shows how this kind of looking inside works.
+
+---
+
+## Common misconceptions
+
+- **"Hallucinations are rare bugs that the next version will fix."** Researchers trace them to how models are trained and graded, and they persist even in state-of-the-art systems.
+- **"A hallucinating model is lying."** Lying requires knowing the truth. A model producing a plausible guess is closer to a student bluffing.
+- **"If a model sounds confident, it's probably right."** Tone isn't confidence. A post-trained model's wording can sound certain while its answers are guesses.
+- **"Calibrated means accurate."** A model that's right 60% of the time and says "60%" is calibrated. Calibration is about honest confidence, not high scores.
+- **"Giving the model documents to read solves hallucination."** It helps, but models can still guess when the documents don't contain the answer.
+
+---
+
+## Quiz time 🧠
+
+Six questions, two with a little arithmetic.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- A **hallucination** is a plausible but false statement; models produce text whether or not they know the answer.
+- Facts seen rarely in training can't be learned, so models **guess** on them.
+- Right-or-wrong **grading rewards guessing**; penalising wrong answers makes "I don't know" worthwhile.
+- A model is **calibrated** when its confidence matches how often it's right; post-training can reduce calibration.
+- Asking several times and measuring disagreement (**semantic entropy**) can catch guesses.
+
+**Coming up:** the inside-a-model lesson shows how researchers find and steer the features inside a model, and the alignment basics lesson asks how we make AI pursue what we actually intend.
+
+**Related:** the sampling and temperature lesson, for the knob behind both creative answers and temperature scaling.
+
+Hit **Finish** to collect your XP! 🏁
