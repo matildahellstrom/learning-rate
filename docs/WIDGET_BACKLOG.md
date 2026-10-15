@@ -159,3 +159,29 @@ to show Goodhart's law.
    `Infinity` or `NaN`.
 4. After `updateScores`, the chosen score rose by exactly as much as the rejected one fell, and
    other scores are unchanged.
+
+## ml/regression: drag-the-line fitter
+
+**Idea:** a scatter plot of the café data (temperature against iced coffees sold) with a line the
+learner drags by two handles. Residuals are drawn as vertical bars, and their squares as little
+squares, so the MSE readout is literally the total area. A "best fit" button snaps to the
+least-squares line; a draggable extra point shows how one outlier pulls the slope.
+
+**Pure functions:**
+
+- `predict(w: number, b: number, x: number): number`: `w · x + b`.
+- `residuals(points: [number, number][], w: number, b: number): number[]`: `y − predict(w, b, x)`
+  for each point.
+- `mse(points: [number, number][], w: number, b: number): number`: the mean of the squared
+  residuals.
+- `fitLeastSquares(points: [number, number][]): { w: number; b: number }`:
+  `w = Σ(x − x̄)(y − ȳ) / Σ(x − x̄)²`, `b = ȳ − w · x̄`; throws if every x is the same.
+
+**Acceptance tests:**
+
+1. For `[[15, 20], [20, 35], [25, 40], [30, 55]]`, `fitLeastSquares` gives w = 2.2 and b = −12
+   (within 1e-9), and `mse` at that line is 5.
+2. `mse` for the same points with w = 2, b = −10 is 12.5, and with w = 0, b = 37.5 it is 156.25.
+3. The residuals of the least-squares line sum to 0 (within 1e-9) for random points.
+4. The fitted line passes through (x̄, ȳ).
+5. Changing the last point to `[30, 95]` gives w = 4.6.

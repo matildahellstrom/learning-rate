@@ -1,0 +1,269 @@
+---
+id: regression
+title: Regression
+summary: How to draw the best straight line through messy data, and why it is called regression.
+track: ml
+order: 1
+prerequisites: []
+minutes: 12
+xp: 100
+volatility: evergreen
+sources:
+  - title: 'Google Machine Learning Crash Course: Linear regression'
+    url: https://developers.google.com/machine-learning/crash-course/linear-regression
+  - title: 'Legendre (1805): Nouvelles méthodes pour la détermination des orbites des comètes'
+    url: https://archive.org/details/nouvellesmthode00legegoog
+  - title: "O'Connor & Robertson, MacTutor: Adrien-Marie Legendre"
+    url: https://mathshistory.st-andrews.ac.uk/Biographies/Legendre/
+  - title: "O'Connor & Robertson, MacTutor: Carl Friedrich Gauss"
+    url: https://mathshistory.st-andrews.ac.uk/Biographies/Gauss/
+  - title: 'Galton (1886): Regression towards Mediocrity in Hereditary Stature'
+    url: https://pdf.galton.org/essays/1880-1889/galton-1886-jaigi-regression-stature.pdf
+  - title: "O'Connor & Robertson, MacTutor: Francis Galton"
+    url: https://mathshistory.st-andrews.ac.uk/Biographies/Galton/
+  - title: "R documentation: Anscombe's Quartet of 'Identical' Simple Linear Regressions"
+    url: https://stat.ethz.ch/R-manual/R-devel/library/datasets/html/anscombe.html
+  - title: 'scikit-learn: Polynomial regression, extending linear models with basis functions'
+    url: https://scikit-learn.org/stable/modules/linear_model.html#polynomial-regression-extending-linear-models-with-basis-functions
+quiz:
+  - type: numeric
+    prompt: 'A model predicts ice creams sold as 3 × temperature − 20. How many does it predict on a 25 °C day?'
+    answer: 55
+    tolerance: 0.001
+    explanation: '3 × 25 = 75, and 75 − 20 = 55. The weight (3) is the extra sales per degree; the bias (−20) shifts the whole line down.'
+  - type: choice
+    prompt: 'Why does least squares square the residuals instead of simply adding them up?'
+    options:
+      - Squaring makes the sums quicker to compute by hand
+      - Squaring turns every residual into a whole number
+      - Positive and negative misses would cancel out, so a terrible line could score a total of zero
+      - Adding residuals only works for lines that pass through zero
+    answer: 2
+    explanation: 'A flat line at the average misses some points above and some below, and those misses can add up to exactly zero. Squaring makes every miss count as positive, and it makes big misses count extra.'
+  - type: numeric
+    prompt: 'A line misses four data points by 2, −2, 4 and 0. What is its mean squared error?'
+    answer: 6
+    tolerance: 0.001
+    explanation: 'Square each miss: 4, 4, 16 and 0. They add up to 24, and 24 ÷ 4 points = 6.'
+  - type: choice
+    prompt: "Using Galton's two-thirds rule: a pair of parents has a mid-parent height 6 inches above the population average. How tall are their adult children, on average?"
+    options:
+      - 6 inches above average, just like their parents
+      - Exactly average height
+      - More than 6 inches above average
+      - About 4 inches above average
+    answer: 3
+    explanation: "The children's distance from the average was, on average, two-thirds of the mid-parent's: two-thirds of 6 is 4. Still tall, but closer to the average. That pull back towards the middle is what Galton called regression."
+  - type: choice
+    prompt: 'A model predicts y = w₁·x + w₂·x² + b. Is this still linear regression?'
+    options:
+      - No, because its graph is a curve
+      - Yes, because the prediction is still a weighted sum of features (x and x²) plus a bias
+      - No, because x² can never be a feature
+      - Only if w₂ is zero
+    answer: 1
+    explanation: 'Linear means linear in the weights. Treat x² as just another feature column and the maths of fitting is exactly the same. The line becomes a curve when you plot it against x.'
+  - type: choice
+    prompt: "All four of Anscombe's datasets have practically the same best-fit line. What is the main lesson?"
+    options:
+      - Plot your data, because the same line can describe very different patterns
+      - The line is wrong for all four, so linear regression is useless
+      - Four datasets with the same line must come from the same source
+      - The more data points, the better the line
+    answer: 0
+    explanation: 'One set is a curve, one is a straight line with a single odd point, and one has its slope set by a single far-away point. The numbers match; the pictures do not.'
+---
+
+# The iced coffee question ☕
+
+Your friend runs a café. On hot days they sell more iced coffee, so every morning they guess how much to prepare. Guess too little and customers leave; guess too much and it gets poured away.
+
+They've jotted down four days:
+
+- 15 °C: 20 iced coffees
+- 20 °C: 35
+- 25 °C: 40
+- 30 °C: 55
+
+Tomorrow will be 28 °C. How many should they make?
+
+The points don't sit on a perfect line, but there's clearly a trend. **Regression** is the art of capturing that trend with a formula. This lesson covers how to draw the best line through messy data, how to measure "best", and where the odd name comes from.
+
+---
+
+## A line is a model
+
+The simplest guess: sales rise by a fixed amount for every extra degree. That's a straight line:
+
+**prediction = weight × temperature + bias**
+
+- The **weight** is the slope: how many extra coffees each degree brings.
+- The **bias** shifts the whole line up or down. (It's what school maths calls the intercept.)
+- The temperature is the **feature**, the input. The coffees sold are the **label**, the thing we predict.
+
+Together, the weight and the bias are the model's **parameters**. Training a model means finding good values for them.
+
+Say we eyeball the chart and guess a weight of 2 and a bias of −10.
+
+🤔 Predict: what does this line say for tomorrow's 28 °C?
+
+2 × 28 − 10 = **46** iced coffees. A model, in one line of arithmetic.
+
+---
+
+## Measuring the misses
+
+How good is our guess? Check it against the days we know. Each **residual** is how far the real value is from the line's prediction: actual minus predicted.
+
+- 15 °C: sold 20, predicted 20, residual **0**
+- 20 °C: sold 35, predicted 30, residual **+5**
+- 25 °C: sold 40, predicted 40, residual **0**
+- 30 °C: sold 55, predicted 50, residual **+5**
+
+A natural idea is to add the residuals up: the smaller the total, the better the line.
+
+🤔 Predict: a lazy line ignores the temperature completely and always predicts the average, 37.5. What do its residuals add up to?
+
+They are −17.5, −2.5, +2.5 and +17.5, which add up to exactly **zero**. The lazy line looks perfect, yet it is clearly awful. Misses above the line cancel misses below it.
+
+---
+
+## Least squares
+
+The fix is to make every miss count as positive. The classic way is to **square** each residual, then take the average. That's the **mean squared error**, or MSE.
+
+- Our guess: (0² + 5² + 0² + 5²) ÷ 4 = **12.5**
+- The lazy flat line: (17.5² + 2.5² + 2.5² + 17.5²) ÷ 4 = **156.25**
+
+The guess wins by a mile. Squaring also makes a big miss count much more than a small one: a miss of 5 costs 25, a miss of 1 costs just 1.
+
+The best line is the one with the smallest possible MSE. This is the **method of least squares**. Adrien-Marie Legendre published it in 1805, in an appendix to a book on the orbits of comets. Carl Friedrich Gauss published his own version in 1809 and claimed he had used it first. He had indeed used it in 1801, to predict where the newly discovered "small planet" Ceres would reappear after it was lost behind the Sun, though he kept his method to himself at the time.
+
+---
+
+## Finding the best line
+
+For a single feature you don't need to search: there's a formula. For the café data it gives
+
+**prediction = 2.2 × temperature − 12**
+
+Its residuals are −1, +3, −3 and +1, so its MSE is (1 + 9 + 9 + 1) ÷ 4 = **5**. That beats our guess's 12.5, and no other straight line does better on these four days.
+
+For tomorrow it predicts 2.2 × 28 − 12 = **49.6**, so about 50 iced coffees.
+
+A neat fact: the best line always passes through the average point. Here that's 22.5 °C and 37.5 coffees, and indeed 2.2 × 22.5 − 12 = 37.5.
+
+<Deeper title="Go deeper: deriving the formula">
+For points $(x_i, y_i)$ and the line $\hat y = wx + b$, least squares minimises
+
+$$
+\text{MSE}(w, b) = \frac{1}{n} \sum_{i=1}^{n} \big(y_i - w x_i - b\big)^2
+$$
+
+At the minimum, both slopes (partial derivatives) are zero. Setting the slope in $b$ to zero gives $b = \bar y - w \bar x$, which is why the line passes through the average point $(\bar x, \bar y)$. Substituting that in and setting the slope in $w$ to zero gives
+
+$$
+w = \frac{\sum_i (x_i - \bar x)(y_i - \bar y)}{\sum_i (x_i - \bar x)^2}
+$$
+
+For the café: the deviations are $x - \bar x = -7.5, -2.5, 2.5, 7.5$ and $y - \bar y = -17.5, -2.5, 2.5, 17.5$. The top sum is $275$, the bottom is $125$, so $w = 2.2$ and $b = 37.5 - 2.2 \times 22.5 = -12$.
+
+With many features the same idea gives a set of linear equations, the **normal equations**, solved with matrices. For huge models with millions of parameters, people use **gradient descent** instead: start anywhere and keep stepping downhill on the MSE.
+
+</Deeper>
+
+---
+
+## More than one feature
+
+Temperature isn't the only thing that matters. Weekends might be busier too. Linear regression handles this easily: give each feature its own weight and add them up.
+
+**prediction = w₁ × temperature + w₂ × weekend + bias**
+
+Here "weekend" is 1 on Saturday and Sunday and 0 otherwise. Imagine the fit gave w₂ = 15 (an invented number for this example). That would mean: **at the same temperature**, a weekend day sells about 15 more iced coffees.
+
+With two features the "line" becomes a flat surface; with more it's hard to picture, but the arithmetic is identical. Real models may use dozens or millions of features, each with its own weight.
+
+---
+
+## Curves with straight-line maths
+
+What if sales level off on very hot days? A straight line can't bend. But here's a trick: invent a new feature, **temperature²**, and let the model give it a weight too.
+
+**prediction = w₁ × temp + w₂ × temp² + bias**
+
+🤔 Predict: the graph of this model is a curve. Is it still linear regression?
+
+**Yes!** "Linear" refers to the **weights**, not the shape. The prediction is still a weighted sum of features plus a bias; one of the features just happens to be a square. Fitting works exactly as before. This is called **polynomial regression**.
+
+The idea of feeding a linear model new, transformed features is a common pattern in machine learning. Neural networks take it further: in a sense, they **learn** their own transformed features.
+
+---
+
+## Why "regression"?
+
+The name comes from the Victorian scientist Francis Galton. In 1886 he compared the heights of 930 adult children with those of their parents. He scaled every woman's height up by 1.08 to make it comparable with men's, and averaged each pair of parents into a "mid-parent" height.
+
+His finding: a child's distance from the average height was, on average, about **two-thirds** of the mid-parent's distance from it.
+
+🤔 Predict: a mid-parent height 3 inches above the population average. How tall are the children, on average?
+
+About **2 inches** taller. Still tall, but closer to the middle. Galton called this **regression towards mediocrity**, using "mediocrity" in its old sense of "the average". (He first called it "reversion".) The name stuck: fitting a line or curve to predict a number is still called regression today.
+
+Galton is also known, infamously, as the founder of eugenics.
+
+<Deeper title="Go deeper: regression to the mean">
+Why would tall parents have, on average, slightly less tall children? Height depends on many factors, and only some of them are passed on. Unusually tall parents tend to be tall partly through inherited factors and partly through other, unshared luck; their children get the inherited part but draw fresh luck, which on average is ordinary.
+
+The same effect appears whenever two measurements are linked but not perfectly: the best prediction of the second is closer to the average than the first. It's a statistical effect, not a force pulling people towards average.
+
+</Deeper>
+
+---
+
+## Always look at your data
+
+In 1973 the statistician F. J. Anscombe made four small datasets of 11 points each. All four have practically the same averages, the same spread, the same correlation and the same best-fit line, roughly **y = 3 + 0.5x**.
+
+Plotted, they look nothing alike:
+
+1. A loose cloud around a straight line, where the line fits well.
+2. A smooth curve, which a straight line misses.
+3. An almost perfect straight line, except for one point that drags the fit off.
+4. All points at the same x, except one far-away point that alone decides the slope.
+
+The numbers can't tell these apart; a picture can. Two more traps:
+
+- **Outliers pull hard.** Because misses are squared, one strange day matters a lot. If the 30 °C day had sold 95 coffees (say, a festival), the best slope would jump from 2.2 to 4.6.
+- **Extrapolation.** Our best line predicts −12 iced coffees at 0 °C. A line is only trustworthy near the data it was fitted on.
+
+---
+
+## Common misconceptions
+
+- **"The best line goes through as many points as possible."** It minimises the total squared miss, and it may not touch a single point.
+- **"A good fit means x causes y."** Regression finds a pattern, not a cause. Iced coffee sales would also predict sunburn, but coffee doesn't burn skin.
+- **"Regression to the mean is a force."** It's a statistical effect of imperfect links between two measurements, not something that pushes people or numbers to average.
+- **"If the fit is good, the line works everywhere."** Outside the range of the data, a line can predict nonsense, like negative sales.
+
+---
+
+## Quiz time 🧠
+
+Six questions. Some need a little arithmetic.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- **Linear regression** predicts a number as a **weighted sum** of features plus a **bias**.
+- **Residuals** measure the misses; **least squares** picks the line with the smallest **mean squared error**.
+- More **features** add more weights, and transformed features like x² let a linear model fit **curves**.
+- The name comes from Galton's **regression towards the mean** in heights.
+- Always **plot your data**: outliers pull the line and extrapolation can mislead.
+
+**Coming up:** the loss functions lesson asks whether squaring is always the right way to count misses, and the gradient descent lesson shows how models find the best weights when there's no formula.
+
+Hit **Finish** to collect your XP! 🏁
