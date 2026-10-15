@@ -4,7 +4,7 @@ title: Distillation
 summary: How a small student model learns from a big teacher's hunches, not just its answers.
 track: llm
 order: 11
-prerequisites: [softmax, cross-entropy, next-token-prediction]
+prerequisites: [softmax, cross-entropy, next-token-prediction, sampling-temperature]
 minutes: 10
 xp: 100
 volatility: evergreen
@@ -12,6 +12,10 @@ lastVerified: 2026-10-13
 sources:
   - title: 'Hinton, Vinyals & Dean (2015): Distilling the Knowledge in a Neural Network'
     url: https://arxiv.org/abs/1503.02531
+  - title: 'Hinton (2014): Dark Knowledge, TTIC Distinguished Lecture (slides)'
+    url: https://www.ttic.edu/dl/dark14.pdf
+  - title: 'Buciluǎ, Caruana & Niculescu-Mizil (2006): Model Compression (KDD)'
+    url: https://www.cs.cornell.edu/~caruana/compression.kdd06.pdf
   - title: 'Kim & Rush (2016): Sequence-Level Knowledge Distillation'
     url: https://arxiv.org/abs/1606.07947
   - title: 'Sanh et al. (2019): DistilBERT, a distilled version of BERT'
@@ -89,7 +93,7 @@ Big models are slow and costly to run. Every answer burns compute, and they won'
 
 You could train a small model from scratch on the same data. But a small model trained to **imitate a big one** often ends up noticeably better than the same small model trained alone.
 
-The idea goes back to work by Caruana and colleagues on "model compression" in 2006. Hinton, Vinyals and Dean made it famous in 2015 by squeezing a whole ensemble of models into one network, and named it **distillation**.
+The idea goes back to work by Buciluǎ, Caruana and Niculescu-Mizil on "model compression" in 2006. Hinton, Vinyals and Dean made it famous in 2015 by squeezing a whole ensemble of models into one network, and named it **distillation**.
 
 ---
 
@@ -103,7 +107,7 @@ Language models work the same way. After _"The cat sat on the"_, a teacher might
 
 - **mat** 0.84 · **sofa** 0.11 · **floor** 0.04 · **moon** 0.002
 
-The hard label is just "mat". The soft label also teaches that sofa is fine and moon is silly. Hinton called this extra information **dark knowledge**.
+The hard label is just "mat". The soft label also teaches that sofa is fine and moon is silly. Hinton nicknamed this extra information **dark knowledge** in a 2014 talk.
 
 ---
 
@@ -144,7 +148,7 @@ $$
 \end{aligned}
 $$
 
-The gradient of the soft cross-entropy with respect to a student logit is
+(KL and cross-entropy differ only by the teacher's entropy, which doesn't depend on $z$, so they have the same gradient.) The gradient of the soft cross-entropy with respect to a student logit is
 
 $$
 \begin{aligned}
@@ -155,7 +159,7 @@ $$
 
 and the difference in brackets itself shrinks roughly like $1/T$ when $T$ is large compared with the logits. So the soft-target gradients scale like $1/T^2$, and Hinton et al. multiply by $T^2$ to keep the balance between the two terms when $T$ changes.
 
-In the high-temperature limit (with zero-mean logits) minimising the soft loss becomes matching the logits themselves: $\tfrac12 \sum_i (z_i - v_i)^2$, an older compression trick.
+In the high-temperature limit, with both sets of logits zero-meaned, the gradient becomes $\frac{1}{NT^2}(z_i - v_i)$ for $N$ classes, so minimising the soft loss is equivalent to minimising $\tfrac12 \sum_i (z_i - v_i)^2$: the logit-matching trick Hinton et al. credit to Caruana's group.
 
 </Deeper>
 
