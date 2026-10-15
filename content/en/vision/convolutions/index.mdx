@@ -1,0 +1,235 @@
+---
+id: convolutions
+title: Convolutions
+summary: How sliding one small grid of numbers over an image can blur it, sharpen it or find its edges.
+track: vision
+order: 2
+prerequisites: [images-as-tensors, dot-product]
+minutes: 11
+xp: 100
+volatility: evergreen
+sources:
+  - title: 'Goodfellow, Bengio & Courville: Deep Learning, ch. 9 Convolutional Networks'
+    url: https://www.deeplearningbook.org/contents/convnets.html
+  - title: 'CS231n (Stanford): Convolutional Neural Networks'
+    url: https://cs231n.github.io/convolutional-networks/
+  - title: 'scikit-image docs: skimage.filters (Sobel and Prewitt kernels)'
+    url: https://scikit-image.org/docs/stable/api/skimage.filters.html
+  - title: 'PyTorch docs: torch.nn.Conv2d'
+    url: https://docs.pytorch.org/docs/2.14/generated/torch.nn.Conv2d.html
+quiz:
+  - type: numeric
+    prompt: 'The kernel has 1, 0, −1 in every row. The image patch has 5, 5, 1 in every row (three rows). What single number does the convolution produce at this position?'
+    answer: 12
+    tolerance: 0
+    explanation: 'Each row gives 5 × 1 + 5 × 0 + 1 × (−1) = 4. Three rows: 4 + 4 + 4 = 12. A big number, because the patch is brighter on the left than on the right: an edge.'
+  - type: numeric
+    prompt: 'You slide a 5 × 5 kernel over a 32 × 32 image with stride 1 and no padding. How wide is the output?'
+    answer: 28
+    tolerance: 0
+    explanation: 'The kernel fits in 32 − 5 + 1 = 28 positions across. In the formula (W − F + 2P) / S + 1, that is (32 − 5 + 0) / 1 + 1 = 28.'
+  - type: choice
+    prompt: 'A 3 × 3 kernel has every entry equal to 1/9. What does it do to an image?'
+    options:
+      - Sharpens it
+      - Finds only vertical edges
+      - Flips it upside down
+      - Blurs it, replacing each pixel with the average of its neighbourhood
+    answer: 3
+    explanation: 'Multiplying nine pixels by 1/9 and adding them up is exactly their average. Averages smooth out sharp changes, so the image gets blurrier.'
+  - type: choice
+    prompt: 'You compute "this pixel minus its left neighbour" across a stretch of wall where every pixel is 50. What do you get?'
+    options:
+      - 0 everywhere
+      - 50 everywhere
+      - 100 everywhere
+      - −50 everywhere
+    answer: 0
+    explanation: '50 − 50 = 0. Difference kernels stay silent on flat areas and only respond where brightness changes, which is what makes them edge detectors.'
+  - type: choice
+    prompt: 'One 3 × 3 kernel is applied to a colour image with 3 channels. How many channels does its output have?'
+    options:
+      - '3'
+      - '9'
+      - '1'
+      - '27'
+    answer: 2
+    explanation: 'The kernel is really 3 × 3 × 3: it looks at all three channels at once and adds everything into one number per position. One kernel, one output channel. More kernels give more channels.'
+  - type: choice
+    prompt: 'Neural network libraries usually compute cross-correlation but call it convolution. Why does nobody mind?'
+    options:
+      - Because the two give identical results for every kernel
+      - Because the only difference is a flipped kernel, and a learned kernel simply ends up flipped
+      - Because cross-correlation is always faster
+      - Because convolution only works on sound, not images
+    answer: 1
+    explanation: 'True convolution flips the kernel before sliding it. When the kernel values are learned from data, the network just learns the flipped version, so the results are equally good.'
+---
+
+# The maths inside a photo filter 🎛️
+
+Open a photo editor and drag the "blur" slider. Then try "sharpen". Some apps even have an "emboss" or "find edges" effect that turns a photo into a pencil sketch.
+
+They feel like different tools, but many effects like these can be done with the **same operation**, just with different numbers plugged in. You take a small grid of numbers, slide it over the image, and at every position you multiply and add.
+
+That operation is called a **convolution**. It's the workhorse of computer vision. This lesson shows how it works, why it's so cheap, and how a handful of numbers can blur a picture or find its edges.
+
+---
+
+## Slide, multiply, add
+
+Take a small grid of numbers called a **kernel** (or filter). Here's a 3 × 3 one:
+
+```
+1  0  -1
+1  0  -1
+1  0  -1
+```
+
+Place it over a 3 × 3 patch of a greyscale image. Multiply each kernel number by the pixel under it, then add up all nine products. That's one output number.
+
+Then move the kernel one pixel to the right and do it again. Row by row, you cover the whole image. The grid of results is a new image called a **feature map**.
+
+If you've done the dot product lesson, you'll recognise "multiply matching numbers and add": each output is a **dot product** between the kernel and one patch.
+
+🤔 Predict: the patch has 2, 2, 2 in its left column and 6, 6, 6 in its right column. What does the kernel above give?
+
+The left column gives 2 + 2 + 2 = 6, the middle column is multiplied by 0, and the right column gives −(6 + 6 + 6) = −18. The total is **−12**. A large value (negative here), because the patch changes from dark to bright.
+
+---
+
+## Blurring is averaging
+
+Now try a kernel where all nine numbers are 1/9.
+
+Multiplying nine pixels by 1/9 and adding them up gives their **average**. So every pixel is replaced by the average of itself and its eight neighbours. That's a **blur**.
+
+🤔 Predict: a patch is all 90s except a bright speck of 180 in the middle. What does the averaging kernel output there?
+
+(8 × 90 + 180) ÷ 9 = 900 ÷ 9 = **100**. The speck almost vanishes into its surroundings. That's why blurring removes noise: lone spikes get averaged away.
+
+Bigger kernels average over more pixels and blur more. Kernels that give the centre more weight than the edges blur more gently.
+
+---
+
+## Finding edges with differences
+
+An **edge** is where brightness changes quickly: the outline of a face against a wall, a letter on a page.
+
+The Deep Learning book gives the simplest edge detector: take each pixel and **subtract its neighbour on the left**. That's a kernel with just two numbers, −1 and 1.
+
+🤔 Predict: a row of pixels reads 10, 10, 10, 200, 200, 200. What does "pixel minus its left neighbour" give?
+
+**0, 0, 190, 0, 0**. Silent on flat areas, loud at the jump. Run it over a whole photo and you get a map of every vertical edge.
+
+Practical edge detectors use slightly bigger kernels. The **Sobel** kernel for vertical edges, as scikit-image lists it, is
+
+```
+1  0  -1
+2  0  -2
+1  0  -1
+```
+
+It compares the left column with the right, giving the middle row double weight. The kernel from the first step (all 1s on the left) is the **Prewitt** kernel, up to a factor of 1/3.
+
+---
+
+## Edges of the image, and shrinking
+
+A 3 × 3 kernel can't be centred on a pixel at the very border: part of it would hang off the image. So by default the output is smaller.
+
+CS231n gives the rule. For an input of width $W$ and a kernel of width $F$, sliding one pixel at a time, the kernel fits in $W - F + 1$ positions. A 7 × 7 input with a 3 × 3 kernel gives a **5 × 5** output.
+
+Two settings change this:
+
+- **Padding** adds a border of zeros around the image first. Pad a 7 × 7 input by 1 pixel and a 3 × 3 kernel gives 7 × 7 again.
+- **Stride** is how far the kernel jumps each time. With stride 2, the same 7 × 7 input gives a **3 × 3** output.
+
+<Deeper title="Go deeper: the output size formula">
+With padding $P$ on each side and stride $S$, CS231n's formula for the output width is
+
+$$
+\frac{W - F + 2P}{S} + 1
+$$
+
+For $W = 7$, $F = 3$, $P = 0$, $S = 2$: $(7 - 3 + 0)/2 + 1 = 3$.
+
+If the division doesn't come out whole, the kernel doesn't fit evenly across the input. CS231n calls such settings invalid: a library might throw an error, pad or crop the input to make it fit.
+
+</Deeper>
+
+---
+
+## Colour images
+
+A colour image has three channels: red, green and blue. A kernel for it is three-dimensional too. A "3 × 3" kernel on a colour image is really **3 × 3 × 3**: one 3 × 3 slice per channel.
+
+At each position, every slice does its multiply-and-add on its own channel, and the three results are added together (plus an optional constant called a **bias**). PyTorch's docs write the same thing as a sum over input channels.
+
+So one kernel produces **one** output channel, whatever the number of input channels. To get several feature maps, say one for vertical edges and one for horizontal edges, you use several kernels.
+
+---
+
+## Why convolutions are so cheap
+
+The Deep Learning book counts the cost of its two-number edge detector on a photo 320 pixels wide and 280 tall. The output is 319 pixels wide (one shorter, as the last step predicts).
+
+- As a convolution: **267,960** arithmetic operations.
+- As a general matrix multiplication, where every output pixel may depend on every input pixel: a matrix with **over eight billion** entries, and over sixteen billion operations.
+
+That makes convolution, in the book's words, "roughly 60,000 times more efficient computationally" for this job. The saving comes from two facts: each output looks at only a few nearby pixels, and the **same** few numbers are reused at every position.
+
+---
+
+## Convolution or cross-correlation?
+
+A small confession from the field. In maths, a true convolution **flips** the kernel (top to bottom and left to right) before sliding it. What we've been doing, without flipping, is technically called **cross-correlation**.
+
+The Deep Learning book notes that "many machine learning libraries implement cross-correlation but call it convolution". PyTorch's `Conv2d` docs say so directly: its operator is "the valid 2D cross-correlation operator".
+
+🤔 Predict: does the missing flip matter for a neural network?
+
+Not really. When the kernel's numbers are **learned**, the network simply learns the flipped version. The book makes exactly this point. For a symmetric kernel like the blur, the two are identical anyway.
+
+---
+
+## From hand-made to learned
+
+Everything so far used kernels that people designed: averages for blurring, differences for edges.
+
+The big idea of the next lesson is to stop designing them. Start with random kernels, and let gradient descent adjust their numbers until they detect whatever helps the task. Stack many such layers and you get a **convolutional neural network**.
+
+---
+
+## Common misconceptions
+
+- **"Each filter effect needs its own algorithm."** Blur, edge detection and many others are one operation, convolution, with different kernel numbers.
+- **"The kernel is as big as the image."** It's small, often just 3 × 3, and reused at every position.
+- **"An edge detector outputs the edges' colour."** It outputs how quickly brightness **changes**: near zero on flat areas, large at edges. The sign tells you which way it changes.
+- **"Convolution always keeps the image size."** Without padding it shrinks the output; with a stride above 1 it shrinks it further.
+- **"Deep learning convolution is textbook convolution."** Libraries usually compute cross-correlation (no kernel flip). For learned kernels it makes no practical difference.
+
+---
+
+## Quiz time 🧠
+
+Six questions. Have a pencil ready for the first two.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- A **convolution** slides a small **kernel** over an image, multiplying and adding at each position to make a **feature map**.
+- An **averaging** kernel blurs; a **difference** kernel (like **Sobel**) finds edges.
+- Output size depends on kernel size, **padding** and **stride**.
+- On colour images, a kernel spans **all channels** and produces one output channel.
+- Reusing a few numbers everywhere makes convolution vastly cheaper than a full matrix multiplication.
+- Libraries usually compute **cross-correlation** and call it convolution.
+
+**Coming up:** the convolutional neural networks lesson learns the kernels from data and stacks them into layers.
+
+**Related:** the images as tensors lesson covers the grids of numbers that kernels slide over.
+
+Hit **Finish** to collect your XP! 🏁

@@ -255,3 +255,23 @@ the stack's parameters with an equivalent fully connected layer.
    then another 3 × 3 layer gives 7 + 1 + 2 · 2 = 12 (the pool adds 1, and the stride of 2
    doubles what the last layer adds).
 3. `outputSize(7, 3, 1, 0)` is 5 and `outputSize(7, 3, 2, 0)` is 3.
+
+## vision/convolutions: kernel playground
+
+**Idea:** a small greyscale image beside an editable 3 × 3 kernel with presets (identity, blur,
+Sobel vertical, Sobel horizontal). The output feature map updates live, and hovering an output
+pixel highlights the input patch and shows the nine products being added up.
+
+**Pure functions:**
+
+- `convolve2d(image: number[][], kernel: number[][], stride = 1, padding = 0): number[][]`:
+  cross-correlation (no kernel flip), zero padding.
+- `outputSize(width: number, size: number, stride: number, padding: number): number`.
+
+**Acceptance tests:**
+
+1. The identity kernel (1 in the centre, 0 elsewhere) with padding 1 returns the input unchanged.
+2. The averaging kernel (all 1/9) on a 3 × 3 patch of 90s with 180 in the middle returns `[[100]]`.
+3. Sobel vertical `[[1, 0, -1], [2, 0, -2], [1, 0, -1]]` on a patch with columns 10, 10, 200
+   returns `[[-760]]`, and on any constant patch returns `[[0]]`.
+4. A 7 × 7 input with a 3 × 3 kernel gives 5 × 5 at stride 1 and 3 × 3 at stride 2.
