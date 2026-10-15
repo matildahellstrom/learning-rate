@@ -20,6 +20,14 @@ sources:
     url: https://huggingface.co/blog/assisted-generation
   - title: 'vLLM documentation: Speculative decoding'
     url: https://docs.vllm.ai/en/latest/features/speculative_decoding/
+  - title: 'Cai et al. (2024): Medusa, Simple LLM Inference Acceleration Framework with Multiple Decoding Heads'
+    url: https://arxiv.org/abs/2401.10774
+  - title: 'Li et al. (2024): EAGLE, Speculative Sampling Requires Rethinking Feature Uncertainty'
+    url: https://arxiv.org/abs/2401.15077
+  - title: 'DeepSeek-AI (2024): DeepSeek-V3 Technical Report'
+    url: https://arxiv.org/abs/2412.19437
+  - title: 'Zhou et al. (2023): DistillSpec, Improving Speculative Decoding via Knowledge Distillation'
+    url: https://arxiv.org/abs/2310.08461
 quiz:
   - type: choice
     prompt: 'Why can a big model check 4 drafted tokens in roughly the time it takes to generate 1?'
@@ -81,7 +89,7 @@ That's **speculative decoding**, one of the main tricks for making large languag
 
 A language model writes **one token at a time**: predict a token, append it, predict the next. (The next-token prediction lesson covers this.) Each token needs a full **forward pass** through the model.
 
-Here's the surprising part. For a big model, the slow bit of a forward pass is usually not the arithmetic. It's **moving the weights**, billions of numbers, from memory into the chip's compute units.
+Here's the surprising part. For a big model answering one request at a time, the slow bit of a forward pass is usually not the arithmetic. It's **moving the weights**, billions of numbers, from memory into the chip's compute units.
 
 Once those weights are loaded, scoring **several** positions instead of one costs barely any extra time. The chip had arithmetic to spare anyway.
 
@@ -94,7 +102,7 @@ So the expensive model can **check five words almost as fast as it can write one
 You need two models:
 
 - the **target**: the big, smart, slow model whose answers you actually want
-- the **drafter**: a much smaller, faster model (it must use the same tokens)
+- the **drafter**: a much smaller, faster model (in the simplest set-up it shares the target's tokeniser)
 
 One round goes like this:
 
@@ -103,7 +111,7 @@ One round goes like this:
 3. Walk through the guesses from left to right. Keep each guess the target agrees with.
 4. At the **first disagreement**, use the target's token instead and throw away the rest of the draft.
 
-Then start the next round from the new end of the text.
+Then start the next round from the new end of the text. (The check reuses the target's KV cache for everything before the draft, so only the new positions cost anything; the context windows lesson covers the KV cache.)
 
 🎁 Bonus: if the target agrees with **every** guess, its pass also predicted the token after the last one, so you get that one for free.
 
@@ -201,7 +209,7 @@ $$
 
 Anything that guesses well and fast can be a drafter. Some popular choices:
 
-- **A smaller sibling model** from the same family, sharing the tokeniser. Drafters are often trained to imitate the target (the distillation lesson covers this).
+- **A smaller sibling model** from the same family, usually sharing the tokeniser. Drafters are often trained to imitate the target (the distillation lesson covers this).
 - **Copying from the context.** When editing code or quoting a document, the next tokens often already appear in the prompt, so simple lookups make great guesses.
 - **Extra prediction heads** bolted onto the target itself, trained to guess a few tokens ahead (methods like Medusa and EAGLE).
 - **Multi-token prediction.** Some models are trained to predict more than the next token. DeepSeek-V3's report says its extra module's second-token guess was accepted 85–90% of the time, giving about 1.8× more tokens per second.
