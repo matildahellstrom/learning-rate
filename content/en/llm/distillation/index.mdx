@@ -59,7 +59,7 @@ quiz:
       - Matching the teacher's full probability distribution at every token
       - Learning from the teacher's outputs (sequence-level distillation), no teacher probabilities needed
       - Copying the teacher's weights into a smaller network
-      - Quantization
+      - Quantisation
     answer: 1
     explanation: "Fine-tuning a student on teacher-written examples transfers behaviour through the text itself. It needs only the outputs, not the teacher's internals."
   - type: choice
@@ -192,7 +192,7 @@ Distilled students also make great drafters for speculative decoding, since a dr
 
 - **"The student becomes as good as the teacher."** Usually it gets close, not equal. A smaller network has less room to store knowledge, so some gap usually remains.
 - **"Distillation copies weights."** The core idea is learning from the teacher's **outputs**, so the student can have a completely different shape. (Some recipes give the student a head start: DistilBERT began with every other layer of BERT.)
-- **"It's the same as quantization."** Quantization keeps the same model and stores its numbers more coarsely. Distillation trains a **new**, smaller model.
+- **"It's the same as quantisation."** Quantisation keeps the same model and stores its numbers more coarsely. Distillation trains a **new**, smaller model.
 - **"You need the original training data."** Any inputs that make the teacher show its knowledge can work, including text the teacher wrote itself.
 
 ---
@@ -212,6 +212,8 @@ Six questions on teachers, students and temperatures.
 - A higher **temperature** flattens the teacher's probabilities so those hunches are loud enough to learn from; a $T^2$ factor keeps the loss balanced.
 - You can match the teacher's **probabilities**, or simply train on **text the teacher wrote**.
 
-**Coming up:** the quantization lesson shrinks a model without retraining it, and the speculative decoding lesson puts a small, distilled drafter to work speeding up a big model.
+**Coming up:** the speculative decoding lesson puts a small, distilled drafter to work speeding up a big model.
+
+**Related:** the quantisation lesson shrinks a model without retraining it.
 
 Hit **Finish** to collect your XP! 🏁

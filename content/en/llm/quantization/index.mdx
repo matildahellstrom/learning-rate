@@ -1,6 +1,6 @@
 ---
 id: quantization
-title: Quantization
+title: Quantisation
 summary: Store each weight with fewer bits so a giant model fits in a backpack, and runs faster too.
 track: llm
 order: 9
@@ -27,12 +27,12 @@ quiz:
     tolerance: 0.05
     explanation: '4 bits is half a byte, so 13 billion × 0.5 bytes = 6.5 GB. At 16 bits it would be 26 GB.'
   - type: numeric
-    prompt: 'Symmetric 8-bit quantization of a group whose largest weight is 2.54 uses the scale 2.54 / 127 = 0.02. Which integer is stored for the weight 0.374?'
+    prompt: 'Symmetric 8-bit quantisation of a group whose largest weight is 2.54 uses the scale 2.54 / 127 = 0.02. Which integer is stored for the weight 0.374?'
     answer: 19
     tolerance: 0
     explanation: '0.374 / 0.02 = 18.7, which rounds to 19. Reading it back gives 19 × 0.02 = 0.38, an error of 0.006.'
   - type: choice
-    prompt: 'A group of weights is 0.1, −0.2, 0.15 and 10, quantized to 4 bits (−7 to 7) with one shared scale. Predict what happens.'
+    prompt: 'A group of weights is 0.1, −0.2, 0.15 and 10, quantised to 4 bits (−7 to 7) with one shared scale. Predict what happens.'
     options:
       - Everything is stored almost perfectly
       - The 10 is clipped and reads back as 7
@@ -41,7 +41,7 @@ quiz:
     answer: 2
     explanation: 'The scale must cover the outlier: 10 / 7 ≈ 1.43. The small weights divided by 1.43 are all below 0.5, so they round to 0. One outlier wipes out its neighbours.'
   - type: choice
-    prompt: 'Why does quantizing the weights usually make text generation faster, not just smaller?'
+    prompt: 'Why does quantising the weights usually make text generation faster, not just smaller?'
     options:
       - Fewer bits means the model makes fewer predictions
       - Generating is mostly limited by moving weights from memory, and smaller weights move faster
@@ -52,12 +52,12 @@ quiz:
   - type: choice
     prompt: 'Which approach simulates the rounding during training, so the model learns to cope with it?'
     options:
-      - Post-training quantization (PTQ)
-      - Quantization-aware training (QAT)
+      - Post-training quantisation (PTQ)
+      - Quantisation-aware training (QAT)
       - Distillation
       - LoRA
     answer: 1
-    explanation: 'QAT rounds the weights in the forward pass while training, so the model adapts. PTQ quantizes an already-trained model, usually with a small calibration set.'
+    explanation: 'QAT rounds the weights in the forward pass while training, so the model adapts. PTQ quantises an already-trained model, usually with a small calibration set.'
   - type: numeric
     prompt: 'Each weight takes 4 bits, and every block of 32 weights also shares one 8-bit scale. How many bits per weight is that on average?'
     answer: 4.25
@@ -71,7 +71,7 @@ A large language model is a huge pile of numbers. A model with 70 billion weight
 
 What if each number used only **4 bits**? Then the same model needs about **35 GB**.
 
-That's **quantization**: storing numbers more coarsely, like rounding prices to the nearest euro. You lose a little precision and gain a lot of room.
+That's **quantisation**: storing numbers more coarsely, like rounding prices to the nearest euro. You lose a little precision and gain a lot of room.
 
 ---
 
@@ -96,9 +96,9 @@ The running model also needs memory for other things, like the KV cache (the con
 
 When a model generates text, each new token needs **every weight** to be streamed from memory into the compute units. For big models that data movement, not the arithmetic, is usually the bottleneck. (The speculative decoding lesson has another trick built on the same fact.)
 
-So fewer bytes per weight means less to move, and more tokens per second. The GPTQ paper, for example, measured end-to-end speed-ups of about 3.25× over 16-bit on NVIDIA A100 GPUs for its quantized models.
+So fewer bytes per weight means less to move, and more tokens per second. The GPTQ paper, for example, measured end-to-end speed-ups of about 3.25× over 16-bit on NVIDIA A100 GPUs for its quantised models.
 
-Quantization also lets you use cheaper hardware, or serve more users on the same machine.
+Quantisation also lets you use cheaper hardware, or serve more users on the same machine.
 
 ---
 
@@ -117,7 +117,7 @@ Take four weights: **0.5, −1.27, 0.03, 0.9**. The largest size is 1.27.
 Each weight moves by at most half a grid step. With fewer bits the grid is coarser, so the errors grow.
 
 <Deeper title="Go deeper: scales, zero points and the error bound">
-With $b$ bits, **symmetric** quantization uses integers $-(2^{b-1}-1), \dots, 2^{b-1}-1$ and a scale $s = \max_i |w_i| / (2^{b-1} - 1)$:
+With $b$ bits, **symmetric** quantisation uses integers $-(2^{b-1}-1), \dots, 2^{b-1}-1$ and a scale $s = \max_i |w_i| / (2^{b-1} - 1)$:
 
 $$
 \begin{gathered}
@@ -126,7 +126,7 @@ q_i = \operatorname{round}\!\left(\frac{w_i}{s}\right), \qquad \hat w_i = s\, q_
 \end{gathered}
 $$
 
-When values aren't centred on zero (activations after a ReLU live in $[0, \infty)$), **affine** quantization adds an integer **zero point** $z$: $\hat w = s\,(q - z)$, so the grid covers exactly $[\min, \max]$. This is the scheme Jacob et al. use, with the convenient property that the real number 0 is represented exactly.
+When values aren't centred on zero (activations after a ReLU live in $[0, \infty)$), **affine** quantisation adds an integer **zero point** $z$: $\hat w = s\,(q - z)$, so the grid covers exactly $[\min, \max]$. This is the scheme Jacob et al. use, with the convenient property that the real number 0 is represented exactly.
 
 Rounding errors don't vanish in a layer: an output $y = \sum_i w_i x_i$ picks up the error $\sum_i (\hat w_i - w_i)\, x_i$. If the errors were independent and uniform on $[-s/2, s/2]$, each would have variance $s^2/12$ and the output error would grow like $\sqrt{n}$ over $n$ inputs. That's why the weights paired with **large** inputs matter most, an idea AWQ builds on.
 
@@ -142,7 +142,7 @@ Now try a nastier group of weights: **0.1, −0.2, 0.15, 10**.
 
 The scale must stretch to fit the 10: 10 ÷ 7 ≈ 1.43. Divide the small weights by 1.43 and you get 0.07, −0.14 and 0.1. **All three round to 0.** One outlier has wiped out its neighbours.
 
-This isn't a made-up worry. Large transformers develop a few **outlier features**: hidden dimensions whose values are far bigger than the rest. Quantize them naively with everything else and quality collapses.
+This isn't a made-up worry. Large transformers develop a few **outlier features**: hidden dimensions whose values are far bigger than the rest. Quantise them naively with everything else and quality collapses.
 
 ---
 
@@ -153,18 +153,18 @@ Researchers found several fixes, and real methods combine them:
 - **Smaller groups.** Give every block of, say, 32 or 128 weights its own scale, so one outlier only hurts its own block. Storing the extra scales costs a little: 4-bit weights with one 8-bit scale per 32 weights average **4.25 bits**.
 - **Keep outliers in high precision.** LLM.int8() (2022) multiplies the rare outlier dimensions in 16-bit and everything else in 8-bit, more than 99.9% of the values. It reported no loss in quality, even for 175-billion-parameter models.
 - **Protect what matters.** AWQ (2023) noticed that protecting about 1% of **salient** weights, chosen by the size of the activations they meet, greatly reduces the error.
-- **Round smarter.** GPTQ (2022) quantizes weights one at a time and nudges the not-yet-quantized ones to cancel the error so far. It reached 3–4 bits per weight with little accuracy loss, quantizing a 175-billion-parameter model in about four GPU hours.
+- **Round smarter.** GPTQ (2022) quantises weights one at a time and nudges the not-yet-quantised ones to cancel the error so far. It reached 3–4 bits per weight with little accuracy loss, quantising a 175-billion-parameter model in about four GPU hours.
 
 ---
 
 ## Recipes in practice
 
-**When** you quantize matters:
+**When** you quantise matters:
 
-- **Post-training quantization (PTQ):** take a finished model and quantize it, using a small **calibration** set of example inputs to choose the scales. Quick and cheap; GPTQ and AWQ work this way.
-- **Quantization-aware training (QAT):** simulate the rounding during training, so the model learns weights that survive it. More work, usually more accurate at low bit-widths.
+- **Post-training quantisation (PTQ):** take a finished model and quantise it, using a small **calibration** set of example inputs to choose the scales. Quick and cheap; GPTQ and AWQ work this way.
+- **Quantisation-aware training (QAT):** simulate the rounding during training, so the model learns weights that survive it. More work, usually more accurate at low bit-widths.
 
-And **what** you quantize: the **weights** only (the most common for running models on your own machine), the **activations** too (so the arithmetic itself runs in low precision), or the **KV cache** for long contexts.
+And **what** you quantise: the **weights** only (the most common for running models on your own machine), the **activations** too (so the arithmetic itself runs in low precision), or the **KV cache** for long contexts.
 
 Newer hardware also computes directly with tiny **floating-point** formats such as FP8 and FP4, where each block of numbers shares a scale. A concrete example: when OpenAI released its open-weight gpt-oss models in August 2025, the mixture-of-experts weights (over 90% of all parameters) were stored in the MXFP4 format at about 4.25 bits per parameter, which let the 120-billion-parameter model fit on a single 80 GB GPU.
 
@@ -172,8 +172,8 @@ Newer hardware also computes directly with tiny **floating-point** formats such 
 
 ## Common misconceptions
 
-- **"A quantized model is a different, smaller model."** It's the same model with coarser numbers. Making a genuinely smaller model is distillation (the distillation lesson covers it).
-- **"Quantization is free."** 8-bit is often nearly lossless and good 4-bit methods come close, but every bit you remove costs some accuracy, and going lower gets harder and harder. Always evaluate on your own task.
+- **"A quantised model is a different, smaller model."** It's the same model with coarser numbers. Making a genuinely smaller model is distillation (the distillation lesson covers it).
+- **"Quantisation is free."** 8-bit is often nearly lossless and good 4-bit methods come close, but every bit you remove costs some accuracy, and going lower gets harder and harder. Always evaluate on your own task.
 - **"Fewer bits are always faster."** Only if the hardware and software support them. Otherwise the numbers are unpacked back to 16-bit on the fly: you still save memory and bandwidth, but not arithmetic.
 - **"It's only for inference."** Mostly, but QLoRA fine-tunes adapters on top of a 4-bit frozen model (the LoRA lesson covers this), and low-precision training is an active area.
 
@@ -191,7 +191,7 @@ Six questions, three of them numeric. A calculator helps.
 
 - Weight memory is **weights × bytes per weight**; going from 16 to 4 bits cuts it by 4×.
 - Fewer bytes also means **faster generation**, because moving weights is the bottleneck.
-- Quantization picks a **scale**, rounds to a small integer grid, and multiplies back; each weight moves at most half a step.
+- Quantisation picks a **scale**, rounds to a small integer grid, and multiplies back; each weight moves at most half a step.
 - **Outliers** stretch the grid and wreck their neighbours, so real methods use **small groups**, keep outliers in high precision, or **round smarter**.
 
 **Coming up:** the LoRA lesson combines a 4-bit frozen model with tiny trainable adapters, and the distillation lesson makes the model itself smaller.

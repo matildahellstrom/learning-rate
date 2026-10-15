@@ -61,7 +61,7 @@ quiz:
       - Pre-training a model from scratch
       - Tokenising text
     answer: 1
-    explanation: 'LoRA cuts the trainable parameters, optimiser memory and the size of each saved fine-tune. Making the model itself smaller is the job of quantization or distillation.'
+    explanation: 'LoRA cuts the trainable parameters, optimiser memory and the size of each saved fine-tune. Making the model itself smaller is the job of quantisation or distillation.'
   - type: choice
     prompt: 'A 2024 study compared LoRA with full fine-tuning on code and maths. What did it find?'
     options:
@@ -176,7 +176,7 @@ Two practical superpowers:
 - **No slowdown when serving.** After training you can **merge**: $W' = W + BA$ is one matrix of the original shape, so the model runs exactly as fast as before.
 - **Swappable skills.** Or keep adapters separate: one shared base model plus a small file per task or customer, swapped in as needed.
 
-And one combo: **QLoRA** stores the frozen base model in 4-bit precision (the quantization lesson covers this) and trains LoRA adapters on top. In 2023 that made it possible to fine-tune a 65-billion-parameter model on a **single 48 GB GPU**.
+And one combo: **QLoRA** stores the frozen base model in 4-bit precision (the quantisation lesson covers this) and trains LoRA adapters on top. In 2023 that made it possible to fine-tune a 65-billion-parameter model on a **single 48 GB GPU**.
 
 ---
 
@@ -204,6 +204,8 @@ Six questions. The first one wants a number.
 - $B$ starts at zero, so training begins from the original model, and merging afterwards costs **no extra inference time**.
 - LoRA trades a little learning power for big savings, and **forgets less** of what the model knew.
 
-**Coming up:** the quantization lesson shows how to store the frozen weights in 4 bits (the "Q" in QLoRA), and the distillation lesson shrinks a model by teaching a smaller one.
+**Coming up:** the distillation lesson shrinks a model by teaching a smaller one.
+
+**Related:** the quantisation lesson shows how to store the frozen weights in 4 bits (the "Q" in QLoRA).
 
 Hit **Finish** to collect your XP! 🏁
