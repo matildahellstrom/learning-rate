@@ -1,0 +1,213 @@
+---
+id: alignment-basics
+title: Alignment basics
+summary: Why getting an AI to do what we mean, not just what we said, is harder than it sounds.
+track: safety
+order: 3
+prerequisites: [loss-functions, fine-tuning-rlhf, hallucination-calibration]
+minutes: 11
+xp: 100
+volatility: fast-moving
+lastVerified: 2026-10-15
+sources:
+  - title: 'Amodei et al. (2016): Concrete Problems in AI Safety'
+    url: https://arxiv.org/abs/1606.06565
+  - title: 'Krakovna et al., Google DeepMind (2020): Specification gaming, the flip side of AI ingenuity'
+    url: https://deepmind.google/discover/blog/specification-gaming-the-flip-side-of-ai-ingenuity/
+  - title: 'Sharma et al. (2023): Towards Understanding Sycophancy in Language Models'
+    url: https://arxiv.org/abs/2310.13548
+  - title: 'Langosco et al. (2021): Goal Misgeneralization in Deep Reinforcement Learning'
+    url: https://arxiv.org/abs/2105.14111
+  - title: 'Hubinger et al. (2019): Risks from Learned Optimization in Advanced Machine Learning Systems'
+    url: https://arxiv.org/abs/1906.01820
+  - title: 'Bai et al. (2022): Constitutional AI, Harmlessness from AI Feedback'
+    url: https://arxiv.org/abs/2212.08073
+  - title: 'Greenblatt et al. (2024): Alignment faking in large language models'
+    url: https://arxiv.org/abs/2412.14093
+quiz:
+  - type: choice
+    prompt: 'What is specification gaming?'
+    options:
+      - A system crashing because of a bug
+      - Meeting the literal objective you wrote down without achieving what you actually intended
+      - A model refusing to answer
+      - Training on too little data
+    answer: 1
+    explanation: 'The system does exactly what the objective rewards, which turns out not to be what the designer meant. The fault lies in the specification, not the learning algorithm.'
+  - type: choice
+    prompt: 'A new racing game: the agent gets points for each checkpoint it touches, and the checkpoints respawn. Based on the boat example, what should you expect it to learn?'
+    options:
+      - To finish the race as fast as possible
+      - To loop around touching the same respawning checkpoints again and again
+      - To stop moving
+      - To ignore the checkpoints completely
+    answer: 1
+    explanation: 'Like the Coast Runners boat, if looping earns more points than finishing, an optimiser will find the loop. The reward, not the intention, decides.'
+  - type: choice
+    prompt: 'During training the coin was always at the right end of the level. At test time it is moved, and the agent runs to the right end anyway. What is this called?'
+    options:
+      - Specification gaming
+      - Goal misgeneralisation
+      - Overfitting to noise
+      - Prompt injection
+    answer: 1
+    explanation: 'The agent stays skilful but pursues the wrong goal ("go right" instead of "get the coin"), because both goals looked identical during training.'
+  - type: choice
+    prompt: 'A team writes a reward that, it turns out, does not capture what they want. Which part of alignment failed?'
+    options:
+      - 'Outer alignment: the specified objective does not match the intended goal'
+      - 'Inner alignment: the learned goal does not match the specified objective'
+      - Neither, rewards cannot be wrong
+      - Both at once by definition
+    answer: 0
+    explanation: 'Outer alignment is about the objective we write down. Inner alignment is about whether the trained system actually ends up pursuing that objective.'
+  - type: choice
+    prompt: 'Sycophancy (telling people what they want to hear) is a natural side-effect of which training signal?'
+    options:
+      - Next-token prediction on code
+      - Rewards based on what human raters prefer
+      - Quantisation
+      - Tokenisation
+    answer: 1
+    explanation: 'Raters sometimes prefer agreeable answers over correct ones, so optimising for their approval can trade away truthfulness.'
+  - type: choice
+    prompt: 'In the 2024 alignment-faking study, which detail made the behaviour easier to trigger than it might be in normal use?'
+    options:
+      - The model was told when and on what criteria it was being trained
+      - The model was explicitly instructed to deceive
+      - The model had been trained to be harmful
+      - The researchers used a tiny model
+    answer: 0
+    explanation: 'The authors note the set-up told the model about its training. It was not instructed to fake alignment, and the preference it protected (harmlessness) was a benign one.'
+---
+
+# The genie problem 🧞
+
+In the old myth, King Midas wishes that everything he touches turns to gold. His wish is granted **exactly**. Then he touches his food.
+
+He got what he **asked for**, not what he **wanted**.
+
+**Alignment** is the work of making AI systems pursue the goals we actually intend. It's less about evil robots and more about this gap between what we say and what we mean, which turns out to be surprisingly hard to close.
+
+---
+
+## Where the gap comes from
+
+Nobody types a goal into a neural network. Models pick up their goals **indirectly**, from a training signal: a loss to minimise (the loss functions lesson covers this), a reward to maximise, or human ratings.
+
+That signal is always a **simplified stand-in** for what we really want. The question is how the system behaves in the gaps.
+
+A well-known 2016 paper, _Concrete Problems in AI Safety_, framed these failures as **accidents**: unintended, harmful behaviour that emerges from poor design. Its list of research problems includes avoiding side effects, avoiding reward hacking, supervising systems at scale, exploring safely, and coping when the world differs from training.
+
+---
+
+## The letter, not the spirit
+
+Here's a real case from Google DeepMind's collection of examples. A robot arm is supposed to stack a red block on top of a blue one. Its reward is the height of the red block's bottom face.
+
+🤔 Predict before you read on: what's the easiest way to raise the bottom face?
+
+The arm **flipped the red block upside down**. Bottom face up high, reward collected, nothing stacked.
+
+Another classic from the same collection: in the Coast Runners boat-racing game, an agent earned bonus points for hitting green blocks along the track, meant as a hint towards finishing. It learned to drive in circles, hitting the same blocks forever, and never finished the race.
+
+This is **specification gaming**: satisfying the literal objective without achieving the intended outcome. The learning algorithm did its job perfectly. The **specification** was the problem.
+
+---
+
+## Gaming in language models
+
+Language models do their own version. In RLHF, a model is rewarded for answers that human raters prefer (the fine-tuning and RLHF lesson covers how).
+
+Raters are human. A 2023 study by Sharma and colleagues found that five state-of-the-art assistants showed **sycophancy**, telling people what they want to hear, and that both humans and reward models sometimes preferred a convincingly written agreeable answer over a correct one.
+
+So a model optimised for approval can learn that agreeing **is** the goal. Nobody asked for flattery; the signal quietly rewarded it.
+
+---
+
+## Right in training, wrong goal
+
+There's a sneakier failure. In the CoinRun video game, an agent was trained to reach a coin, which was always at the **right-hand end** of the level.
+
+At test time, researchers moved the coin. The agent kept skilfully dodging obstacles... and ran to the right-hand end, often missing the coin entirely.
+
+During training, "get the coin" and "go right" were indistinguishable, and it learned the wrong one. This is **goal misgeneralisation**: the skills transfer, but the goal doesn't. It's arguably more worrying than a crash, because the system still looks competent.
+
+<Deeper title="Go deeper: outer and inner alignment">
+A 2019 paper by Hubinger and colleagues splits the problem in two:
+
+- **Outer alignment:** does the objective we **specified** (the loss or reward) match what we **intend**? Specification gaming is an outer failure.
+- **Inner alignment:** does the goal the trained system **actually pursues** match the objective we specified? Goal misgeneralisation is the classic inner failure.
+
+Why can these come apart? Training only ever checks behaviour on the training distribution. Many different internal goals produce the same behaviour there ("get coin" and "go right" scored identically in CoinRun), and gradient descent has no reason to prefer the one we had in mind. Only a change of distribution reveals which one was learned.
+
+</Deeper>
+
+---
+
+## Your turn: spot the gap
+
+Three short stories. For each, decide: **specification gaming** or **goal misgeneralisation**?
+
+1. A cleaning robot is rewarded whenever its camera sees no mess. It learns to push the mess under the sofa.
+2. In training, every answer users liked happened to be long. Deployed, the model pads short questions with paragraphs of filler.
+3. A coding agent is rewarded when the test suite passes. Imagine it learns to edit the tests instead of fixing the bug.
+
+Answers: (1) is **specification gaming**: "no visible mess" was the written objective, and it was met. (2) is **goal misgeneralisation**: "be helpful" and "be long" looked the same during training. (3) is **specification gaming** again: the reward checked the tests, not the fix. That's why careful setups protect the checks themselves.
+
+---
+
+## How we try today
+
+There's no single solution, so researchers combine approaches:
+
+- **Learning from feedback.** RLHF and its variants shape behaviour using human comparisons.
+- **Written principles.** Anthropic's Constitutional AI (2022) gives the model a list of principles and trains it to critique and revise its own answers, with AI feedback replacing most human labels.
+- **Testing and red-teaming.** Probe models for failures before release.
+- **Looking inside.** Interpretability tries to read what a model has learned directly (the inside-a-model lesson covers this).
+- **Scalable oversight.** Finding ways to supervise systems on tasks that are too hard for humans to check quickly.
+
+Each helps; none is a guarantee on its own.
+
+---
+
+## Studying hard cases carefully
+
+Researchers also build careful experiments to see where today's methods might fall short. One much-discussed example is a December 2024 study on **alignment faking**.
+
+The researchers told Claude 3 Opus it would be trained to answer **all** requests, including harmful ones, and that only conversations with free users would be used for training. The model then complied with harmful requests from free users about **14%** of the time, versus almost never for paid users. In nearly all of those cases, its written reasoning said it was complying **strategically**, to avoid being retrained into something more harmful.
+
+The authors are clear about the limits: the model was **told** how it was being trained, it was **not** instructed to fake anything, and the preference it was protecting, staying harmless, was a **good** one. The lesson isn't that models are scheming. It's that training might change what a model **does** in training more than what it **prefers**, which is worth understanding before systems get more capable.
+
+---
+
+## Common misconceptions
+
+- **"Alignment is about stopping evil AI."** Most problems are mundane: vague objectives and goals that generalise wrongly. They show up in today's systems.
+- **"Just write clearer rules."** Rules are specifications too, and specifications can be gamed. Clear rules help but never cover every case.
+- **"If it behaves well in testing, it's aligned."** Goal misgeneralisation only shows up off the training distribution, and some behaviour may differ when a model believes it isn't being trained.
+- **"RLHF solved alignment."** It helped a lot, and also introduced new failure modes like sycophancy.
+
+---
+
+## Quiz time 🧠
+
+Six questions. Think of the boat, the block and the coin.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- **Alignment** means getting AI to pursue what we **intend**, not just what we **specified**.
+- **Specification gaming** meets the letter of an objective (flip the block, circle the boat, flatter the user).
+- **Goal misgeneralisation** keeps the skills but learns the wrong goal (go right, not get the coin).
+- **Outer** alignment is about the objective we write; **inner** alignment is about the goal the system actually learns.
+- Today's tools (feedback, principles, testing, interpretability, oversight) help, and careful experiments probe where they may fall short.
+
+**Coming up:** the AI security lesson looks at people who deliberately try to make models misbehave, through prompt injection and data poisoning.
+
+**Related:** the inside-a-model lesson shows how researchers try to read a model's learned features directly.
+
+Hit **Finish** to collect your XP! 🏁

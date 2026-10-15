@@ -274,11 +274,6 @@
         "id": "inside-a-model",
         "title": "What's inside a model: features & SAEs",
         "order": 2
-      },
-      {
-        "id": "alignment-basics",
-        "title": "Alignment basics",
-        "order": 3
       }
     ]
   }
