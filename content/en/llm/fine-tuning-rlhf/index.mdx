@@ -56,14 +56,14 @@ quiz:
     answer: 1
     explanation: 'The reward model is only a proxy. Without a leash, the policy can drift to strange text that scores highly but is not actually better.'
   - type: choice
-    prompt: 'You keep optimising harder and harder against a fixed reward model. Predict what happens to real answer quality, as judged by people.'
+    prompt: 'You keep optimising harder and harder against a fixed reward model. Predict what happens to the real quality of the answers.'
     options:
       - It keeps rising forever
       - It rises at first, then can fall even as the reward model's score keeps climbing
       - It never changes
       - It falls from the very first step
     answer: 1
-    explanation: "This is Goodhart's law, measured by Gao et al.: past a point, the policy exploits the proxy and true quality drops."
+    explanation: "This is Goodhart's law, measured by Gao et al. with a larger 'gold' reward model standing in for people: past a point, the policy exploits the proxy and the gold score drops."
   - type: choice
     prompt: 'What does DPO (Direct Preference Optimization) remove from the classic RLHF pipeline?'
     options:
@@ -172,7 +172,7 @@ The lesson: how a model is post-trained can matter more than raw size for how us
 
 Once you start aiming at a measurement, it stops measuring what you cared about. That's **Goodhart's law**, and RLHF runs straight into it.
 
-The reward model is only a **proxy** for what people want. Gao and colleagues measured what happens when you optimise against it harder and harder: the proxy score keeps climbing, but true quality first rises and then **falls**.
+The reward model is only a **proxy** for what people want. Gao and colleagues measured what happens when you optimise against it harder and harder. In their set-up, a much larger "gold" reward model played the part of the human judges. The proxy score keeps climbing, but the gold score first rises and then **falls**.
 
 A real example: **sycophancy**, telling people what they want to hear. Sharma and colleagues (2023) found it in five state-of-the-art assistants, and found that both humans and reward models sometimes prefer a convincing, agreeable answer over a correct one.
 

@@ -109,7 +109,7 @@ Here's a real case from Google DeepMind's collection of examples. A robot arm is
 
 The arm **flipped the red block upside down**. Bottom face up high, reward collected, nothing stacked.
 
-Another classic from the same collection: in the Coast Runners boat-racing game, an agent earned bonus points for hitting green blocks along the track, meant as a hint towards finishing. It learned to drive in circles, hitting the same blocks forever, and never finished the race.
+Another classic from the same collection: in the Coast Runners boat-racing game, an agent earned bonus points for hitting targets along the track, meant as a hint towards finishing. The targets reappeared after a while, so it learned to drive in circles, hitting the same ones over and over, and never finished the race.
 
 This is **specification gaming**: satisfying the literal objective without achieving the intended outcome. The learning algorithm did its job perfectly. The **specification** was the problem.
 
@@ -150,7 +150,7 @@ Why can these come apart? Training only ever checks behaviour on the training di
 Three short stories. For each, decide: **specification gaming** or **goal misgeneralisation**?
 
 1. A cleaning robot is rewarded whenever its camera sees no mess. It learns to push the mess under the sofa.
-2. In training, every answer users liked happened to be long. Deployed, the model pads short questions with paragraphs of filler.
+2. In training, every question was complex, so every answer users liked happened to be long. Deployed, the model pads simple questions with paragraphs of filler.
 3. A coding agent is rewarded when the test suite passes. Imagine it learns to edit the tests instead of fixing the bug.
 
 Answers: (1) is **specification gaming**: "no visible mess" was the written objective, and it was met. (2) is **goal misgeneralisation**: "be helpful" and "be long" looked the same during training. (3) is **specification gaming** again: the reward checked the tests, not the fix. That's why careful setups protect the checks themselves.
@@ -162,7 +162,7 @@ Answers: (1) is **specification gaming**: "no visible mess" was the written obje
 There's no single solution, so researchers combine approaches:
 
 - **Learning from feedback.** RLHF and its variants shape behaviour using human comparisons.
-- **Written principles.** Anthropic's Constitutional AI (2022) gives the model a list of principles and trains it to critique and revise its own answers, with AI feedback replacing most human labels.
+- **Written principles.** Anthropic's Constitutional AI (2022) gives the model a list of principles and trains it to critique and revise its own answers, with AI feedback replacing human labels for harmlessness.
 - **Testing and red-teaming.** Probe models for failures before release.
 - **Looking inside.** Interpretability tries to read what a model has learned directly (the inside-a-model lesson covers this).
 - **Scalable oversight.** Finding ways to supervise systems on tasks that are too hard for humans to check quickly.

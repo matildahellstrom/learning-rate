@@ -152,7 +152,7 @@ Using the group as the baseline removes the separate **critic** network that PPO
 DeepSeek first tried RL **without** any human-written reasoning examples (they called that model R1-Zero). The paper reports:
 
 - On the AIME 2024 maths competition, accuracy rose from **15.6% to 71.0%** during training, and to 86.7% with majority voting.
-- The answers grew **longer** by themselves: the model learned to spend more thinking on harder problems.
+- The answers grew **longer** by themselves: as training went on, the model learned to spend more thinking on each problem.
 - It started to **re-check** its work mid-answer, at one point writing _"Wait, wait. Wait. That's an aha moment I can flag here."_
 
 R1-Zero's reasoning was hard to read and sometimes mixed languages. The final R1 model added a small set of curated examples before RL to fix that.
