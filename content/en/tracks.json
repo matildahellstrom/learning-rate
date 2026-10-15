@@ -61,11 +61,6 @@
     "colour": "violet",
     "upcoming": [
       {
-        "id": "loss-functions",
-        "title": "Loss functions",
-        "order": 2
-      },
-      {
         "id": "sgd-momentum-adam",
         "title": "SGD, momentum & Adam",
         "order": 4

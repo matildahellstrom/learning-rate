@@ -185,3 +185,28 @@ least-squares line; a draggable extra point shows how one outlier pulls the slop
 3. The residuals of the least-squares line sum to 0 (within 1e-9) for random points.
 4. The fitted line passes through (x̄, ȳ).
 5. Changing the last point to `[30, 95]` gives w = 4.6.
+
+## ml/loss-functions: loss explorer
+
+**Idea:** five draggable data points on a number line and one draggable guess. Side-by-side
+curves show squared, absolute, Huber and pinball loss of the guess, each with its minimum marked,
+so the learner sees the mean, median and quantile appear as the best guesses. Dragging one point
+far away moves the mean marker but not the median.
+
+**Pure functions:**
+
+- `squaredLoss(y: number[], c: number): number`, `absoluteLoss(y: number[], c: number): number`:
+  the mean squared and mean absolute miss of the constant guess `c`.
+- `huber(z: number, eps: number): number`: `z²` if `|z| < eps`, otherwise `2·eps·|z| − eps²`.
+- `pinball(y: number[], c: number, alpha: number): number`: the mean of
+  `alpha · max(y − c, 0) + (1 − alpha) · max(c − y, 0)`.
+- `bestConstant(y: number[], loss: (y: number[], c: number) => number): number`: a numeric search
+  for the minimising `c` (golden-section search between min(y) and max(y) is enough).
+
+**Acceptance tests:**
+
+1. For `[200, 210, 220, 230, 1000]`, `bestConstant` with `squaredLoss` is 372 and with
+   `absoluteLoss` is 220 (within 1e-6).
+2. `huber` is continuous at `|z| = eps` and equals `z²` below it; `huber(10, 1)` is 19.
+3. `pinball(y, c, 0.5)` is half of `absoluteLoss(y, c)` for any `y` and `c`.
+4. For `y = [1, 2, …, 100]` the minimiser of `pinball` with alpha 0.75 is between 75 and 76.

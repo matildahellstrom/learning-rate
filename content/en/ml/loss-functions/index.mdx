@@ -1,0 +1,275 @@
+---
+id: loss-functions
+title: Loss functions
+summary: How one number tells a model which mistakes matter, and why choosing it is a choice about values.
+track: ml
+order: 2
+prerequisites: [regression]
+minutes: 12
+xp: 100
+volatility: evergreen
+sources:
+  - title: 'Google Machine Learning Crash Course: Linear regression, Loss'
+    url: https://developers.google.com/machine-learning/crash-course/linear-regression/loss
+  - title: 'Google Machine Learning Crash Course: Logistic regression, Loss and regularization'
+    url: https://developers.google.com/machine-learning/crash-course/logistic-regression/loss-regularization
+  - title: 'scikit-learn: Metrics and scoring, quantifying the quality of predictions'
+    url: https://scikit-learn.org/stable/modules/model_evaluation.html
+  - title: 'scikit-learn: Linear models, Huber regression'
+    url: https://scikit-learn.org/stable/modules/linear_model.html#huber-regression
+  - title: 'Goodfellow, Bengio & Courville: Deep Learning, ch. 6 Deep Feedforward Networks'
+    url: https://www.deeplearningbook.org/contents/mlp.html
+  - title: 'Goodfellow, Bengio & Courville: Deep Learning, ch. 8 Optimization for Training Deep Models'
+    url: https://www.deeplearningbook.org/contents/optimization.html
+quiz:
+  - type: numeric
+    prompt: 'A model misses four examples by 3, −1, 0 and −2. What is its mean squared error (MSE)?'
+    answer: 3.5
+    tolerance: 0.001
+    explanation: 'Square each miss (the sign disappears): 9, 1, 0 and 4. They add up to 14, and 14 ÷ 4 = 3.5. The single miss of 3 contributes most of it.'
+  - type: choice
+    prompt: 'You must give one single guess for all of these values: 1, 2, 3, 4 and 100. Which guess gives the smallest mean absolute error (MAE)?'
+    options:
+      - 22, the mean
+      - 50.5, halfway between the smallest and the largest
+      - 3, the median
+      - 100, the largest
+    answer: 2
+    explanation: 'Absolute error is minimised by the median. Moving the guess up from 3 brings it closer to only one value (100) and further from four others, so the total goes up. The mean, 22, is what squared error would pick: it gets dragged towards the outlier.'
+  - type: choice
+    prompt: 'Your sensor data has a few wildly wrong readings caused by glitches, and you do not want them to steer the model. Which loss is the better fit?'
+    options:
+      - Absolute error or Huber loss, which grow only in a straight line for big misses
+      - Squared error, because it focuses on the biggest misses
+      - Log loss, because the readings are numbers
+      - Any loss works the same here
+    answer: 0
+    explanation: 'Squared error gives a glitch with a miss of 100 a cost of 10,000, so the model bends towards it. Absolute and Huber loss charge only in proportion to the miss, so the glitches pull far less.'
+  - type: numeric
+    prompt: 'A model gives 25% (0.25) to the outcome that actually happens. What is its log loss, −ln(0.25), for this example?'
+    answer: 1.386
+    tolerance: 0.01
+    explanation: 'ln(0.25) ≈ −1.386, so the loss is about 1.39. Compare: 0.693 for a 50% guess and 0.105 for a 90% guess on the right answer.'
+  - type: choice
+    prompt: 'Why do classifiers usually train on log loss instead of directly on accuracy?'
+    options:
+      - Accuracy is too slow to compute
+      - Log loss gives higher accuracy by definition
+      - Accuracy only works on balanced datasets
+      - Accuracy changes in jumps and is flat almost everywhere, so it gives gradient descent no slope to follow
+    answer: 3
+    explanation: 'A tiny nudge to a weight rarely flips any prediction, so accuracy usually does not change at all: its slope is zero. Log loss changes smoothly with every nudge, so it always points downhill.'
+  - type: choice
+    prompt: 'A bakery loses three times as much from running out of bread as from having leftovers. Which single guess should it bake for?'
+    options:
+      - The average day, because that minimises squared error
+      - A busy-ish day, about the 75th percentile of demand
+      - A quiet day, about the 25th percentile of demand
+      - The busiest day ever recorded
+    answer: 1
+    explanation: 'With under-baking costing 3 and over-baking 1, the best guess is where 3 in 4 days need no more than it: the 75th percentile. This is the pinball (quantile) loss at work. The busiest day ever would waste bread almost every day.'
+---
+
+# Two delivery apps 🛵
+
+Two apps predict when your food will arrive. Over five orders:
+
+- **App A** is off by **2 minutes**, every single time.
+- **App B** is **spot on** four times, and **10 minutes** late once.
+
+Both are wrong by 10 minutes in total. Which is better?
+
+It depends on what you care about. If a 10-minute surprise means a cold dinner and a missed train, you'd pick A. If small errors annoy you and the odd big one doesn't, you'd pick B.
+
+A model can't decide this for itself. You tell it, with a **loss function**. This lesson covers the most common losses, what each one quietly rewards, and how to pick.
+
+---
+
+## What a loss is
+
+A **loss** is one number that says how wrong a model's predictions are. Lower is better, and zero means perfect.
+
+You compute a miss for each example and average them over the data. **Training** a model means adjusting its parameters until this average is as small as possible.
+
+You've met one already: the regression lesson's **mean squared error**. Notice the first thing every loss does is remove the sign. Being 3 too high and 3 too low are both "3 wrong", and they mustn't cancel out.
+
+There are two common ways to remove the sign: **square** the miss, or take its **absolute value** (just drop the minus). That small choice changes what the model cares about.
+
+---
+
+## Squared error: big misses hurt most
+
+With **squared error**, a miss of 2 costs 4, a miss of 10 costs 100. Averaged over the data, it's the **MSE**.
+
+🤔 Predict: compute the MSE of both delivery apps. Which wins?
+
+- App A: five misses of 2, each costing 4. MSE = **4**.
+- App B: four misses of 0 and one of 10, costing 100. MSE = 100 ÷ 5 = **20**.
+
+Squared error strongly prefers **App A**. It hates big misses, so a model trained on it will accept many small errors to avoid one large one.
+
+Two side effects:
+
+- Misses smaller than 1 shrink when squared (0.5² = 0.25), so tiny errors barely count.
+- The units are squared too ("minutes²"). Taking the square root of the MSE, the **RMSE**, brings it back to minutes.
+
+---
+
+## Absolute error: every unit counts the same
+
+With **absolute error**, a miss of 10 costs 10, no more. Averaged, it's the **mean absolute error**, MAE.
+
+Both apps get an MAE of **2**: a tie. Absolute error doesn't care whether the 10 minutes came in one lump or five small pieces.
+
+That makes it **robust to outliers**: a few wild data points can't dominate. In a fit trained on MSE, the line gets dragged towards outliers, away from the bulk of the data. Trained on MAE, it stays closer to the bulk.
+
+Which is right? It depends on your data and on which errors are costly. If the extreme values are real and important, squared error takes them seriously. If they're glitches, absolute error ignores them better.
+
+---
+
+## Mean or median?
+
+Here's a neat way to see the difference. Five houses on a street sell for (in thousands of pounds):
+
+**200, 210, 220, 230 and 1,000**
+
+You must give **one** price as a guess for every house.
+
+🤔 Predict: which single guess has the smallest squared error? And which has the smallest absolute error?
+
+- Squared error is smallest at the **mean**: 1,860 ÷ 5 = **372**. That's above four of the five prices, dragged up by the mansion.
+- Absolute error is smallest at the **median**, the middle value: **220**.
+
+So choosing a loss quietly chooses a kind of average. MSE asks for the mean, MAE for the median.
+
+<Deeper title="Go deeper: why the mean and the median">
+For a guess $c$, the total squared error is $\sum_i (y_i - c)^2$. Its slope in $c$ is $-2 \sum_i (y_i - c)$, which is zero exactly when $c$ is the mean, $\bar y$.
+
+The total absolute error is $\sum_i |y_i - c|$. Each term has slope $-1$ while $c$ is below $y_i$ and $+1$ once it's above. So the total slope is
+
+$$
+\begin{gathered}
+\#\{\text{values below } c\} \\
+-\; \#\{\text{values above } c\}
+\end{gathered}
+$$
+
+This is negative while most values are above $c$ and positive once most are below. It changes sign at the middle value: the median. The size of the far values never enters, only which side they're on, which is why the 1,000 doesn't move the median at all.
+
+</Deeper>
+
+---
+
+## Huber loss: the best of both
+
+Absolute error has a quirk: its slope is the same everywhere, so even when a prediction is almost right, the push to fix it doesn't get gentler. And the slope jumps suddenly at zero. Squared error behaves smoothly near zero, which tends to make optimisation smoother.
+
+**Huber loss** combines them. It's squared for small misses and grows in a straight line for big ones. You pick the threshold where it switches.
+
+- Near the target: smooth and gentle, like squared error.
+- Far away: an outlier costs in proportion to its miss, like absolute error, so it can't take over.
+
+Huber loss doesn't ignore outliers; it gives them **less weight**. That makes it useful for **robust regression**, when you expect some bad data points but can't remove them all; scikit-learn, for example, offers it as one of its robust regression tools.
+
+<Deeper title="Go deeper: the formula">
+With threshold $\varepsilon$ and miss $z$, the version in scikit-learn is
+
+$$
+H_\varepsilon(z) =
+\begin{cases}
+z^2 & |z| < \varepsilon \\
+2\varepsilon |z| - \varepsilon^2 & \text{otherwise}
+\end{cases}
+$$
+
+The two pieces meet at $|z| = \varepsilon$ with the same value ($\varepsilon^2$) and the same slope ($2\varepsilon$), so there's no kink.
+
+</Deeper>
+
+---
+
+## Predicting probabilities: log loss
+
+Many models don't predict a number but a **probability**: "80% chance this email is spam."
+
+For these, the standard choice is **log loss**, the loss behind **logistic regression**, the classic yes-or-no classifier. Take the probability the model gave to what **actually happened**, and compute −ln of it.
+
+- Said 90%, and it happened: −ln(0.9) ≈ **0.105**
+- Said 50%: −ln(0.5) ≈ **0.693**
+- Said 10%: −ln(0.1) ≈ **2.303**
+
+🤔 Predict: the model said 1% chance of rain, and it rained. What's the loss?
+
+−ln(0.01) ≈ **4.6**, about 44 times the loss for a confident correct 90%. The closer to 0% it went, the closer the loss gets to **infinity**. Log loss punishes **confident mistakes** without limit, which keeps models honest about uncertainty.
+
+Squared error on probabilities caps the cost of the worst possible mistake at (1 − 0)² = 1, so it's far more forgiving of confident nonsense.
+
+Log loss also goes by **cross-entropy** or **negative log-likelihood**. The _Deep Learning_ textbook by Goodfellow, Bengio and Courville notes that most modern neural networks are trained with it.
+
+---
+
+## Training loss versus the score you care about
+
+What you really want from a spam filter is high **accuracy**: the share of emails it gets right. So why not train on accuracy directly?
+
+🤔 Predict: you nudge one of the model's weights by a tiny amount. What usually happens to its accuracy?
+
+**Nothing at all.** A tiny nudge rarely flips any email from spam to not-spam, so accuracy stays exactly the same. Then, suddenly, one email flips and accuracy jumps. It's flat almost everywhere, with steps in between.
+
+Training works by following the **slope** of the loss downhill. On a flat staircase the slope is zero, so there's nowhere to go. Log loss, by contrast, changes a little with every nudge.
+
+So we train on a **surrogate loss**: a smooth stand-in, chosen because minimising it tends to improve what we care about. Then we **report** the real score separately. The loss is a **proxy**, which is worth remembering: a model only ever optimises the stand-in.
+
+---
+
+## Your loss, your values
+
+Sometimes errors in one direction cost more than in the other. A bakery that runs out of bread loses sales and customers; leftovers just cost the flour.
+
+Say running out is **3 times** as costly as having bread left over. An **asymmetric** loss can say exactly that: under-predictions cost 3 per loaf, over-predictions cost 1.
+
+Under this loss the best guess is no longer the median. It's the amount that covers demand on 3 days out of 4: the **75th percentile**. This is the **pinball** (or **quantile**) loss, and it lets a model aim for any percentile you choose.
+
+The same goes for every loss in this lesson. Squared error says "big misses are disasters". Absolute error says "every unit counts the same". Log loss says "don't be confidently wrong". Picking one is not just maths; it's a statement about which mistakes matter.
+
+<Deeper title="Go deeper: why the 75th percentile">
+Take a candidate guess $c$ and move it up by one loaf. On every day when demand is above $c$, you're short one loaf less: the cost drops by 3. On every day when demand is below $c$, you have one more leftover: the cost rises by 1.
+
+Raising $c$ helps as long as $3 \times (\text{share of days above}) > 1 \times (\text{share of days below})$. The two balance when 1 day in 4 is above and 3 in 4 are below, which is the 75th percentile. In general, if under-predictions cost $\alpha$ and over-predictions $1 - \alpha$, the best guess is the $\alpha$-quantile.
+
+</Deeper>
+
+---
+
+## Common misconceptions
+
+- **"MSE is always the right loss."** It's a great default, but it's sensitive to outliers and aims at the mean. Different goals call for different losses.
+- **"A lower loss always means a better model."** Only on the same data with the same loss. An MSE of 20 and an MAE of 2 can't be compared directly.
+- **"Choosing a loss is a technical detail."** It decides which mistakes the model works hardest to avoid, and even which kind of average it aims at.
+- **"Outliers should always be ignored."** Sometimes they're the most important data. The choice of loss decides how much they count, so decide on purpose.
+- **"Log loss is just a fancier squared error."** It punishes confident mistakes without limit, which squared error never does.
+
+---
+
+## Quiz time 🧠
+
+Six questions, some with a bit of arithmetic.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- A **loss** turns all of a model's mistakes into one number to minimise.
+- **Squared error** punishes big misses most and aims at the **mean**; **absolute error** is **robust** and aims at the **median**.
+- **Huber loss** is squared for small misses and linear for big ones.
+- **Log loss** (cross-entropy) is the standard for probabilities and punishes **confident mistakes**.
+- We often train on a smooth **surrogate** and report a different score, such as accuracy.
+- **Asymmetric** losses such as **pinball loss** encode which direction of error costs more.
+
+**Coming up:** the gradient descent lesson shows how a model actually walks downhill on its loss.
+
+**Related:** the regression lesson, where least squares started. The entropy & cross-entropy lesson explains where log loss comes from, and the alignment basics lesson shows what can go wrong when a proxy is optimised too well.
+
+Hit **Finish** to collect your XP! 🏁
