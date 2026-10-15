@@ -279,11 +279,6 @@
         "id": "alignment-basics",
         "title": "Alignment basics",
         "order": 3
-      },
-      {
-        "id": "ai-security",
-        "title": "AI security: injection & poisoning",
-        "order": 4
       }
     ]
   }

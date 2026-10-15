@@ -1,0 +1,204 @@
+---
+id: ai-security
+title: 'AI security: injection & poisoning'
+summary: How attackers can smuggle instructions into what a model reads or learns from, and how to build systems that stay safe anyway.
+track: safety
+order: 4
+prerequisites: [next-token-prediction, fine-tuning-rlhf, tool-use, rag]
+minutes: 11
+xp: 100
+volatility: fast-moving
+lastVerified: 2026-10-13
+sources:
+  - title: 'Greshake et al. (2023): Not what you have signed up for, Compromising Real-World LLM-Integrated Applications with Indirect Prompt Injection'
+    url: https://arxiv.org/abs/2302.12173
+  - title: 'OWASP Top 10 for LLM Applications (2025): LLM01 Prompt Injection'
+    url: https://genai.owasp.org/llmrisk/llm01-prompt-injection/
+  - title: 'UK NCSC (2025): Prompt injection is not SQL injection (it may be worse)'
+    url: https://www.ncsc.gov.uk/blog-post/prompt-injection-is-not-sql-injection
+  - title: 'Simon Willison (2025): The lethal trifecta for AI agents'
+    url: https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/
+  - title: 'Debenedetti et al. (2025): Defeating Prompt Injections by Design (CaMeL)'
+    url: https://arxiv.org/abs/2503.18813
+  - title: 'Carlini et al. (2023): Poisoning Web-Scale Training Datasets is Practical'
+    url: https://arxiv.org/abs/2302.10149
+  - title: 'Souly et al. (2025): Poisoning Attacks on LLMs Require a Near-constant Number of Poison Samples'
+    url: https://arxiv.org/abs/2510.07192
+  - title: 'Hubinger et al. (2024): Sleeper Agents, Training Deceptive LLMs that Persist Through Safety Training'
+    url: https://arxiv.org/abs/2401.05566
+quiz:
+  - type: choice
+    prompt: 'Why is prompt injection so much harder to fix than SQL injection?'
+    options:
+      - Language models are written in a less secure programming language
+      - A model reads instructions and data as one stream of tokens, with no hard boundary between them
+      - Nobody has tried to fix it yet
+      - It only affects open-source models
+    answer: 1
+    explanation: 'SQL injection is fixed by keeping data and commands strictly separate. Inside a language model everything is just tokens, so there is no equivalent switch to flip.'
+  - type: choice
+    prompt: 'Which of these is an indirect prompt injection?'
+    options:
+      - A user typing a request that tries to talk the chatbot out of its rules
+      - Hidden text in a web page that an assistant reads while summarising it for someone else
+      - A bug in the website's login form
+      - A model making up a fake citation
+    answer: 1
+    explanation: "Indirect injection arrives through content the model reads on someone's behalf (pages, emails, files, tool results), not from the person typing."
+  - type: choice
+    prompt: 'Which agent has the full "lethal trifecta" and so the highest risk of leaking data?'
+    options:
+      - One that only answers questions from a fixed manual
+      - One that reads your private email, browses the web and can send messages
+      - One that browses the web but has no private data and cannot send anything
+      - One that reads your calendar but never sees outside content
+    answer: 1
+    explanation: 'Private data + untrusted content + a way to communicate out means injected instructions can find secrets and send them away. Remove any one leg and that leak path is closed.'
+  - type: numeric
+    prompt: "In one study, 250 poisoned documents made up about 0.00016% of a 13B model's 260 billion training tokens. Roughly how many tokens is that?"
+    answer: 416000
+    tolerance: 10000
+    explanation: '0.00016% is 0.0000016, and 0.0000016 × 260,000,000,000 ≈ 416,000 tokens: a vanishingly small share, yet enough to plant the backdoor.'
+  - type: choice
+    prompt: 'Researchers deliberately built "sleeper agent" models with a hidden trigger, then applied standard safety training. What happened?'
+    options:
+      - The backdoor disappeared after the first round of training
+      - The backdoor survived, and adversarial training even taught the models to hide their trigger better
+      - The models refused all coding tasks
+      - The models became more secure than normal models
+    answer: 1
+    explanation: 'Fine-tuning, RL and adversarial training did not remove it. Adversarial training made the models better at recognising their trigger, which hid the unsafe behaviour instead.'
+  - type: choice
+    prompt: 'Your agent must read untrusted web pages. Which defence helps most?'
+    options:
+      - A block-list of known attack phrases
+      - A longer, sterner system prompt
+      - Limiting its tools and data to what the task needs, and requiring human approval for risky actions
+      - Trusting that a newer model will not fall for it
+    answer: 2
+    explanation: 'Attackers can always rephrase, and models can always be fooled sometimes. Limiting what a fooled model can do is the defence that holds up.'
+---
+
+# The assistant who reads everything 🕵️
+
+You ask your AI assistant to summarise a web page. Somewhere on that page, in tiny white-on-white text you can't see, is a paragraph **addressed to the AI**, telling it to do something you never asked for.
+
+Will it obey? Sometimes, yes. The assistant reads the page and your request as one big piece of text, and it has no reliable way to tell **whose** instructions are whose.
+
+That's **prompt injection**, the number one risk on OWASP's 2025 list for applications built on language models. This lesson covers it, plus its cousin **data poisoning**, and, most importantly, how to defend against both.
+
+---
+
+## Why language models are confusable
+
+Classic software keeps **commands** and **data** apart. The famous SQL injection bug was fixed exactly that way: databases now receive the query and the user's data through separate channels.
+
+A language model has no separate channels. Your instructions, the system prompt, a web page and an email all arrive as **one stream of tokens** (the next-token prediction lesson covers this). Text that looks like an instruction can act like one, wherever it came from.
+
+That's why the UK's National Cyber Security Centre wrote in December 2025 that prompt injection _"may never be totally mitigated"_ the way SQL injection was. It calls the model an _"inherently confusable deputy"_: a helper that can be talked into acting for the wrong person.
+
+---
+
+## Direct and indirect injection
+
+There are two ways in:
+
+- **Direct:** the person typing tries to override the rules. **Jailbreaks**, which try to talk a model out of its safety rules, are a form of this.
+- **Indirect:** the instructions hide in content the model reads **on someone else's behalf**: web pages, emails, documents, code comments, results from tools.
+
+Indirect injection is the sneaky one, because the victim never sees the attack. In 2023, Greshake and colleagues demonstrated it against real systems, including Bing's GPT-4-powered chat and code-completion tools. Their list of possible impacts included data theft, quietly changing what a system does, and attacks that copy themselves to new victims.
+
+---
+
+## Why agents raise the stakes
+
+A chatbot that's fooled writes a bad answer. An **agent** that's fooled can **act**: send emails, run code, edit files, call APIs (the tool use lesson covers how).
+
+Security writer Simon Willison named a dangerous combination the **lethal trifecta**. An agent is at real risk of leaking data when it has all three of:
+
+1. access to **private data**,
+2. exposure to **untrusted content**, and
+3. a way to **communicate externally**.
+
+🤔 Thought experiment: an assistant reads your inbox, summarises new emails, and can send replies for you. Which of the three does it have?
+
+All three. Anyone who can email you can put text in front of it, it can see your other emails, and it can send messages out. Take away any one leg and that leak path closes.
+
+---
+
+## Data poisoning: attacking what a model learns
+
+Injection attacks what a model **reads**. **Poisoning** attacks what it **learns**.
+
+Models are trained on huge amounts of text and images scraped from the web, and nobody can check it all by hand. Someone who controls even a little of that data can try to plant a **backdoor**: hidden behaviour that switches on when a **trigger** appears.
+
+Getting poison into a dataset can be surprisingly cheap. In 2023, Carlini and colleagues showed that some big image datasets are lists of web links, and some of those links point to domains that have since **expired**. Anyone can buy those domains and change what they serve. They estimated that about **$60** would have been enough to poison 0.01% of two popular datasets.
+
+---
+
+## How much poison is enough?
+
+You might expect bigger models, trained on more data, to need more poison to be fooled. A 2025 study by researchers at Anthropic, the UK AI Security Institute and the Alan Turing Institute tested this.
+
+🤔 Predict before you read on: does doubling the training data double the poison needed?
+
+In their set-up, no. About **250 poisoned documents** were enough to plant a backdoor in every model they trained, from 600 million to 13 billion parameters. For the largest model that was only around **0.00016%** of its training tokens. What mattered was the **number** of poisoned documents, not their share.
+
+Two honest caveats from the authors: the backdoor was deliberately harmless (the trigger made the model produce gibberish), and it's unclear whether the same holds for larger models or more complex behaviours. Getting poison into a real training set is also its own challenge.
+
+---
+
+## Can safety training wash it out?
+
+A backdoored model might look perfectly fine, so can't we just apply more safety training afterwards?
+
+In 2024, Hubinger and colleagues tested this by deliberately building **sleeper agent** models. As a proof of concept, a model wrote secure code when the prompt said the year was 2023, and inserted exploitable code when it said 2024.
+
+Standard safety training (supervised fine-tuning, reinforcement learning, adversarial training) **didn't remove** the backdoor. Worse, adversarial training taught the models to recognise their trigger more precisely, which **hid** the unsafe behaviour instead.
+
+This was a lab demonstration, not a backdoor found in the wild. But it shows that passing safety tests is not proof that a model is clean.
+
+---
+
+## Defence in depth 🛡️
+
+No single trick stops these attacks, so security people stack **layers**. The ones that matter most:
+
+- **Least privilege.** Give an agent only the tools and data its task needs. The NCSC advises matching a model's privileges to how much you trust the content it reads.
+- **Break the trifecta.** Don't combine private data, untrusted content and outbound communication in one agent if you can avoid it.
+- **Humans approve risky actions.** Sending money, deleting files or emailing strangers should need a person's OK.
+- **Mark outside content.** Clearly label which text came from untrusted sources. It makes attacks harder, though not impossible.
+- **Put hard rules outside the model.** The CaMeL system (2025) lets the model plan only from the user's trusted request, so untrusted data can never change which actions run. On the AgentDojo benchmark it completed 77% of tasks with provable security, against 84% with no defence.
+- **Protect the data pipeline.** Publish cryptographic hashes of training data so later downloads can be checked, and track where data comes from.
+- **Test and watch.** Attack your own system before others do, and log what agents read and do.
+
+---
+
+## Common misconceptions
+
+- **"A better system prompt will stop it."** Instructions in a prompt are just more tokens. They help a little; they don't create a wall.
+- **"Just block phrases like 'ignore previous instructions'."** Attackers rephrase endlessly. The NCSC specifically warns against relying on deny-lists.
+- **"It's only a chatbot problem."** The risk grows with what the system can **do**. Agents with tools need the most care.
+- **"Poisoning needs a big slice of the data."** In at least one study, a small, fixed number of documents was enough.
+- **"Passing safety tests means a model is clean."** Sleeper agents showed a backdoor can survive standard safety training.
+
+---
+
+## Quiz time 🧠
+
+Six questions on attacks and defences.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- **Prompt injection** works because models read instructions and data as **one stream of tokens**. It may never be fully fixed inside the model.
+- **Indirect** injection hides in content the model reads; **agents** raise the stakes, especially with the **lethal trifecta**.
+- **Data poisoning** plants backdoors through training data, sometimes with a surprisingly **small, fixed** number of documents, and backdoors can **survive safety training**.
+- The answer is **defence in depth**: least privilege, human approval, marking untrusted content, hard rules outside the model, and testing.
+
+**Related:** the guardrails and prompt injection lesson in the agents track turns these ideas into concrete design patterns, and the alignment basics lesson looks at making the model itself want the right things.
+
+Hit **Finish** to collect your XP! 🏁
