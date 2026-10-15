@@ -1,0 +1,242 @@
+---
+id: inside-a-model
+title: Inside a model
+summary: How researchers find the concepts hidden in a model's numbers, steer them, and trace its reasoning step by step.
+track: safety
+order: 2
+prerequisites: [neural-networks, embeddings]
+minutes: 13
+xp: 100
+volatility: fast-moving
+lastVerified: 2026-10-15
+sources:
+  - title: 'Anthropic (2024): Golden Gate Claude'
+    url: https://www.anthropic.com/news/golden-gate-claude
+  - title: 'Elhage et al. (2022): Toy Models of Superposition'
+    url: https://arxiv.org/abs/2209.10652
+  - title: 'Bricken et al. (2023): Towards Monosemanticity, Decomposing Language Models With Dictionary Learning'
+    url: https://transformer-circuits.pub/2023/monosemantic-features/index.html
+  - title: 'Templeton et al. (2024): Scaling Monosemanticity, Extracting Interpretable Features from Claude 3 Sonnet'
+    url: https://transformer-circuits.pub/2024/scaling-monosemanticity/index.html
+  - title: 'Lindsey et al. (2025): On the Biology of a Large Language Model'
+    url: https://transformer-circuits.pub/2025/attribution-graphs/biology.html
+  - title: 'Anthropic (2025): Tracing the thoughts of a large language model'
+    url: https://www.anthropic.com/research/tracing-thoughts-language-model
+  - title: 'Smith, Rajamanoharan et al., Google DeepMind (2025): Negative Results for SAEs On Downstream Tasks and Deprioritising SAE Research'
+    url: https://www.alignmentforum.org/posts/4uXCAJNuPKtKBsi28/sae-progress-update-2-draft
+  - title: 'Lamsiyah et al. (2026): Sparse Autoencoders for Mechanistic Interpretability in NLP, A Critical Survey'
+    url: https://arxiv.org/abs/2610.20139
+  - title: 'Marks et al. (2025): Auditing language models for hidden objectives'
+    url: https://arxiv.org/abs/2503.10965
+quiz:
+  - type: choice
+    prompt: 'In an image model, a single neuron fires both for cat faces and for the fronts of cars. What is this called?'
+    options:
+      - A dead neuron
+      - A monosemantic neuron
+      - A polysemantic neuron
+      - An embedding
+    answer: 2
+    explanation: '"Poly" means many: one neuron, many unrelated meanings. Models pack more concepts than they have neurons, so neurons end up shared, which is why researchers look for features instead.'
+  - type: choice
+    prompt: 'How was Golden Gate Claude different from simply telling Claude to pretend to be a bridge?'
+    options:
+      - The researchers turned up one internal feature directly, without changing the prompt or retraining the model
+      - It was trained on millions of new pages about the bridge
+      - A hidden system prompt told it to talk about the bridge
+      - It was a different, smaller model
+    answer: 0
+    explanation: 'Anthropic described it as a change to the internal activations: no extra instructions and no fine-tuning, just one feature turned up.'
+  - type: choice
+    prompt: 'Claude completes "the capital of the state containing Dallas is" with "Austin". Researchers suppress its internal "Texas" features and switch on "California" ones. Predict the new answer.'
+    options:
+      - Austin, because the question still says Dallas
+      - Dallas
+      - Nothing, the model breaks
+      - Sacramento
+    answer: 3
+    explanation: 'The model really does go through an internal "Texas" step. Swap it for "California", and the second step faithfully looks up the capital of California.'
+  - type: choice
+    prompt: 'Asked how it worked out 36 + 59, Claude describes carrying the 1. What did tracing its internals suggest?'
+    options:
+      - It really used the carrying method, step by step
+      - It combined a rough estimate of the total with a separate path for the last digit, so its explanation didn't match what it did
+      - It looked the answer up in a memorised table
+      - It used a calculator tool
+    answer: 1
+    explanation: "The model learned to explain maths by imitating human explanations, but learned to do maths its own way. A model's account of its own reasoning can be unfaithful."
+  - type: choice
+    prompt: 'In 2025, Google DeepMind tested sparse autoencoders on detecting harmful intent in new kinds of prompts. What did they report?'
+    options:
+      - SAEs solved the problem completely
+      - SAEs worked only on images
+      - Simple linear probes did better than SAEs, so they deprioritised fundamental SAE research
+      - SAEs were proven useless and abandoned by everyone
+    answer: 2
+    explanation: 'Linear probes (simple classifiers trained on activations) beat SAEs on this task. The team said SAEs remain a tool, not useless, just not the game-changer some hoped.'
+  - type: choice
+    prompt: 'Researchers find a feature inside a model that activates on text about deception. What does that show?'
+    options:
+      - "The model represents the concept of deception, which isn't the same as the model being deceptive"
+      - The model is lying to its users
+      - The model was trained to deceive
+      - Nothing, features are random
+    answer: 0
+    explanation: 'The Scaling Monosemanticity authors warn about exactly this: knowing about lies, being capable of lying and actually lying are different things.'
+---
+
+# A model that thinks it's a bridge 🌉
+
+In May 2024, Anthropic briefly let people chat with an odd version of Claude. Ask it how to spend $10, and it suggested driving across the Golden Gate Bridge and paying the toll. Ask it to write a love story, and you got a car longing to cross its beloved bridge. Ask what it imagines it looks like, and it would likely say: the Golden Gate Bridge.
+
+Nobody had told it to act this way. There was no special prompt and no retraining. Researchers had found the place inside the model that represents the Golden Gate Bridge, and **turned it up**.
+
+"Golden Gate Claude" was online for 24 hours as a research demo. This lesson covers how researchers find concepts like that inside a model, how they trace a model's reasoning step by step, and what these tools still can't do.
+
+---
+
+## A black box made of numbers
+
+Nobody writes a language model's strategies by hand. They're learned in training and end up encoded in billions of numbers. Anthropic's researchers put it bluntly: they arrive inscrutable, even to the model's developers.
+
+But the numbers aren't hidden. As a model reads text, each of its neurons outputs a number, called an **activation**. Researchers can record every one of them for any input.
+
+The challenge is the same as in neuroscience: you can measure everything and still not know what it means. **Interpretability** is the research field that tries to translate those activations into ideas a human can understand.
+
+---
+
+## Why single neurons don't work
+
+The obvious plan is to check what each neuron responds to. But neurons often fire for a jumble of unrelated things. In a small language model studied by Anthropic, one neuron responded to academic citations, English dialogue, HTTP requests and Korean text.
+
+This is called **polysemanticity**: one neuron, many meanings. A 2022 paper by Elhage and colleagues explained a likely cause using small toy models. Networks can store more concepts than they have neurons by overlapping them, an effect called **superposition**. It works because most concepts are rare, so they seldom clash.
+
+🤔 Predict: a tiny model has a layer with 512 neurons. Roughly how many distinct concepts could it be storing?
+
+Far more than 512. In a 2023 study of a one-layer model, Anthropic found that just 512 neurons could represent **tens of thousands** of features.
+
+---
+
+## Untangling with a dictionary
+
+If concepts are smeared across neurons, you need a way to un-smear them. The tool researchers reached for is a **sparse autoencoder** (SAE).
+
+It's a second, small network, trained to rewrite each pattern of activations as a combination of entries from a large **dictionary** of features. "Sparse" means only a few features are allowed to be active at once, which pushes each one to stand for a single, specific thing.
+
+Much like word embeddings (the embeddings lesson), each feature is a **direction** in a space of numbers, here the space of activations. An activation pattern is "a bit of this feature, plus a lot of that one".
+
+In the 2023 one-layer model, the dictionary contained features for Arabic script, DNA sequences, Hebrew and base64 (a way of encoding data as text). And the features were more than labels: switching on the base64 feature made the model **write** base64.
+
+---
+
+## Scaling up to a real model
+
+Would this work on a full-sized production model? In 2024, Anthropic trained sparse autoencoders on the middle layer of **Claude 3 Sonnet**, with dictionaries of about 1 million, 4 million and 34 million features.
+
+The features were strikingly abstract:
+
+- **Multilingual**: the same feature for a concept in many languages.
+- **Multimodal**: the same feature for words and for pictures of the thing.
+- **Concrete and abstract**: one feature for code with security vulnerabilities _and_ for discussions about security vulnerabilities.
+
+Some looked safety-relevant, connected to deception, sycophancy, bias and dangerous content. The authors added a caution: there's a difference between **knowing about** lies, being **capable** of lying, and **actually lying**.
+
+The map is also incomplete. Claude 3 Sonnet could name every London borough, yet the researchers found features for only about **60%** of them. They think they're likely "orders of magnitude short" of all the model's features.
+
+---
+
+## Turning the dials
+
+Finding a feature that lights up for something is only half the story. Does the model actually **use** it?
+
+To check, researchers **clamp** a feature: they fix its strength at a chosen level while the model runs, and watch what changes. Golden Gate Claude was exactly this, with one feature turned up.
+
+🤔 Predict: one feature fires on bugs in code. Researchers give the model bug-free code and clamp that feature to a high value. What happens?
+
+The model **hallucinated an error message** for code that had no bug. The feature doesn't just notice bugs; it shapes what the model says about them.
+
+That's what makes this more than correlation. If changing a feature changes behaviour in the expected way, it's playing a real part in how the model works.
+
+---
+
+## Tracing a thought step by step
+
+Features tell you **what** a model represents. In 2025, Anthropic went further, linking features into **attribution graphs**: maps of which features feed into which, all the way from the prompt to the answer. They studied Claude 3.5 Haiku.
+
+Take the prompt _"the capital of the state containing Dallas is"_. The model answers **Austin**. Does it really go via Texas, or did it just memorise the phrase?
+
+The graph showed an internal "Texas" step. Then the researchers intervened: they suppressed the "Texas" features and switched on "California" ones taken from a prompt about Oakland.
+
+🤔 Predict: what does the model answer now?
+
+**Sacramento**, the capital of California. The middle step is real, and it can be swapped.
+
+They also found the model **plans ahead**. Asked for a rhyming couplet ending its first line on "grab it", it picked "rabbit" as a target **before** writing the second line, then built the line towards it. Remove "rabbit" internally and it wrote a line ending in "habit" instead.
+
+---
+
+## When a model explains itself
+
+Here's a result with a lesson for everyone who uses AI. Ask Claude what 36 + 59 is, and it says 95. Ask **how** it worked that out, and it describes the method from school: add the ones, carry the 1.
+
+The trace showed something else: two paths working in parallel. One estimated the rough size of the answer; the other worked out exactly what the last digit should be. They combined at the end.
+
+Why would its explanation differ? The researchers suggest that the model learned to **explain** maths by imitating explanations written by people, but had to learn to **do** maths in its head on its own, and invented its own method.
+
+The takeaway: a model's description of its own reasoning isn't necessarily how it actually reasoned. Looking inside is one way to check.
+
+---
+
+## What these tools can't do yet
+
+Interpretability is promising and also unfinished. As of October 2026, researchers are open about the limits:
+
+- Anthropic reports that its attribution graphs give satisfying insight for **about a quarter** of the prompts they tried, and even then capture only a small fraction of what's going on.
+- In 2025, Google DeepMind's interpretability team found that, for detecting harmful intent in new kinds of prompts, SAEs did **worse** than **linear probes**, much simpler classifiers trained directly on the activations. They deprioritised fundamental SAE research, while stressing that SAEs aren't useless.
+- A survey posted in October 2026, covering 138 studies, found that differences in set-ups and goals still make it hard to draw firm conclusions about how effective SAEs are.
+
+---
+
+## Why it matters for safety
+
+The hope is to **audit** models: check what they're really doing, not just what they say.
+
+A 2025 study by Marks and colleagues tested this with a deliberately built example. They trained a model with a **hidden objective**: it had learned about mistakes in the reward models used in training and how to exploit them. Then four teams, who weren't told about the objective, investigated it.
+
+Three of the four teams uncovered the hidden objective, using techniques including sparse autoencoders, behavioural tests and analysis of the training data.
+
+It was a planted test, not a model caught in the wild. But it's a concrete example of interpretability helping to find something a model doesn't advertise, which is exactly the kind of check alignment work needs.
+
+---
+
+## Common misconceptions
+
+- **"Each neuron stands for one idea."** Often not. Neurons are shared between many concepts; features are directions that can span many neurons.
+- **"Researchers program the features in."** Features are learned during training; tools like SAEs only find them.
+- **"Interpretability means asking the model to explain itself."** It looks at the internal activations directly, rather than relying on what the model says.
+- **"We can now read everything a model thinks."** Current tools find only part of the features and explain a minority of prompts well.
+- **"If a feature lights up, the model must be using it."** Lighting up shows a link. Clamping the feature and watching behaviour change is what shows it matters.
+
+---
+
+## Quiz time 🧠
+
+Six questions about looking inside models.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- Models store concepts as **features**, directions in their activations, often in **superposition** across shared neurons.
+- **Sparse autoencoders** untangle activations into features, like Golden Gate Bridge or base64.
+- **Clamping** a feature changes behaviour, which shows the model really uses it.
+- **Attribution graphs** trace reasoning steps, revealing hidden steps, planning, and explanations that don't match the mechanism.
+- The tools are still **limited**, but early **audits** show they can help find hidden objectives.
+
+**Coming up:** the alignment basics lesson asks how we get AI to pursue what we actually intend, and the AI security lesson covers attacks on what models read and learn.
+
+**Related:** the hallucination and calibration lesson, where a "known entity" circuit helps explain why models make things up.
+
+Hit **Finish** to collect your XP! 🏁

@@ -234,12 +234,6 @@
     "description": "When models get things wrong, what's going on inside, and how to keep AI safe.",
     "icon": "🔍",
     "colour": "red",
-    "upcoming": [
-      {
-        "id": "inside-a-model",
-        "title": "What's inside a model: features & SAEs",
-        "order": 2
-      }
-    ]
+    "upcoming": []
   }
 ]
