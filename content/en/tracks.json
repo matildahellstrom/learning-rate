@@ -29,11 +29,6 @@
     "colour": "pink",
     "upcoming": [
       {
-        "id": "tokenisation",
-        "title": "Tokenisation",
-        "order": 2
-      },
-      {
         "id": "embeddings",
         "title": "Embeddings",
         "order": 3

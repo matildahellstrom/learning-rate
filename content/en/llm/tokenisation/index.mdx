@@ -1,0 +1,216 @@
+---
+id: tokenisation
+title: Tokenisation
+summary: How text is chopped into the tokens a language model actually reads, and why the chopping matters.
+track: llm
+order: 2
+prerequisites: [next-token-prediction]
+minutes: 11
+xp: 100
+volatility: fast-moving
+lastVerified: 2026-10-16
+sources:
+  - title: 'Jurafsky & Martin (2026 draft): Speech and Language Processing, chapter 2, Words and Tokens'
+    url: https://web.stanford.edu/~jurafsky/slp3/2.pdf
+  - title: 'Sennrich, Haddow & Birch (2016): Neural Machine Translation of Rare Words with Subword Units'
+    url: https://arxiv.org/abs/1508.07909
+  - title: 'Radford et al. (2019): Language Models are Unsupervised Multitask Learners (GPT-2)'
+    url: https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf
+  - title: 'Kudo & Richardson (2018): SentencePiece, a simple and language independent subword tokenizer and detokenizer for Neural Text Processing'
+    url: https://arxiv.org/abs/1808.06226
+  - title: 'Petrov et al. (2023): Language Model Tokenizers Introduce Unfairness Between Languages'
+    url: https://arxiv.org/abs/2305.15425
+quiz:
+  - type: choice
+    prompt: 'A tiny corpus has "low" 6 times, "lot" 3 times and "slow" 2 times. Which pair does BPE merge first?'
+    options:
+      - o + w
+      - s + l
+      - l + o
+      - o + t
+    answer: 2
+    explanation: '"l o" appears in all three words: 6 + 3 + 2 = 11 times. "o w" is next with 6 + 2 = 8, then "o t" (3) and "s l" (2). BPE always merges the most frequent pair.'
+  - type: numeric
+    prompt: 'Using the lesson''s merges (u+g, then u+n, then h+ug), how many tokens does BPE turn "pugs" into?'
+    answer: 3
+    tolerance: 0
+    explanation: 'Start with p u g s. Rule 1 joins u g, giving p ug s. Rule 2 (u n) and rule 3 (h ug) find nothing to join. That leaves three tokens: p, ug, s.'
+  - type: choice
+    prompt: 'Why can a byte-level BPE tokeniser, like GPT-2''s, encode any text without an "unknown" token?'
+    options:
+      - Its base vocabulary holds all 256 possible byte values, and any text can be written as bytes
+      - It has a token for every word in every language
+      - It skips characters it doesn't know
+      - It translates everything into English first
+    answer: 0
+    explanation: 'Any text stored as UTF-8 is a sequence of bytes, and there are only 256 possible byte values. With all of them in the vocabulary, the worst case is spelling something out byte by byte.'
+  - type: choice
+    prompt: "Why don't modern language models simply use one token per whole word?"
+    options:
+      - Words are too short
+      - Computers can't store words
+      - It would make texts longer than characters do
+      - A new or rare word would have no token, and covering every word needs an enormous vocabulary
+    answer: 3
+    explanation: 'With whole words, "lower" is unknown if training only saw "low" and "new". Subwords let any word be built from known pieces, while common words still get a single token.'
+  - type: choice
+    prompt: 'With the ChatGPT/GPT-4 tokeniser Petrov and colleagues studied, the same text in Shan took up to 15 times as many tokens as in English. What follows for a Shan speaker?'
+    options:
+      - Nothing, since the meaning is the same
+      - They can pay more per task and fit less text into the model's context
+      - Their answers are automatically more accurate
+      - The model reads Shan faster
+    answer: 1
+    explanation: 'Services charge per token and models have a token limit, so more tokens for the same content means higher cost, slower replies and less room for text. The paper calls these fairness problems.'
+  - type: choice
+    prompt: 'A tokeniser splits "Anyhow" at the start of a sentence into two tokens but " anyhow" after a space into one. What does that show?'
+    options:
+      - The tokeniser is broken
+      - Capital letters are ignored
+      - Tokens depend on details like capitals and leading spaces, so the same word can look different to the model
+      - The model can't read capital letters
+    answer: 2
+    explanation: 'Tokens are learned chunks of text, including spaces and capitals. " anyhow" (with its leading space) was frequent enough to become one token; "Anyhow" was not.'
+---
+
+# Models don't read letters 🔤
+
+When you type _"Hello, world!"_ into a chatbot, the model never sees those letters. Before anything else happens, the text is chopped into chunks called **tokens**, and each token is swapped for a whole number: its ID in a fixed list.
+
+The model reads and writes those numbers, and the next-token prediction lesson's guessing game is played over that list.
+
+How you chop matters. It decides how long a text is to the model, which words it can handle, and even how much people pay: one 2023 study found the same text could take up to **15 times** as many tokens in one language as in English.
+
+This lesson covers why models use pieces of words, how the most popular chopping method learns them, and where it goes wrong.
+
+---
+
+## Words, letters or something in between?
+
+Two obvious choices both have problems.
+
+**One token per word.** If training saw _"low"_, _"new"_ and _"newer"_ but never _"lower"_, then _"lower"_ has no token: it's an **unknown word**. And covering every word, name and typo in every language would need an enormous vocabulary.
+
+**One token per character.** Nothing is ever unknown, but texts become very long sequences of units too small to mean much. The GPT-2 team noted that byte-level models (one token per byte, close to one per character) weren't competitive with word-level ones on large datasets, and saw the same gap in their own attempts.
+
+The answer used in practice is in between: **subword tokens**. Common words get a single token; rarer words are built from pieces such as _"low"_ + _"er"_. In the worst case, a word can be spelt out letter by letter.
+
+---
+
+## Learning the pieces: BPE
+
+One of the two widely used methods is **byte-pair encoding (BPE)**. It started life as a data-compression trick, published by Gage in 1994. In 2016, Rico Sennrich, Barry Haddow and Alexandra Birch adapted it to split words for machine translation.
+
+Training is a simple loop:
+
+1. Start with single characters as the vocabulary.
+2. Count every pair of neighbouring tokens in the training text.
+3. Merge the most frequent pair into a new token. Repeat.
+
+Here's a tiny corpus, with how often each word appears:
+
+- hug ×10, pug ×5, pun ×12, bun ×4, hugs ×5
+
+🤔 Predict: which pair of letters gets merged first?
+
+Count the pairs: **u g** appears in hug, pug and hugs: 10 + 5 + 5 = **20**. Next is **u n** (pun, bun): 12 + 4 = 16, and **p u** (pug, pun) gets 17. So the first merge is **u + g → ug**.
+
+---
+
+## Merging until the budget runs out
+
+Now recount with **ug** as one token. The pairs **p u** and **u g** inside _"pug"_ are gone, so **u n** (16) wins: merge **u + n → un**. Then **h + ug** appears 10 + 5 = 15 times: merge **h + ug → hug**.
+
+After three merges the vocabulary is the seven starting letters (b, g, h, n, p, s, u) plus **ug**, **un** and **hug**. Real tokenisers keep going for tens of thousands of merges, ending up with vocabularies of 50,000, 100,000 or even 200,000 tokens.
+
+To **encode** new text, the tokeniser replays its merges in the order it learned them:
+
+- _"hugs"_ → h u g s → h **ug** s → **hug** s: two tokens.
+- _"bug"_, never seen in training → b **ug**: still two known tokens.
+
+🤔 Predict: what happens with _"mug"_?
+
+There's no **m** in the starting letters, so it's stuck: an unknown character. That's the problem the next step fixes.
+
+---
+
+## Bytes: nothing is ever unknown
+
+Text on a computer is stored as **bytes**, and there are only **256** possible byte values. GPT-2 (2019) ran BPE on bytes instead of characters, so its starting vocabulary was exactly those 256 values. Any text in any language or emoji can be written as bytes, so nothing is ever unknown.
+
+The GPT-2 team added one more rule. Left alone, BPE learned separate tokens for _"dog."_, _"dog!"_ and _"dog?"_, wasting slots. So they stopped it from merging across character categories, such as letters with punctuation (spaces were the exception). Their final vocabulary had **50,257** tokens.
+
+Language models' tokenisers usually do a similar **pre-tokenisation** step first, splitting text at spaces and punctuation with fixed rules, then running BPE inside each piece. Some, like the SentencePiece library (2018), instead learn straight from raw sentences, so languages such as Chinese, Korean and Japanese, which don't put spaces between words, need no separate word-splitting tool.
+
+<Deeper title="Go deeper: what the model actually receives">
+After tokenising, a text is a list of IDs, say $[t_1, t_2, \dots, t_n]$, each an integer from $0$ to $|V| - 1$, where $|V|$ is the vocabulary size.
+
+The model never sees the strings behind them. Each ID is used to look up a row in a table of learned numbers (the embeddings lesson covers this), and at the output, softmax gives one probability per vocabulary entry:
+
+$$
+\begin{gathered}
+p(t_{n+1} = i \mid t_1, \dots, t_n) \\
+\text{for } i = 0, 1, \dots, |V| - 1
+\end{gathered}
+$$
+
+So the vocabulary size sets the size of both the input table and the output layer. A bigger vocabulary makes texts shorter, but those two layers grow. That's a trade-off each model's designers choose.
+
+</Deeper>
+
+---
+
+## Small details, different tokens
+
+Because tokens are learned chunks, small changes in the text can change the tokens. Jurafsky and Martin's textbook shows examples with GPT-4o's tokeniser, which has about 200,000 tokens (as reported in their 2026 draft):
+
+- Most words come with their **leading space** included: _" anyhow"_ is one token.
+- But _"Anyhow"_ with a capital, at the start of a sentence, became **two** tokens: _"Any"_ + _"how"_.
+- Numbers tended to be split into chunks of **three digits**.
+
+So the model may see the same word as different tokens depending on where it appears and how it's written. It has to learn from data that _" anyhow"_ and _"Anyhow"_ mean the same thing.
+
+---
+
+## Not every language is treated equally
+
+Tokenisers learn from their training text, and that text is mostly English. So English words tend to get whole tokens while other languages get chopped into smaller pieces.
+
+🤔 Predict: a 16-word Spanish recipe sentence and its 14-word English translation. Roughly how do their token counts compare?
+
+In Jurafsky and Martin's example, the English took **19** tokens and the Spanish **33**, with everyday words like _"jugo"_ (juice) split up.
+
+Petrov and colleagues (2023) measured this across many languages. With the tokeniser used by ChatGPT and GPT-4 at the time, the same text took about **1.6×** as many tokens in Italian as in English, **3×** in Arabic and up to **15×** in Shan, a language of Myanmar. They point out three costs: paying more for the same task, slower replies, and fitting less text into the model's context.
+
+---
+
+## Common misconceptions
+
+- **"A token is a word."** Often it's a word with its leading space, but it can also be part of a word, a punctuation mark or a single byte.
+- **"The model sees letters."** It sees token IDs. Spelling is information it has to learn about each token.
+- **"Tokenisation is the same for every model."** Each model family has its own tokeniser and vocabulary, so the same text can have different token counts in different models.
+- **"Token counts are the same in every language."** The same content can need many more tokens in some languages than others.
+
+---
+
+## Quiz time 🧠
+
+Six questions. Have a pencil ready for counting pairs.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- Models read **token IDs**, not letters; tokens are usually **subwords**.
+- **BPE** learns tokens by repeatedly **merging the most frequent pair**, then replays those merges to encode new text.
+- **Byte-level** BPE starts from all **256 bytes**, so no text is ever unknown.
+- Tokens depend on details such as **capitals and leading spaces**.
+- Tokenisers can need **many more tokens** for some languages, which affects cost, speed and context.
+
+**Coming up:** the embeddings lesson shows how each token ID becomes a list of numbers with meaning.
+
+**Related:** the next-token prediction lesson covers the game played over the vocabulary.
+
+Hit **Finish** to collect your XP! 🏁
