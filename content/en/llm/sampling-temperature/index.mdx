@@ -1,0 +1,253 @@
+---
+id: sampling-temperature
+title: Sampling & temperature
+summary: How a model turns its probabilities into one chosen token, and the knobs that make answers safer or more surprising.
+track: llm
+order: 5
+prerequisites: [next-token-prediction, softmax]
+minutes: 12
+xp: 100
+volatility: fast-moving
+lastVerified: 2026-10-16
+sources:
+  - title: 'Jurafsky & Martin (2026 draft): Speech and Language Processing, chapter 7, Transformers and Pretraining (section 7.6, Decoding)'
+    url: https://web.stanford.edu/~jurafsky/slp3/7.pdf
+  - title: 'Holtzman, Buys, Du, Forbes & Choi (2020): The Curious Case of Neural Text Degeneration'
+    url: https://arxiv.org/abs/1904.09751
+  - title: 'Fan, Lewis & Dauphin (2018): Hierarchical Neural Story Generation'
+    url: https://arxiv.org/abs/1805.04833
+  - title: 'Renze & Guven (2024): The Effect of Sampling Temperature on Problem Solving in Large Language Models'
+    url: https://arxiv.org/abs/2402.05201
+  - title: 'He & Thinking Machines Lab (2025): Defeating Nondeterminism in LLM Inference'
+    url: https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/
+  - title: 'Anthropic: Messages API reference (temperature, top_k, top_p)'
+    url: https://platform.claude.com/docs/en/api/messages
+quiz:
+  - type: numeric
+    prompt: 'The next-token probabilities are 0.5, 0.3 and 0.2. With top-k sampling and k = 2, what probability does the top token get after renormalising?'
+    answer: 0.625
+    tolerance: 0.005
+    explanation: 'Keep the top two (0.5 and 0.3), which add up to 0.8, then divide each by 0.8: 0.5 ÷ 0.8 = 0.625 and 0.3 ÷ 0.8 = 0.375. The third token now has probability 0.'
+  - type: choice
+    prompt: 'The probabilities are 0.5, 0.25, 0.15 and 0.1. With top-p (nucleus) sampling and p = 0.8, how many tokens stay in the pool?'
+    options:
+      - '1'
+      - '2'
+      - '3'
+      - '4'
+    answer: 2
+    explanation: 'Add them up from the top until you reach at least 0.8: 0.5, then 0.75 (not enough yet), then 0.9. That takes three tokens. Stopping at two is the tempting slip, but 0.75 is still below 0.8.'
+  - type: choice
+    prompt: 'You lower the temperature from 1 to 0.5. What happens to the next-token probabilities?'
+    options:
+      - They all move closer to equal
+      - The ranking stays the same, but the top tokens get more of the probability
+      - A different token becomes the most likely
+      - Every token except the top one drops to exactly 0
+    answer: 1
+    explanation: 'Dividing the logits by 0.5 doubles the gaps between them, so softmax favours the leaders more strongly. The order never changes, and the others shrink but stay above 0. Only as the temperature approaches 0 does it become greedy.'
+  - type: choice
+    prompt: 'For long, open-ended writing, what does always picking the single most likely token (or searching for the most likely text) tend to produce?'
+    options:
+      - Generic, repetitive text that can get stuck in loops
+      - Random gibberish
+      - A different answer every time
+      - The most creative text possible
+    answer: 0
+    explanation: 'Holtzman and colleagues found that maximising probability with beam search leads to text that is "bland, incoherent, or gets stuck in repetitive loops". Greedy choice is also deterministic, so the same prompt gives the same text.'
+  - type: choice
+    prompt: 'Pure random sampling picks each token by its probability. Why can it still produce odd sentences when the likely tokens are all sensible?'
+    options:
+      - It ignores the probabilities
+      - The temperature is set too low
+      - The tokeniser splits words badly
+      - Thousands of unlikely tokens add up to a real chance of picking one of them
+    answer: 3
+    explanation: 'Each tail token is unlikely on its own, but together they hold a noticeable share of the probability. Over many steps, one gets picked and the text veers off. Top-k and top-p cut that tail off.'
+  - type: choice
+    prompt: 'You call an API at temperature 0 with the same prompt twice and get different answers. Which explanation fits what researchers have found?'
+    options:
+      - Your code must have a bug
+      - The model remembered your first request and changed its mind
+      - Tiny numerical differences, for example from how many requests the server processed together, tipped a near-tie the other way
+      - The server ignores temperature completely
+    answer: 2
+    explanation: 'He and Thinking Machines traced this to the server: results can depend on the batch size, so rounding differs slightly between runs. When two tokens are almost tied, that is enough to flip the choice, and the texts differ from there on.'
+---
+
+# Same question, different answers 🎲
+
+Ask a chatbot for a name for your new cat. Then ask again. You'll probably get a different name.
+
+Now ask it for 17 × 23. You'd hope for 391 every time.
+
+Both come from the same machine. The model never outputs one answer; it outputs a **probability for every possible next token** (the next-token prediction lesson covers this). Something else then has to **choose** one. That choosing step is called **decoding**, and how it's done decides whether text is safe and predictable or lively and surprising.
+
+This lesson covers greedy choice, rolling the dice, **temperature**, **top-k** and **top-p**, and why "temperature 0" doesn't always give the same answer twice.
+
+---
+
+## The menu of next tokens
+
+Here's a small example from Jurafsky and Martin's textbook. The text so far is _"So long and thanks for"_, and (to keep it readable) the vocabulary has just four tokens.
+
+The model's raw scores, its **logits**, are 1.2, 0.9, 0.1 and −0.5. Softmax turns them into probabilities:
+
+- **all**: 0.44
+- **the**: 0.33
+- **your**: 0.15
+- **that**: 0.08
+
+A real vocabulary has tens of thousands of tokens, but the question is the same: which one do we write?
+
+---
+
+## Option 1: always take the top
+
+The simplest rule is **greedy decoding**: always pick the most likely token. Here that's _all_.
+
+🤔 Predict: over a long story, what goes wrong if you always pick the safest word?
+
+The text becomes **generic** and often **repetitive**. Greedy decoding is also **deterministic**: the same prompt always gives exactly the same text.
+
+Holtzman and colleagues (2020) showed how bad this gets. They found that decoding methods which aim for the most likely text, such as **beam search** (which keeps several of the most likely continuations at each step), lead to output that is "bland, incoherent, or gets stuck in repetitive loops". In one of their examples with GPT-2 Large, the model repeats the name of a university again and again.
+
+Their explanation: language models do give high scores to well-formed text, but the very highest-scoring long texts are "often generic, repetitive, and awkward", and look quite different from what people actually write.
+
+---
+
+## Option 2: roll the dice
+
+The opposite rule is **random sampling**: pick each token with its own probability. _All_ comes out 44% of the time, _the_ 33%, _your_ 15%, _that_ 8%.
+
+That fixes the boredom, but creates a new problem. A real vocabulary has a long **tail** of tokens that each have a tiny probability. Holtzman and colleagues call it the "unreliable tail": tens of thousands of unlikely tokens that, added together, get picked far too often.
+
+Some made-up numbers to see why: if 30,000 tail tokens each have probability 0.00001, together they hold 30,000 × 0.00001 = **0.3**. That's a 3-in-10 chance per token of wandering off into something odd. Holtzman and colleagues found that pure sampling gave text that was "incoherent and almost unrelated to the context".
+
+Jurafsky and Martin sum it up: "greedy decoding is too boring, and random sampling is too random."
+
+---
+
+## Temperature: sharpen or flatten
+
+**Temperature** is a single number, often written T. Before softmax, **divide every logit by T**.
+
+- **T = 1:** nothing changes.
+- **T below 1:** the gaps between logits grow, so the leaders get more of the probability.
+- **T above 1:** the gaps shrink, so the probabilities move closer to equal.
+
+In the textbook example, T = 0.5 lifts _all_ from 0.44 to **0.59**, and T = 0.1 lifts it to **0.95**, nearly greedy.
+
+🤔 Predict: what happens to _all_ at T = 2?
+
+Halving the logits gives 0.6, 0.45, 0.05 and −0.25. After softmax, _all_ drops to about **0.35**, and _that_ rises from 0.08 to about 0.15. The order never changes; only the gaps do.
+
+The name comes from physics, as the textbook explains: a hot system explores many possible states, a cold one settles into a few.
+
+<Deeper title="Go deeper: the limits of temperature">
+With logits $z$, the probability of token $i$ at temperature $T$ is
+
+$$
+p_i = \frac{e^{z_i / T}}{\sum_j e^{z_j / T}}
+$$
+
+As $T \to 0$, the largest logit's share heads to 1 and the rest to 0: **greedy decoding**. As $T \to \infty$, every $z_i / T$ heads to 0, so every $e^{z_i/T}$ heads to 1: a **uniform** distribution, pure noise. Since dividing by a positive $T$ keeps the order of the logits, the ranking of tokens is the same at every temperature. The softmax lesson first introduced this trick.
+
+</Deeper>
+
+---
+
+## Top-k: only the best k
+
+Temperature shrinks the tail but never removes it. **Top-k sampling** does: keep only the **k** most likely tokens, rescale their probabilities to add up to 1, and sample from those.
+
+🤔 Predict: with k = 2 in our example, what probability does _all_ get?
+
+The top two are _all_ (0.44) and _the_ (0.33), which add up to 0.77. Dividing by 0.77 gives _all_ about **0.57** and _the_ about **0.43**. _Your_ and _that_ can't be picked at all.
+
+With k = 1, top-k is just greedy decoding.
+
+Fan, Lewis and Dauphin (2018) generated stories by sampling from the **10** most likely candidates at each step, and found it "substantially more effective" than beam search, which "tends to produce common phrases and repetitive text".
+
+---
+
+## Top-p: keep most of the probability
+
+Top-k has a weakness: k is fixed, but the shape of the probabilities isn't.
+
+- After _"The capital of France is"_, maybe one token is sensible. k = 10 lets in nine bad ones.
+- After _"My favourite food is"_, hundreds are fine. k = 10 throws most of them away.
+
+Holtzman and colleagues proposed **nucleus sampling**, also called **top-p**: keep the **smallest set of top tokens whose probabilities add up to at least p**, then rescale and sample. The pool grows when the model is unsure and shrinks when it's confident.
+
+In our example with p = 0.9: 0.44, then 0.77, then **0.92**. Three tokens make the cut, and only _that_ is dropped.
+
+In practice the knobs are often combined. Jurafsky and Martin note it's common to use top-k first, as a hard filter, and then top-p.
+
+---
+
+## Which setting is best?
+
+There's a trade-off. In the textbook's summary, choosing the most probable words tends to give text people rate as more accurate, coherent and factual, but also more boring and repetitive. Giving more weight to middle-probability words is more creative and diverse, but less factual.
+
+So for a poem or brainstorm, a bit more randomness can help. For maths, code or facts, you usually want less.
+
+But don't expect miracles from the dial. Renze and Guven (2024) gave nine models a multiple-choice exam at temperatures from 0.0 to 1.0. In their set-up, the changes made **no statistically significant difference** to how many problems were solved. Above 1.0 things fell apart: with GPT-3.5, performance dropped quickly, and the text became incoherent by 1.6.
+
+Whether a low or high setting is right depends on your task, so it's worth testing on your own examples.
+
+---
+
+## Temperature 0 isn't quite deterministic
+
+At temperature 0 the model should always take the top token, so the same prompt should give the same text. In practice it often doesn't. Anthropic's API reference says plainly that even at 0.0, "the results will not be fully deterministic".
+
+In a 2025 experiment, Horace He and colleagues at Thinking Machines asked an open model the same question, "Tell me about Richard Feynman", **1,000 times** at temperature 0. They got **80 different answers**. All of them matched for the first 102 tokens; then 992 said Feynman was born in "Queens, New York" and 8 said "New York City".
+
+🤔 Predict: if the maths is fixed, where could the difference come from?
+
+From the server. A busy server processes many users' requests together, and the size of that batch changes from moment to moment. Their finding was that the standard calculations aren't "batch-invariant": the batch size changes the rounding very slightly. Usually that doesn't matter, but when two tokens are almost tied it can flip the pick, and everything after it changes. With calculations redesigned to give the same result for any batch size, all 1,000 answers matched.
+
+---
+
+## The knobs in real APIs
+
+Jurafsky and Martin call temperature, top-k and top-p the three standard sampling methods. But the provider of a model decides which ones you can change.
+
+As of October 2026, Anthropic's API reference describes temperature as running from 0.0 to 1.0, with a default of 1.0. It also marks all three settings as **deprecated**: models released after Claude Opus 4.6 don't let you change them. A temperature of 1.0 and a top_p of 0.99 or more are allowed for backwards compatibility; other values, and any top_k, are rejected with an error.
+
+So on those models, sampling is fixed by the provider, and you steer the answers with the prompt instead (the prompting lesson covers how). The same is worth checking for any model you use, since these details change.
+
+---
+
+## Common misconceptions
+
+- **"Turning the temperature down makes the model smarter."** It only reshapes the probabilities the model already gave; it can't add knowledge the model doesn't have.
+- **"High temperature means the model is thinking harder."** It means more randomness in the choice, nothing more.
+- **"Top-k and top-p change the model."** They only change how a token is chosen from its output; the weights stay the same.
+- **"Sampling settings work the same everywhere."** Models and APIs differ in which knobs exist and what ranges they allow, so check the documentation for the one you use.
+
+---
+
+## Quiz time 🧠
+
+Six questions, two that need a quick sum.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- **Decoding** chooses one token from the model's probabilities.
+- **Greedy** decoding is safe but generic, repetitive and deterministic; **random sampling** is lively but drifts into the **unreliable tail**.
+- **Temperature** divides the logits: below 1 sharpens, above 1 flattens, and the ranking never changes.
+- **Top-k** keeps the k best tokens; **top-p** keeps the smallest set covering probability p, so its size adapts.
+- The best setting **depends on the task**, and even **temperature 0** can vary because of how servers batch requests.
+- As of October 2026, newer Claude models **fix these settings** at their defaults.
+
+**Coming up:** the context windows lesson covers how much text a model can see at once, and the KV cache that makes generation fast.
+
+**Related:** the distillation lesson uses temperature to soften a teacher's predictions, and the hallucination lesson uses it to calibrate confidence.
+
+Hit **Finish** to collect your XP! 🏁

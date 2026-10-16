@@ -29,11 +29,6 @@
     "colour": "pink",
     "upcoming": [
       {
-        "id": "sampling-temperature",
-        "title": "Sampling & temperature",
-        "order": 5
-      },
-      {
         "id": "context-windows",
         "title": "Context windows & KV cache",
         "order": 6
