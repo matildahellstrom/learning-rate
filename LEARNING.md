@@ -224,3 +224,18 @@ You asked to be told when the first version was ready, so these phases were buil
 
 1. Run power iteration by hand on the matrix with rows [2, 1] and [1, 2], starting from [1, 0]. After how many steps is the angle to [1, 1] under 1°? How would that change if the eigenvalues were 3 and 2.9?
 2. Take a small greyscale image as a matrix, compute its SVD with NumPy, and plot the singular values. At what rank does the picture stop looking blocky?
+
+## ML lessons 4–6 (2026-10-16)
+
+**Built:** Lessons for SGD, momentum & Adam, Neural networks, and Backpropagation, written with the `write-lesson` skill. The optimiser lesson reuses the ravine widget with `kappa={10}` to set up the problem momentum solves; an optimiser race widget went into the backlog instead of being built here.
+
+**Concepts:**
+
+- **When a PDF can't be read, find the fact in a source that can.** The Adam and AdamW PDFs didn't give clean text, so Adam's default settings come from the Deep Learning book's algorithm box, and the AdamW section sticks to what the arXiv abstract says.
+- **History has more than one inventor.** The 1986 Nature paper calls back-propagation "a new learning procedure", but the Deep Learning book traces it through Linnainmaa (1976) and Werbos (1981) to several independent rediscoveries. The lesson credits all of them.
+- **The step before the quiz counts as a hint.** Misconception bullets that restated a quiz answer were cut, so each lesson's last step before the quiz doesn't give one away.
+
+**Explore:**
+
+1. Simulate momentum by hand with μ = 0.9 on a constant slope. How many steps until the velocity reaches 90% of its top speed of 10?
+2. Draw the graph for f = x × x and backpropagate through it. Why does treating x as two separate inputs whose gradients add give the familiar 2x?
