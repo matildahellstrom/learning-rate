@@ -1,0 +1,239 @@
+---
+id: derivatives
+title: Derivatives & the chain rule
+summary: How to measure the steepness of a curve at a single point, and how to chain those measurements through a whole neural network.
+track: maths
+order: 3
+prerequisites: []
+minutes: 11
+xp: 100
+volatility: evergreen
+sources:
+  - title: '3Blue1Brown: The paradox of the derivative (Essence of calculus)'
+    url: https://www.3blue1brown.com/lessons/derivatives/
+  - title: '3Blue1Brown: Visualizing the chain rule and product rule (Essence of calculus)'
+    url: https://www.3blue1brown.com/lessons/chain-rule-and-product-rule/
+  - title: 'Goodfellow, Bengio & Courville: Deep Learning, ch. 6.5 Back-Propagation and Other Differentiation Algorithms'
+    url: https://www.deeplearningbook.org/contents/mlp.html
+  - title: 'Stanford CS231n: Backpropagation, intuitions (course notes)'
+    url: https://cs231n.github.io/optimization-2/
+quiz:
+  - type: choice
+    prompt: 'Using the power rule, what is the derivative of x³?'
+    options:
+      - 3x²
+      - x²
+      - 3x
+      - x⁴ ÷ 4
+    answer: 0
+    explanation: 'Bring the power down in front and lower it by one: x³ becomes 3x². (x⁴ ÷ 4 goes the other way: its derivative is x³.)'
+  - type: choice
+    prompt: 'At x = 5 a function has derivative −3. You nudge x up from 5 to 5.01. What happens to the output, roughly?'
+    options:
+      - It rises by about 0.03
+      - It stays the same
+      - It falls by about 0.03
+      - It falls by about 3
+    answer: 2
+    explanation: 'The derivative is the output change per unit of input change. A nudge of 0.01 times a slope of −3 gives about −0.03: a small drop. A drop of 3 would need a nudge of a whole unit.'
+  - type: numeric
+    prompt: 'A function gives f(2) = 10 and f(2.01) = 10.05. Estimate its derivative at x = 2.'
+    answer: 5
+    tolerance: 0.01
+    explanation: 'Rise over run: (10.05 − 10) ÷ (2.01 − 2) = 0.05 ÷ 0.01 = 5. This "nudge and measure" estimate is exactly how the lesson defined the derivative.'
+  - type: choice
+    prompt: 'y changes 4 times as fast as u, and u changes half as fast as x. How fast does y change compared with x?'
+    options:
+      - 4.5 times as fast
+      - 8 times as fast
+      - 0.125 times as fast
+      - 2 times as fast
+    answer: 3
+    explanation: 'The chain rule multiplies the rates along the chain: 4 × 0.5 = 2. Adding them (4.5) is the classic mistake; rates in a chain compound, like gears.'
+  - type: numeric
+    prompt: 'For y = (2x + 1)², what is the derivative dy/dx at x = 1?'
+    answer: 12
+    tolerance: 0.01
+    explanation: 'Let u = 2x + 1, so y = u². Then dy/du = 2u and du/dx = 2. At x = 1, u = 3, so dy/dx = 2 × 3 × 2 = 12. Check by nudging: (2 × 1.001 + 1)² = 3.002² ≈ 9.012, a rise of 0.012 for a nudge of 0.001, so about 12.'
+  - type: choice
+    prompt: 'What does backpropagation do in a neural network?'
+    options:
+      - It runs the network backwards to turn outputs into inputs
+      - It applies the chain rule from the loss back through the layers, reusing each step's result, to get the derivative for every weight
+      - It nudges every weight one at a time and measures the change in the loss
+      - It removes the layers that are not needed
+    answer: 1
+    explanation: 'Backpropagation is the chain rule, computed in an efficient order: start at the loss and work backwards, multiplying local derivatives and sharing them between weights. Nudging each weight separately would also work, but would need a separate run of the network for every weight.'
+---
+
+# The speedometer puzzle 🚗
+
+Your car's speedometer reads 50 km/h. But what does that mean, **at this exact instant**?
+
+Speed is distance divided by time. In a single instant, no time passes and the car moves no distance: zero divided by zero. 3Blue1Brown calls "instantaneous rate of change" an **oxymoron** for exactly this reason. And yet the needle points at 50, and it means something.
+
+The idea that rescues it is the **derivative**, and it's the engine of machine learning: it tells a model which way to adjust each of its numbers to get a little less wrong.
+
+This lesson covers what a derivative is, how to measure and calculate one, and the **chain rule**, which links derivatives through a long chain of steps like the layers of a neural network.
+
+---
+
+## Slope: rise over run
+
+Start with a straight line. Its **slope** is how much it goes up for each step to the right: rise over run.
+
+On the line y = 3x + 1, each step of 1 to the right goes up by 3. The slope is **3** everywhere.
+
+A curve is harder: its steepness changes as you move along it. But zoom in far enough on any smooth curve and the piece under the microscope looks almost exactly like a straight line.
+
+The **derivative** at a point is the slope of that zoomed-in line. It's written f′(x), or dy/dx: "the tiny change in y per tiny change in x". 3Blue1Brown suggests thinking of it not as change "in an instant" but as the **best constant rate of change** near that point.
+
+---
+
+## Measuring a derivative: nudge it
+
+You can measure a derivative directly: **nudge** the input by a tiny amount, and see how much the output moves.
+
+Take f(x) = x² at x = 3. So f(3) = 9.
+
+🤔 Predict: nudge x up to 3.001. Roughly how much does f change, per unit of nudge?
+
+f(3.001) = 9.006001. The output rose by 0.006001 for a nudge of 0.001, which is **about 6** per unit. Smaller nudges get closer and closer to exactly 6.
+
+So the derivative of x² at x = 3 is **6**.
+
+<Deeper title="Go deeper: the limit definition">
+The derivative is what the nudge ratio approaches as the nudge $h$ shrinks to zero:
+
+$$
+f'(x) = \lim_{h \to 0} \frac{f(x + h) - f(x)}{h}
+$$
+
+For $f(x) = x^2$:
+
+$$
+\begin{aligned}
+\frac{(x + h)^2 - x^2}{h} &= \frac{2xh + h^2}{h} \\
+&= 2x + h
+\end{aligned}
+$$
+
+As $h \to 0$ this becomes $2x$. At $x = 3$: 6, matching the nudge experiment (which gave $6 + 0.001$).
+
+</Deeper>
+
+---
+
+## Shortcuts: the rules
+
+Nudging works, but for common functions there are rules that give the exact answer.
+
+- **Power rule:** the derivative of xⁿ is n·xⁿ⁻¹. So x² gives 2x, and x³ gives 3x².
+- **Constants:** a number on its own (like + 7) has derivative 0, because it doesn't change.
+- **Scaling and adding:** the derivative of 5x² is 5 × 2x = 10x, and the derivative of a sum is the sum of the derivatives.
+
+Check against the nudge: the derivative of x² is 2x, and at x = 3 that's **6**. ✓
+
+And the straight line y = 3x + 1? Its derivative is 3 + 0 = **3**, the slope we already knew.
+
+---
+
+## What the sign tells you
+
+The derivative's **sign** says which way the curve is heading:
+
+- **Positive:** going uphill. Increase x and the output rises.
+- **Negative:** going downhill. Increase x and the output falls.
+- **Zero:** flat. You're at the bottom of a valley, the top of a hill, or on a level stretch.
+
+Its **size** says how steep: a derivative of −3 means each small nudge up in x lowers the output about 3 times as much.
+
+This is exactly what learning needs. The gradient descent lesson treats a model's error (its **loss**) as a landscape: the derivative says which way is uphill, so the model steps the other way.
+
+---
+
+## Chains of functions
+
+Real calculations are rarely one step. Usually one quantity feeds the next, which feeds the next: x goes into u, and u goes into y.
+
+Think of three gears. Gear U turns **3 times** as fast as gear X, and gear Y turns **2 times** as fast as gear U.
+
+🤔 Predict: how fast does Y turn compared with X?
+
+**6 times** as fast: 3 × 2. You multiply, not add.
+
+That's the **chain rule**: when steps are chained, their rates **multiply**. 3Blue1Brown's chain rule lesson pictures it as a chain of nudges: a tiny nudge to x causes a nudge to u, which in turn causes a nudge to y.
+
+**dy/dx = dy/du × du/dx**
+
+The notation makes it easy to remember: the du's look as if they cancel. (They aren't really fractions, but the rule behaves as if they were.)
+
+---
+
+## The chain rule at work
+
+Let's find the derivative of y = (3x + 1)² at x = 1.
+
+Split it into a chain:
+
+- Inner step: u = 3x + 1, so du/dx = **3**.
+- Outer step: y = u², so dy/du = **2u**.
+
+At x = 1, u = 4, so dy/du = 8. Multiply: dy/dx = 8 × 3 = **24**.
+
+Check it by nudging. At x = 1, y = 4² = 16. At x = 1.001, u = 4.003 and y = 16.024009. The rise is 0.024009 for a nudge of 0.001, so **about 24**. ✓
+
+<Deeper title="Go deeper: longer chains">
+For three steps, $y = f(g(h(x)))$, the rule just keeps multiplying:
+
+$$
+\frac{dy}{dx} = f'(g(h(x))) \cdot g'(h(x)) \cdot h'(x)
+$$
+
+Each factor is a **local** derivative: how one step's output responds to its own input, measured at the value that actually flowed through it. That's why a long chain is easy to handle piece by piece. With several inputs the same rule applies to each one separately, using partial derivatives (the gradients lesson).
+
+</Deeper>
+
+---
+
+## Why AI runs on the chain rule
+
+A neural network is a long chain: input → layer 1 → layer 2 → … → output → **loss** (one number for how wrong it was). To learn, it needs the derivative of the loss with respect to **every** weight, and large models have an enormous number of them.
+
+Nudging each weight one at a time would mean running the network once per weight. Instead, networks use **backpropagation**. The Deep Learning book describes it as an algorithm that computes the chain rule "with a specific order of operations that is highly efficient": start at the loss and work **backwards**, multiplying local derivatives layer by layer and reusing each result for everything earlier in the chain.
+
+The CS231n course notes put it as computing gradients "through recursive application of chain rule". So every time a model learns from an example, the chain rule from this lesson is doing the work.
+
+---
+
+## Common misconceptions
+
+- **"A derivative is a change in an instant."** Nothing changes in an instant. The derivative is what the rate of change approaches over smaller and smaller nudges.
+- **"A derivative of zero means the function is zero."** It means the function is **flat** there. f(x) = x² + 5 has derivative 0 at x = 0, where its value is 5.
+- **"In a chain, you add the rates."** You **multiply** them, like gears.
+- **"dy/dx is a fraction you can cancel freely."** It behaves like one in the chain rule, which makes it a handy memory aid, but it's really a limit.
+- **"Backpropagation is a special kind of maths."** It's the ordinary chain rule, organised so the work is shared.
+
+---
+
+## Quiz time 🧠
+
+Six questions. Use the rules, or nudge and measure if you get stuck.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- The **derivative** is the slope of a curve at one point: what "rise over run" approaches for tiny **nudges**.
+- Rules like the **power rule** (xⁿ → n·xⁿ⁻¹) give exact answers; nudging is a handy check.
+- Its **sign** says uphill or downhill; **zero** means flat, as at the bottom of a valley.
+- The **chain rule** multiplies rates through a chain: dy/dx = dy/du × du/dx.
+- **Backpropagation** applies the chain rule backwards through a network to get the derivative for every weight.
+
+**Coming up:** the gradients lesson extends derivatives to functions of many inputs at once.
+
+**Related:** the gradient descent lesson uses derivatives to roll downhill; the backpropagation lesson takes the chain rule through a real network.
+
+Hit **Finish** to collect your XP! 🏁

@@ -1,0 +1,239 @@
+---
+id: dot-product
+title: Dot product & cosine similarity
+summary: One small calculation that tells a computer how alike two things are, from songs to words to images.
+track: maths
+order: 2
+prerequisites: [vectors-matrices]
+minutes: 10
+xp: 100
+volatility: evergreen
+sources:
+  - title: 'Goodfellow, Bengio & Courville: Deep Learning, ch. 2 Linear Algebra'
+    url: https://www.deeplearningbook.org/contents/linear_algebra.html
+  - title: '3Blue1Brown: Dot products and duality (Essence of linear algebra)'
+    url: https://www.3blue1brown.com/lessons/dot-products/
+  - title: 'scikit-learn: Pairwise metrics, cosine similarity'
+    url: https://scikit-learn.org/stable/modules/metrics.html
+  - title: 'Mikolov, Yih & Zweig (2013): Linguistic Regularities in Continuous Space Word Representations'
+    url: https://aclanthology.org/N13-1090/
+  - title: 'Vaswani et al. (2017): Attention Is All You Need'
+    url: https://arxiv.org/abs/1706.03762
+quiz:
+  - type: numeric
+    prompt: 'What is the dot product of [1, 2, 3] and [4, −1, 2]?'
+    answer: 8
+    tolerance: 0.001
+    explanation: 'Multiply matching entries and add: 1 × 4 + 2 × (−1) + 3 × 2 = 4 − 2 + 6 = 8.'
+  - type: choice
+    prompt: 'Two vectors point at right angles to each other. What is their dot product?'
+    options:
+      - It equals the product of their lengths
+      - It is negative
+      - It is 1
+      - It is 0
+    answer: 3
+    explanation: 'The dot product equals length × length × cos(angle), and cos(90°) = 0. For example [1, 0] · [0, 1] = 0. "Right angles" means "no overlap in direction".'
+  - type: numeric
+    prompt: 'What is the cosine similarity of [3, 4] and [6, 8]?'
+    answer: 1
+    tolerance: 0.001
+    explanation: 'The dot product is 18 + 32 = 50 and the lengths are 5 and 10, so 50 ÷ 50 = 1. [6, 8] is just [3, 4] scaled by 2: same direction, so maximum similarity, even though the raw dot product (50) looks unremarkable.'
+  - type: choice
+    prompt: 'What is the cosine similarity of [1, 0] and [−2, 0]?'
+    options:
+      - '−1'
+      - '−2'
+      - '0'
+      - '1'
+    answer: 0
+    explanation: 'The dot product is −2 and the lengths are 1 and 2, so −2 ÷ 2 = −1: the vectors point in exactly opposite directions. −2 is the raw dot product, before dividing by the lengths.'
+  - type: choice
+    prompt: 'Each document is a vector of word counts. A long essay and a short note are about the same topic. Why compare them with cosine similarity rather than the raw dot product?'
+    options:
+      - The raw dot product cannot handle word counts
+      - Cosine similarity is faster to compute
+      - Cosine similarity ignores length, so the essay does not look more similar to everything just because it has more words
+      - The raw dot product is always negative for text
+    answer: 2
+    explanation: 'Longer documents have bigger counts, so their raw dot products are bigger with everything. Dividing by the lengths leaves only the direction, which reflects the mix of words, so topic is compared fairly.'
+  - type: choice
+    prompt: 'The Transformer divides its attention dot products by √(d_k), where d_k is the vector size. According to the paper, why?'
+    options:
+      - To turn them into cosine similarities
+      - With big vectors the dot products grow large, which pushes the softmax into a region with tiny gradients
+      - To make every dot product positive
+      - To save memory
+    answer: 1
+    explanation: "Summing more products makes the result spread wider: in the authors' example, d_k random terms give a spread (variance) of d_k. Dividing by √(d_k) brings it back to a sensible range. It is not a cosine similarity, because the lengths of the vectors are not divided out."
+---
+
+# Which song comes next? 🎵
+
+Imagine a music app that scores every song on three qualities from 0 to 10: energy, acoustic sound and danceability. (A made-up, simplified example; real apps learn much richer descriptions.)
+
+You've just played a song scored **[8, 1, 9]**: loud and danceable. Two candidates are left:
+
+- Song B: **[7, 2, 8]**
+- Song C: **[2, 9, 1]**
+
+You can probably tell that B is the better match. But how would a computer **put a number on** "alike"?
+
+This lesson covers the **dot product**, the one-line calculation that answers that question, and **cosine similarity**, its fairer cousin. Both run inside search engines, recommenders, language models and image models.
+
+---
+
+## Multiply matching entries, then add
+
+The **dot product** of two vectors of the same size: multiply the entries in matching positions, then add everything up. The result is a **single number**.
+
+[2, 1] · [3, 4] = 2 × 3 + 1 × 4 = **10**
+
+For the songs:
+
+- Your song · B = 8 × 7 + 1 × 2 + 9 × 8 = 56 + 2 + 72 = **130**
+- Your song · C = 8 × 2 + 1 × 9 + 9 × 1 = 16 + 9 + 9 = **34**
+
+B wins by a mile. Each product is big only when **both** songs score high on the same quality, so the dot product rewards agreement.
+
+You've seen this before: in the vectors and matrices lesson, each row of a matrix was combined with a vector this way. **A matrix times a vector is just a stack of dot products.**
+
+---
+
+## What the number means
+
+The dot product has a neat geometric meaning. If you draw both vectors as arrows,
+
+**a · b = length of a × length of b × cos(angle between them)**
+
+The cosine of the angle is 1 when the arrows point the same way, 0 at a right angle, and −1 when they point in opposite directions. So:
+
+- **Large and positive:** pointing roughly the same way.
+- **Zero:** at right angles. The vectors are called **orthogonal**.
+- **Negative:** pointing roughly opposite ways.
+
+3Blue1Brown offers a picture for this: shadow one arrow onto the line of the other (a **projection**), then multiply the shadow's length by the other arrow's length, counting it as negative if the shadow points backwards. Arrows at right angles cast no shadow at all.
+
+🤔 Predict: what is [1, 0] · [0, 1]?
+
+1 × 0 + 0 × 1 = **0**. One arrow points right, the other points up: a right angle, so nothing in common.
+
+<Deeper title="Go deeper: why the cosine appears">
+The two formulas agree because of the law of cosines. For arrows $a$ and $b$ with angle $\theta$ between them, the third side of the triangle is $a - b$, and
+
+$$
+\begin{aligned}
+\|a - b\|^2 &= \|a\|^2 + \|b\|^2 \\
+&\quad - 2\|a\|\|b\|\cos\theta
+\end{aligned}
+$$
+
+Expanding the left side entry by entry gives $\|a\|^2 + \|b\|^2 - 2\,a \cdot b$. Matching the two lines leaves
+
+$$
+a \cdot b = \|a\|\|b\|\cos\theta
+$$
+
+which is how the Deep Learning book states it (equation 2.34). The dot product is also symmetric: $a \cdot b = b \cdot a$.
+
+</Deeper>
+
+---
+
+## The trouble with length
+
+The dot product mixes up two things: **direction** (do the vectors agree?) and **length** (how big are they?).
+
+🤔 Predict: Song D is scored **[14, 4, 16]**, exactly double Song B, as if every score had been inflated. Is it a better match for your song than B?
+
+Its dot product with your song is **260**, twice B's 130. But it has the same mix of qualities as B; it's just "louder" in every number. Whether the dot product should reward that depends on the task. For "is this the same **kind** of song?", it shouldn't.
+
+The same problem shows up with text. If a document is a vector of word counts, a long essay has bigger numbers than a short note, so its raw dot product is bigger with **everything**.
+
+---
+
+## Cosine similarity: direction only
+
+The fix is to divide out the lengths, leaving just the cosine of the angle:
+
+**cosine similarity = (a · b) ÷ (length of a × length of b)**
+
+The scikit-learn docs describe it as the dot product of the vectors after each has been scaled to length 1. The answer always lands between **−1** (opposite) and **1** (same direction), whatever the vectors' sizes.
+
+A worked example with [3, 4] and [4, 3]:
+
+- Dot product: 3 × 4 + 4 × 3 = 24
+- Lengths: both are 5 (Pythagoras again)
+- Cosine similarity: 24 ÷ 25 = **0.96**, very similar
+
+And song D now scores **exactly the same** as song B against your song, because D points in the same direction as B. Doubling a vector doesn't change its direction.
+
+---
+
+## Meaning as direction
+
+Here's where it gets exciting. Models can learn vectors for **words** (the embeddings lesson shows how), and the directions turn out to carry meaning.
+
+In 2013, Mikolov, Yih and Zweig looked at the word vectors learned by a neural network trained to predict text. They found that relationships show up as consistent **offsets**. Their headline example: the vector for "King" − "Man" + "Woman" results in a vector **very close to** "Queen".
+
+"Close" here is measured by direction, with cosine similarity. A common recipe for semantic search uses the same idea: turn the question and every document into vectors, then return the documents whose vectors point most nearly the same way as the question's.
+
+---
+
+## Dot products everywhere
+
+Once you know the dot product, you start to see it all over AI:
+
+- **Neural network layers** multiply a matrix by a vector: one dot product per output.
+- **Convolutions** in image models slide a small grid over a picture and take a dot product at each spot (the convolutions lesson).
+- **Attention** in a Transformer scores how relevant each word is to another with a dot product between two vectors (the attention lesson).
+- **CLIP** matches photos with captions using cosine similarity (the CLIP lesson).
+
+One detail from the original Transformer paper: the attention dot products are divided by √(d_k), where d_k is the size of the vectors. The authors suspected that with big vectors the dot products grow large, which pushes the next step (a softmax) into a region where learning slows to a crawl.
+
+<Deeper title="Go deeper: why big vectors give big dot products">
+The paper's own illustration: suppose every entry of $q$ and $k$ is an independent random number with mean 0 and variance 1. Then
+
+$$
+q \cdot k = \sum_{i=1}^{d_k} q_i k_i
+$$
+
+has mean 0 and variance $d_k$: each of the $d_k$ products adds its own variance of 1. The typical size (standard deviation) grows like $\sqrt{d_k}$, so dividing by $\sqrt{d_k}$ brings it back to about 1.
+
+This is **not** the same as cosine similarity: the lengths of the actual vectors are not divided out, only a fixed number based on their size.
+
+</Deeper>
+
+---
+
+## Common misconceptions
+
+- **"The dot product gives a vector."** It gives a single number. Adding vectors gives a vector.
+- **"A dot product of 0 means one vector is zero."** Not necessarily: [1, 0] · [0, 1] = 0 because the vectors are at right angles.
+- **"A bigger dot product always means more similar."** Only if the lengths are comparable. Longer vectors give bigger dot products; cosine similarity removes that effect.
+- **"Cosine similarity runs from 0 to 1."** It runs from −1 to 1. Some kinds of data (like word counts, which are never negative) only produce 0 to 1, but in general negative values mean opposite directions.
+- **"Similar vectors must have similar entries."** For cosine similarity, [1, 2] and [100, 200] are identical (similarity 1), even though their entries are very different.
+
+---
+
+## Quiz time 🧠
+
+Six questions. Some need a little arithmetic.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- The **dot product** multiplies matching entries and adds them up, giving one number.
+- It equals **length × length × cos(angle)**: positive when vectors agree, **zero** at right angles, negative when they oppose.
+- A matrix times a vector is a **stack of dot products**.
+- Raw dot products grow with **length**; **cosine similarity** divides the lengths out and runs from −1 to 1.
+- Learned vectors can carry **meaning in their direction**, which is why similarity search works.
+
+**Coming up:** the derivatives lesson moves from comparing things to measuring change, the maths behind learning.
+
+**Related:** the convolutions and CLIP lessons use dot products and cosine similarity on images; the attention and embeddings lessons use them on words.
+
+Hit **Finish** to collect your XP! 🏁

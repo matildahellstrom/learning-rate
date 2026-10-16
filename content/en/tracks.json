@@ -7,21 +7,6 @@
     "colour": "blue",
     "upcoming": [
       {
-        "id": "vectors-matrices",
-        "title": "Vectors & matrices",
-        "order": 1
-      },
-      {
-        "id": "dot-product",
-        "title": "Dot product & cosine similarity",
-        "order": 2
-      },
-      {
-        "id": "derivatives",
-        "title": "Derivatives & the chain rule",
-        "order": 3
-      },
-      {
         "id": "gradients",
         "title": "Gradients",
         "order": 4

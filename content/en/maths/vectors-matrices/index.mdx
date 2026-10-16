@@ -1,0 +1,253 @@
+---
+id: vectors-matrices
+title: Vectors & matrices
+summary: How lists and grids of numbers let a computer describe anything, and how one multiplication rule turns them into a neural network layer.
+track: maths
+order: 1
+prerequisites: []
+minutes: 11
+xp: 100
+volatility: evergreen
+sources:
+  - title: 'Goodfellow, Bengio & Courville: Deep Learning, ch. 2 Linear Algebra'
+    url: https://www.deeplearningbook.org/contents/linear_algebra.html
+  - title: '3Blue1Brown: Vectors, what even are they? (Essence of linear algebra)'
+    url: https://www.3blue1brown.com/lessons/vectors/
+  - title: '3Blue1Brown: Matrix multiplication as composition (Essence of linear algebra)'
+    url: https://www.3blue1brown.com/lessons/matrix-multiplication/
+  - title: 'Vaswani et al. (2017): Attention Is All You Need'
+    url: https://arxiv.org/abs/1706.03762
+  - title: 'Brown et al. (2020): Language Models are Few-Shot Learners (GPT-3)'
+    url: https://arxiv.org/abs/2005.14165
+quiz:
+  - type: numeric
+    prompt: 'How long is the arrow for the vector [6, 8]?'
+    answer: 10
+    tolerance: 0.01
+    explanation: 'Use Pythagoras: √(6² + 8²) = √(36 + 64) = √100 = 10. It is the [3, 4] arrow scaled by 2, so its length doubles from 5 to 10.'
+  - type: choice
+    prompt: 'What is [1, 2] + 2 × [3, −1]?'
+    options:
+      - '[4, 1]'
+      - '[8, 2]'
+      - '[7, 0]'
+      - '[5, 3]'
+    answer: 2
+    explanation: 'Scale first: 2 × [3, −1] = [6, −2]. Then add matching entries: [1 + 6, 2 − 2] = [7, 0]. [4, 1] forgets to scale; [8, 2] scales the wrong vector.'
+  - type: choice
+    prompt: 'You multiply a 4 × 3 matrix by a vector with 3 entries. What comes out?'
+    options:
+      - A vector with 4 entries
+      - A vector with 3 entries
+      - A 4 × 3 matrix
+      - A single number
+    answer: 0
+    explanation: 'Each of the 4 rows is combined with the vector to give one number, so you get 4 numbers. The 3 has to match the vector and then disappears.'
+  - type: numeric
+    prompt: 'The matrix has rows [1, 2] and [0, 3]. Multiply it by the vector [4, 1]. What is the first entry of the result?'
+    answer: 6
+    tolerance: 0.001
+    explanation: 'Take the first row [1, 2], multiply matching entries with [4, 1] and add: 1 × 4 + 2 × 1 = 6. (The second entry is 0 × 4 + 3 × 1 = 3.)'
+  - type: choice
+    prompt: 'A is a 2 × 5 matrix and B is a 5 × 3 matrix. Which statement is true?'
+    options:
+      - AB and BA are both 2 × 3
+      - AB is 5 × 5 and BA is not defined
+      - AB and BA are equal, as with ordinary numbers
+      - AB is 2 × 3, and BA is not defined
+    answer: 3
+    explanation: 'For AB, the inner sizes match (5 and 5), so the result has the outer sizes, 2 × 3. For BA the inner sizes are 3 and 2, which do not match, so BA does not exist. Order matters for matrices.'
+  - type: choice
+    prompt: 'A layer in a neural network has a weight matrix with 3 rows and 4 columns. What size must its input vector be, and what size is its output?'
+    options:
+      - Input 3, output 4
+      - Input 4, output 3
+      - Input 12, output 1
+      - Any input size works
+    answer: 1
+    explanation: 'The vector has to match the number of columns (4). Each of the 3 rows then produces one output number, so 4 numbers go in and 3 come out.'
+---
+
+# Describe a strawberry to a computer 🍓
+
+You know a strawberry when you see one. A computer doesn't see anything: it only stores numbers.
+
+So how could you describe a strawberry to it? One idea: pick a few qualities and score each one. Sweetness 8 out of 10, redness 9, size 2. Now the strawberry is **[8, 9, 2]**. A lemon might be **[2, 1, 4]**.
+
+That little list is a **vector**, and grids of them are **matrices**. Every photo, word and sound a model handles becomes one of these, and every layer of a neural network is built from one operation on them.
+
+This lesson covers what vectors and matrices are, how to add and scale them, and how to multiply a matrix by a vector.
+
+---
+
+## A vector is an ordered list
+
+A **vector** is a list of numbers in a fixed order. Each position means something: in the fruit example, position 1 is sweetness, 2 is redness and 3 is size. The number of entries is the vector's **dimension**, so [8, 9, 2] is 3-dimensional.
+
+You meet vectors all the time without the name:
+
+- A colour on a screen is [red, green, blue], for example [255, 0, 0] for pure red.
+- A spot on a map is [east, north].
+- A day's weather could be [temperature, rain, wind].
+
+🤔 Predict: is the vector [2, 5] the same as [5, 2]?
+
+No. Order is the whole point. On a map, 2 steps east and 5 north is a different place from 5 east and 2 north. A vector is not a bag of numbers; each slot has a job.
+
+---
+
+## Vectors as arrows
+
+A 2-D vector can also be drawn as an **arrow** from the origin (0, 0). The vector [3, 4] is the arrow that goes 3 right and 4 up.
+
+3Blue1Brown's _Essence of linear algebra_ series makes the point that it doesn't matter which view you call the real one: lists and arrows are two descriptions of the same thing, and it pays to switch between them.
+
+That picture gives us a new idea: **length**. The arrow [3, 4] makes a right-angled triangle with sides 3 and 4, so by Pythagoras its length is
+
+√(3² + 4²) = √25 = **5**.
+
+The length of a vector is also called its **norm**, written ‖v‖. The same recipe works in any dimension: square every entry, add them up, take the square root.
+
+<Deeper title="Go deeper: the Euclidean norm">
+For a vector $x$ with $n$ entries, the usual length is the **L2 norm**
+
+$$
+\|x\|_2 = \sqrt{x_1^2 + x_2^2 + \dots + x_n^2}
+$$
+
+The Deep Learning book calls it the **Euclidean norm**: the ordinary straight-line distance from the origin to the point $x$. It is used so often in machine learning that the subscript 2 is usually dropped.
+
+Other norms exist. The L1 norm adds up the absolute values instead, $|x_1| + \dots + |x_n|$, so [3, 4] has L1 norm 7.
+
+</Deeper>
+
+---
+
+## Adding and scaling
+
+Two operations do almost all the work.
+
+**Adding** two vectors of the same dimension: add matching entries.
+
+[1, 2] + [3, 1] = [4, 3]
+
+As arrows, this is "walk along the first, then along the second": you end up at the tip of [4, 3].
+
+**Scaling** a vector by a number: multiply every entry by it.
+
+3 × [1, 2] = [3, 6]
+
+As arrows, scaling by 3 makes the arrow 3 times longer in the same direction. Scaling by −1 flips it round to point the opposite way.
+
+🤔 Predict: what is the length of 2 × [3, 4]?
+
+The vector is [6, 8], and √(36 + 64) = **10**. Scaling by 2 doubles the length, as you'd hope.
+
+---
+
+## Real models use huge vectors
+
+Three numbers can't capture much about a strawberry. Real models use far longer vectors.
+
+- The original Transformer (Vaswani and colleagues, 2017), the design behind today's chatbots, represents each word piece as a vector of **512** numbers.
+- GPT-3 (Brown and colleagues, 2020) uses vectors of **12,288** numbers in its largest version.
+
+Nobody can picture an arrow in 12,288 dimensions. The good news is that you don't have to. Adding, scaling and length work exactly as they do in 2-D: you just do the same thing to more entries.
+
+In these models the individual numbers aren't hand-picked qualities like "sweetness". They are **learned** during training, and the embeddings lesson shows how.
+
+---
+
+## A matrix is a grid
+
+A **matrix** is a rectangular grid of numbers. Its **shape** is written rows × columns, so this one is 2 × 3:
+
+$$
+A = \begin{pmatrix} 1 & 0 & 2 \\ 3 & 1 & 0 \end{pmatrix}
+$$
+
+You can read a matrix as a stack of vectors. A table of 100 fruits, each scored on 3 qualities, is a 100 × 3 matrix: one row per fruit.
+
+A greyscale photo is a matrix too: one number per pixel for its brightness. (The images-as-tensors lesson takes this further, to colour photos and batches of them.)
+
+---
+
+## Multiplying a matrix by a vector
+
+Here is the operation at the heart of every neural network. To multiply a matrix by a vector, take **each row** of the matrix, multiply its entries by the matching entries of the vector, and **add them up**. Each row gives one number.
+
+With the matrix A above and the vector [2, 1, 4]:
+
+- Row 1: 1 × 2 + 0 × 1 + 2 × 4 = **10**
+- Row 2: 3 × 2 + 1 × 1 + 0 × 4 = **7**
+
+So A times [2, 1, 4] is **[10, 7]**.
+
+🤔 Predict: A has 3 columns. What would happen if you tried to multiply it by a vector with only 2 entries?
+
+It doesn't work: every row has 3 numbers, and there would be nothing to pair the third one with. **The vector's length must match the number of columns.** The output has one entry per row.
+
+This is exactly what a layer in a neural network does. The matrix holds the layer's learned **weights**: 3 numbers go in, 2 come out, and each output is a weighted mix of all the inputs.
+
+---
+
+## Multiplying two matrices
+
+You can also multiply a matrix by another matrix: treat each **column** of the second matrix as a vector and multiply it as before. The results become the columns of the answer.
+
+That gives a simple **shape rule**. An m × n matrix times an n × p matrix gives an m × p matrix. The inner sizes must match, and the outer sizes survive:
+
+(2 × **3**) times (**3** × 4) gives 2 × 4.
+
+Two surprises for anyone used to ordinary numbers:
+
+- **Order matters.** AB and BA are usually different, and often one of them doesn't even exist. In the example above, a 3 × 4 times a 2 × 3 is not allowed.
+- Multiplying matrices means **doing one step after another**. 3Blue1Brown's series shows each matrix as a way of moving space around, and the product as doing both moves in turn.
+
+<Deeper title="Go deeper: the formula">
+If $C = AB$, the entry in row $i$ and column $j$ of $C$ is
+
+$$
+C_{i,j} = \sum_k A_{i,k} B_{k,j}
+$$
+
+The sum runs over the inner size, which is why it has to match. Matrix multiplication is not commutative (in general $AB \ne BA$), but it is associative, $A(BC) = (AB)C$, and distributive, $A(B + C) = AB + AC$.
+
+The **transpose** $A^\top$ flips a matrix over its diagonal, turning rows into columns. It reverses products: $(AB)^\top = B^\top A^\top$.
+
+</Deeper>
+
+---
+
+## Common misconceptions
+
+- **"A vector is just a list, so order doesn't matter."** Each position has a meaning; swapping entries gives a different vector.
+- **"You can add any two vectors."** Only vectors of the same dimension. [1, 2] + [1, 2, 3] is not defined.
+- **"Matrix multiplication multiplies matching entries."** That's a different operation (the element-wise or Hadamard product). Matrix multiplication combines each row with each column.
+- **"AB is the same as BA."** Usually not, and often only one of them exists.
+- **"Vectors are only for arrows and physics."** In machine learning a vector is any list of numbers describing something: a pixel, a word, a user.
+
+---
+
+## Quiz time 🧠
+
+Six questions. Keep the row-times-vector recipe in mind.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- A **vector** is an ordered list of numbers; its **dimension** is how many there are.
+- Vectors can be drawn as **arrows**; their **length (norm)** comes from Pythagoras.
+- You **add** vectors entry by entry and **scale** them by multiplying every entry.
+- A **matrix** is a grid with a shape of rows × columns.
+- A **matrix times a vector** combines each row with the vector, giving one number per row. This is what a neural network layer does.
+- Matrix products follow the **shape rule** (inner sizes match, outer sizes survive), and **order matters**.
+
+**Coming up:** the dot product lesson zooms in on "multiply matching entries and add", and shows how it measures similarity.
+
+**Related:** the images-as-tensors lesson turns photos into grids of numbers, and the LoRA lesson puts weight matrices to work.
+
+Hit **Finish** to collect your XP! 🏁
