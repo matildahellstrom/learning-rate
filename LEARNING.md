@@ -163,3 +163,19 @@ You asked to be told when the first version was ready, so these phases were buil
 
 1. Set your browser's default font size to 200% and walk through a lesson. What else would you change?
 2. Why does `?step=done` show the last step after a reload instead of the celebration? What would you need to store to show the celebration again?
+
+## Habitz-style restyle (2026-10-16)
+
+**Built:** A visual restyle after an inspiration image: a lavender backdrop with pages on white rounded "sheets", flat solid-purple buttons, grey filled quiz rows and inputs, a purple encouragement card on the map (streak/XP message, the next lesson, a link to your progress), lessons as bright gradient cards with a round tick indicator, a bottom tab bar with outline icons, and flat mascots (`Mascot.tsx`: simple shapes with dot eyes) on the map, profile tiles and locked badges. No game logic or saved state changed.
+
+**Concepts:**
+
+- **Dark ink on bright colours.** White text on bright orange, pink or teal fails WCAG AA (often under 3:1). Instead of darkening the colours until white passes, the cards keep the bright inspiration colours and use dark text (4.7–9:1). Check every gradient stop, not just the middle.
+- **A backdrop that text never touches.** The lavender (#c4a6e8) gives 8.3:1 with the body text but only 3.8:1 with muted grey text. So only `--text`-coloured things sit on it directly (header, lesson top bar); everything else lives on a white sheet.
+- **Tokens as the theme switch.** Every colour is a CSS custom property in `tokens.css`, so the dark theme is just a second set of values, and a component like `<Mascot colour="coral">` only sets `--body: var(--mascot-coral)`.
+- **Visual order vs. reading order.** On the lesson cards the stars and minutes sit above the title visually (`order: -1`), but the title comes first in the DOM, so a link's accessible name starts with the lesson's name.
+
+**Explore:**
+
+1. The grey filled fields are only 1.1:1 against white. Why does that matter for WCAG 1.4.11 (non-text contrast), and how does the underline on the numeric quiz input address it?
+2. Try the system font (`system-ui`) instead of Nunito in `--font`. Which feels closer to the inspiration, and what would you lose?
