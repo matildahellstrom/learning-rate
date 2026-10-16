@@ -1,0 +1,251 @@
+---
+id: softmax
+title: Exponentials, logs & softmax
+summary: How a model turns raw scores into probabilities, and the two tricks that stop the computer from choking on huge and tiny numbers.
+track: maths
+order: 5
+prerequisites: [vectors-matrices, derivatives]
+minutes: 11
+xp: 100
+volatility: evergreen
+sources:
+  - title: "3Blue1Brown: What's so special about Euler's number e? (Essence of calculus)"
+    url: https://www.3blue1brown.com/lessons/eulers-number/
+  - title: 'Stanford CS231n: Linear classification, Softmax classifier (course notes)'
+    url: https://cs231n.github.io/linear-classify/
+  - title: 'Goodfellow, Bengio & Courville: Deep Learning, ch. 4 Numerical Computation'
+    url: https://www.deeplearningbook.org/contents/numerical.html
+  - title: 'Goodfellow, Bengio & Courville: Deep Learning, ch. 6 Deep Feedforward Networks'
+    url: https://www.deeplearningbook.org/contents/mlp.html
+  - title: 'Vaswani et al. (2017): Attention Is All You Need'
+    url: https://arxiv.org/abs/1706.03762
+quiz:
+  - type: numeric
+    prompt: 'What is the first entry of softmax([ln 3, 0])? (Hint: e raised to the power ln 3 is 3.)'
+    answer: 0.75
+    tolerance: 0.01
+    explanation: 'Exponentiate: e^(ln 3) = 3 and e^0 = 1. Divide by the total, 4: the probabilities are 3/4 and 1/4. So the first entry is 0.75. Logs and exponentials undo each other, which is why softmax scores behave like log probabilities.'
+  - type: choice
+    prompt: 'A classifier gives the scores [5, 3, 1]. Another gives [105, 103, 101]. How do their softmax probabilities compare?'
+    options:
+      - The second is far more confident in the first class
+      - They are identical
+      - The second set adds up to more than 1
+      - The second cannot be computed at all
+    answer: 1
+    explanation: 'Adding the same number to every score multiplies every exponential by the same factor, which cancels when you divide by the total. Only the gaps between scores matter, and the gaps are the same (2 and 2).'
+  - type: numeric
+    prompt: 'ln(a) = 2.0 and ln(b) = 3.5. What is ln(a × b)?'
+    answer: 5.5
+    tolerance: 0.001
+    explanation: 'Logs turn multiplying into adding: ln(a × b) = ln(a) + ln(b) = 2.0 + 3.5 = 5.5. This is the same trick that lets models add log-probabilities instead of multiplying tiny numbers.'
+  - type: choice
+    prompt: 'Why do careful implementations subtract the largest score from every score before computing softmax?'
+    options:
+      - It changes the probabilities to be less extreme
+      - It makes every probability positive
+      - It makes the computation skip the division
+      - It makes the biggest exponent e^0 = 1, so nothing overflows, and the answer is unchanged
+    answer: 3
+    explanation: 'Subtracting the same number from every score does not change softmax at all. It just guarantees the largest exponential is e^0 = 1, so nothing explodes to infinity, and the total is at least 1, so there is no division by zero. Probabilities are already positive without it.'
+  - type: choice
+    prompt: "You multiply all of a model's scores by 3, so [2, 1, 0] becomes [6, 3, 0]. What happens to the softmax probabilities?"
+    options:
+      - The top class gets a bigger share; the distribution becomes sharper
+      - Nothing changes, as with adding a number
+      - All three become equal
+      - The top probability exactly triples
+    answer: 0
+    explanation: 'Multiplying stretches the gaps between scores (1 becomes 3), and bigger gaps mean a more lopsided softmax: about 0.95 for the top class instead of 0.67. Adding a constant keeps the gaps; multiplying does not. A probability can never triple past 1, so "exactly triples" cannot hold in general.'
+  - type: choice
+    prompt: 'A model scores a long text by combining the probabilities of hundreds of words. Why does it add log-probabilities instead of multiplying the probabilities?'
+    options:
+      - Log-probabilities are always positive, which is easier
+      - Multiplying is less accurate on paper
+      - Multiplying hundreds of small probabilities rounds down to 0 on a computer; the sum of their logs stays a manageable number
+      - Computers cannot multiply decimals
+    answer: 2
+    explanation: 'For example, 0.1 multiplied by itself 400 times is too small for a standard 64-bit number and becomes 0, while 400 × ln(0.1) ≈ −921 is easy to store. On paper both give the same answer; the problem is the computer. Log-probabilities are negative, not positive.'
+---
+
+# A model's gut feeling 🎲
+
+An image classifier looks at a photo. Its last layer produces one raw **score** per label:
+
+- cat: **2**
+- dog: **1**
+- fox: **0**
+
+Cat wins. But by how much? You'd like the model to say something like "67% cat". Raw scores can't do that: they can be negative, they can be any size, and they don't add up to 1.
+
+The function that turns scores into probabilities is called **softmax**, and it's built from two older ideas: **exponentials** and **logarithms**.
+
+This lesson covers both, how softmax uses them, and the tricks that keep computers from choking on the enormous and tiny numbers they create.
+
+---
+
+## Exponentials: growth that feeds itself
+
+3Blue1Brown's lesson on the number e starts with a population whose mass **doubles every day**: 1, 2, 4, 8, 16... That's 2ᵗ after t days.
+
+🤔 Predict: starting from 1 gram, about how much is there after 10 days?
+
+2¹⁰ = **1,024** grams. After 20 days, over a million. That's **exponential growth**: each day adds an amount equal to what was already there, so growth feeds on itself.
+
+There's one especially natural base. 3Blue1Brown asks whether some base makes the derivative not just proportional to the function but **equal** to it. There is: **e ≈ 2.71828**, Euler's number. The function eˣ is its own derivative.
+
+Three facts to keep:
+
+- eˣ is **always positive**, even for negative x: e⁻² ≈ 0.135.
+- e⁰ = **1**.
+- It keeps the **order**: a bigger x always gives a bigger eˣ.
+
+---
+
+## Logs: the undo button
+
+The **logarithm** undoes an exponential. The natural log, ln, undoes eˣ: ln(eˣ) = x. It answers the question "e to the power of **what** gives this number?"
+
+- ln(1) = **0**, because e⁰ = 1.
+- Numbers between 0 and 1 have **negative** logs: ln(0.1) ≈ −2.3.
+
+The superpower: logs turn **multiplying into adding**.
+
+**ln(a × b) = ln(a) + ln(b)**
+
+Why AI cares: a model often needs to multiply many probabilities together, for example one per word in a long text. Multiply 0.1 by itself 400 times and the answer, 10⁻⁴⁰⁰, is too small for a standard 64-bit number. The computer rounds it to **0**. The Deep Learning book calls this **underflow**: numbers near zero being rounded to zero.
+
+The sum of the logs, 400 × ln(0.1) ≈ **−921**, is perfectly easy to store.
+
+---
+
+## Softmax in two moves
+
+Back to the scores [2, 1, 0]. Softmax makes two moves:
+
+1. **Exponentiate** each score. Now everything is positive and the order is kept: e² ≈ 7.389, e¹ ≈ 2.718, e⁰ = 1.
+2. **Divide by the total** (11.107), so they add up to 1.
+
+Result: about **[0.665, 0.245, 0.090]**. Cat 67%, dog 24%, fox 9%.
+
+The CS231n course notes describe softmax exactly like that: it takes a vector of "arbitrary real-valued scores" and squashes it to values between zero and one that sum to one.
+
+🤔 Predict: what happens if you add 10 to every score, giving [12, 11, 10]?
+
+**Nothing.** e¹² = e¹⁰ × e², so every exponential gets multiplied by the same factor, e¹⁰, and it cancels when you divide by the total. The Deep Learning book notes that adding or subtracting a number from every input doesn't change softmax.
+
+<Deeper title="Go deeper: the formula">
+For a vector of scores $z$ with $n$ entries:
+
+$$
+\operatorname{softmax}(z)_i = \frac{e^{z_i}}{\sum_{j=1}^{n} e^{z_j}}
+$$
+
+Shifting every score by $c$:
+
+$$
+\begin{aligned}
+\frac{e^{z_i + c}}{\sum_j e^{z_j + c}}
+&= \frac{e^c \, e^{z_i}}{e^c \sum_j e^{z_j}} \\
+&= \operatorname{softmax}(z)_i
+\end{aligned}
+$$
+
+</Deeper>
+
+---
+
+## Gaps matter, not sizes
+
+Since adding a constant changes nothing, only the **gaps** between scores matter. But **stretching** the gaps does change things.
+
+Double the scores to [4, 2, 0] and softmax gives about **[0.867, 0.117, 0.016]**. The winner grabs much more of the probability.
+
+Push the gaps far enough and softmax becomes winner-take-all: the Deep Learning book notes that one output gets nearly 1 and the others nearly 0.
+
+That's where the name comes from. The book points out softmax is really a "softened" version of **arg max**, the function that just picks the winner and gives it 1 (and everything else 0). Arg max jumps abruptly when the winner changes; softmax changes smoothly, so it has derivatives everywhere. The authors suggest "softargmax" would perhaps be a better name, but the current one has stuck.
+
+Smoothness matters because learning follows derivatives. With a smooth softmax, a tiny change to a weight gives a tiny change in the probabilities, so the model can tell which way to nudge.
+
+---
+
+## When the numbers explode
+
+On paper, softmax is done. On a computer, there's a catch.
+
+e¹⁰⁰⁰ is far too large for a 64-bit number: it **overflows** to infinity, and infinity divided by infinity is not a number. The Deep Learning book describes both failures: very large scores overflow, and very negative scores underflow, so the total becomes 0 and the division is undefined.
+
+The fix uses the shift trick from two steps ago: **subtract the largest score** from every score first. Softmax doesn't change, but now the biggest exponent is e⁰ = 1.
+
+Scores [1000, 999] become [0, −1]: e⁰ = 1 and e⁻¹ ≈ 0.368, giving about **[0.731, 0.269]**. As the book points out, nothing can overflow, and the total is at least 1, so you never divide by zero.
+
+---
+
+## Log-softmax
+
+Models usually want the **log** of the probability, not the probability itself; the cross-entropy lesson shows why. The CS231n notes even describe the raw scores as "unnormalized log probabilities": softmax is what normalises them.
+
+But computing softmax first and taking the log afterwards can still fail. If a probability underflows to 0, its log is −∞. The Deep Learning book's advice: compute **log-softmax** as its own function, stabilised with the same subtract-the-max trick.
+
+<Deeper title="Go deeper: log-sum-exp">
+Taking the log of softmax gives
+
+$$
+\ln \operatorname{softmax}(z)_i = z_i - \ln \sum_j e^{z_j}
+$$
+
+The second term is called **log-sum-exp**. With $m = \max_j z_j$ it's computed safely as
+
+$$
+\ln \sum_j e^{z_j} = m + \ln \sum_j e^{z_j - m}
+$$
+
+The CS231n notes write the softmax classifier's loss in this form: $L_i = -f_{y_i} + \log\sum_j e^{f_j}$. The book adds that most people can rely on libraries that already provide stable versions.
+
+</Deeper>
+
+---
+
+## Softmax everywhere
+
+Once you know it, you'll spot softmax all over AI:
+
+- **Classifiers:** the Deep Learning book says softmax is most often used as the output of a classifier, giving a probability for each of n classes.
+- **Language models:** the Transformer paper uses a softmax to turn the model's final output into "predicted next-token probabilities".
+- **Attention:** in the Transformer paper, the dot-product scores between words go through a softmax "to obtain the weights" that decide how much each word listens to the others.
+
+Dividing every score by a number called the **temperature** before the softmax stretches or squeezes the gaps, which is how the distillation lesson softens a teacher's predictions.
+
+---
+
+## Common misconceptions
+
+- **"Softmax picks the highest score."** That's arg max. Softmax gives **every** option a share, more for higher scores.
+- **"Bigger scores always mean more confident."** Only the **gaps** matter: [12, 11, 10] gives exactly the same probabilities as [2, 1, 0].
+- **"Exponentials of negative numbers are negative."** eˣ is always positive; e⁻² is about 0.135.
+- **"Subtracting the max changes the answer."** It changes nothing mathematically; it only keeps the numbers in a range the computer can handle.
+- **"A softmax output of 0.9 means the model is right 90% of the time."** Softmax always produces numbers that look like probabilities; whether they match reality is a separate question (calibration).
+
+---
+
+## Quiz time 🧠
+
+Six questions. Some need a little arithmetic with e and ln.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- **Exponentials** grow in proportion to their size; **eˣ** is its own derivative, always positive and order-preserving.
+- **Logs** undo exponentials and turn **multiplying into adding**, which avoids **underflow**.
+- **Softmax** exponentiates scores and divides by the total, giving probabilities that sum to 1.
+- Only the **gaps** between scores matter; stretching them makes softmax sharper, towards winner-take-all.
+- **Subtract the max** before exponentiating, and compute **log-softmax** directly, to stay numerically safe.
+
+**Coming up:** the probability and Bayes lesson explains what those probabilities mean and how to update them with evidence.
+
+**Related:** the gradients lesson shows how derivatives guide learning; the distillation lesson uses softmax with a temperature.
+
+Hit **Finish** to collect your XP! 🏁
