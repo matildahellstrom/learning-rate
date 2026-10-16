@@ -21,7 +21,11 @@ export const en = {
   'map.minutes': '{minutes} min',
   'map.stars': '{stars} of 3 stars',
   'map.world': 'World {n}',
-  'map.startHere': 'Start',
+  'map.completed': 'Completed',
+  'map.cheerStreak': "You're on a {days}-day streak. Keep it going!",
+  'map.cheerXp': '{xp} XP earned so far. Nice work!',
+  'map.cheerNew': 'Ready for your first lesson?',
+  'map.seeProgress': 'See your progress',
 
   'lesson.close': 'Close lesson',
   'lesson.progress': 'Step {step} of {total}',

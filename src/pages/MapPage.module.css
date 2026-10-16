@@ -1,27 +1,45 @@
+/* ---------- Date header ---------- */
+
+.date {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.dateMain {
+  font-size: 1.2rem;
+  font-weight: var(--weight-display);
+}
+
+.weekday {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
 .title {
-  margin: var(--space-2) 0 var(--space-4);
+  margin: var(--space-4) 0;
   font-size: 1.75rem;
 }
 
-/* ---------- "Up next" hero card ---------- */
+/* ---------- The purple encouragement card ---------- */
 
-.upNext {
+.hero {
   position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-5);
-  border-radius: var(--radius-xl);
-  background-color: #6d28d9;
+  border-radius: var(--radius-l);
+  background-color: var(--hero);
   background-image: var(--hero-gradient);
-  color: #ffffff;
-  box-shadow:
-    0 7px 0 var(--hero-ledge),
-    var(--shadow-soft),
-    inset 0 3px 0 rgb(255 255 255 / 0.18);
+  color: var(--on-hero);
+  /* The flame peeks in from the edge. */
+  overflow: hidden;
 }
 
-.upNextText {
+.heroText {
   flex: 1;
   min-width: 0;
 }
@@ -29,62 +47,77 @@
 .mascot {
   order: 2;
   flex-shrink: 0;
-  width: 112px;
+  width: 120px;
   align-self: flex-end;
-  margin: 0 calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) 0;
+  margin: 0 calc(-1 * var(--space-3)) calc(-1 * var(--space-6)) 0;
 }
 
-.upNext :global(.btn) {
-  --ledge: var(--gold-ledge);
-  background-color: var(--gold-2);
-  background-image: linear-gradient(180deg, var(--gold), var(--gold-2));
-  color: var(--on-gold);
-  font-size: 1.15rem;
+.cheer {
+  margin: 0 0 var(--space-3);
+  font-size: 1.35rem;
+  font-weight: var(--weight-display);
+  line-height: 1.3;
+}
+
+/* Inverted button on the purple card: purple text on white, 7.3:1 (in both themes). */
+.hero :global(.btn) {
   min-width: 140px;
+  background: var(--on-hero);
+  color: var(--hero);
+}
+
+.hero :global(.btn):hover:not(:disabled) {
+  background: color-mix(in srgb, var(--on-hero) 88%, var(--hero));
 }
 
 /*
- * Over the violet-to-pink hero the standard blue focus ring almost vanishes (1.1-1.7:1).
- * Double ring instead: a white outline (4.6:1 or more against the gradient) with a dark inner
- * edge (12:1 against the gold button), visible whatever is behind it.
+ * Over the purple card the standard blue focus ring almost vanishes. Double ring instead:
+ * a white outline (≥ 4.9:1 against the card) with a dark inner edge against the button.
  */
-.upNext :focus-visible {
-  outline: 3px solid #ffffff;
+.hero :focus-visible {
+  outline: 3px solid var(--on-hero);
   outline-offset: 2px;
 }
 
-.upNext :global(.btn):focus-visible {
-  box-shadow:
-    0 5px 0 var(--ledge),
-    inset 0 3px 0 rgb(255 255 255 / 0.2),
-    0 0 0 2px #1c1530;
+.hero :global(.btn):focus-visible {
+  box-shadow: 0 0 0 2px var(--hero-ring);
 }
 
 .upNextLabel {
   display: inline-block;
   margin: 0;
-  padding: 2px var(--space-3);
+  padding: 1px var(--space-3);
   border-radius: 999px;
-  background: rgb(0 0 0 / 0.22);
+  background: rgb(0 0 0 / 0.2);
   font-size: 0.8rem;
   font-weight: var(--weight-display);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.04em;
 }
 
 .upNextTitle {
   margin: var(--space-2) 0 var(--space-1);
-  font-size: 1.65rem;
+  font-size: 1.4rem;
 }
 
 .upNextSummary {
   margin: 0 0 var(--space-4);
-  font-weight: 600;
+  font-size: 0.95rem;
 }
 
-/* Narrow phones: normal flow, Eta floats top-right and the text wraps around it. */
+.heroLinkWrap {
+  margin: var(--space-3) 0 0;
+}
+
+.heroLink {
+  border-radius: 4px;
+  color: var(--on-hero);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+/* Narrow phones: normal flow, the mascot floats top-right and the text wraps around it. */
 @media (max-width: 440px) {
-  .upNext {
+  .hero {
     display: flow-root;
     padding: var(--space-4);
   }
@@ -92,7 +125,7 @@
   .mascot {
     float: right;
     width: 84px;
-    margin: 0 calc(-1 * var(--space-1)) var(--space-1) var(--space-2);
+    margin: calc(-1 * var(--space-1)) calc(-1 * var(--space-2)) var(--space-1) var(--space-2);
   }
 }
 
@@ -102,44 +135,35 @@
   margin-top: var(--space-6);
 }
 
-/* Each world's banner uses its own gradient; white text passes AA on both stops. */
 .trackHeader {
   display: flex;
   gap: var(--space-3);
   align-items: flex-start;
-  padding: var(--space-4);
-  border-radius: var(--radius-l);
-  background-color: var(--track);
-  background-image: linear-gradient(135deg, var(--track), var(--track-2));
-  color: var(--on-track);
-  box-shadow:
-    0 6px 0 color-mix(in srgb, var(--track-2) 60%, #000),
-    inset 0 3px 0 rgb(255 255 255 / 0.18);
 }
 
+/* The track's emoji on a pastel tint of its colour. */
 .trackIcon {
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  width: 56px;
-  height: 56px;
-  border-radius: 18px;
-  background: rgb(255 255 255 / 0.92);
-  box-shadow: 0 4px 0 color-mix(in srgb, var(--track-2) 50%, #000);
-  font-size: 1.9rem;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-m);
+  background: color-mix(in srgb, var(--track) 25%, var(--surface));
+  font-size: 1.7rem;
   line-height: 1;
 }
 
 .trackText {
+  flex: 1;
   min-width: 0;
 }
 
 .world {
   margin: 0;
+  color: var(--text-muted);
   font-size: 0.8rem;
-  font-weight: var(--weight-display);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  font-weight: 700;
 }
 
 .trackTitle {
@@ -152,267 +176,162 @@
 
 .trackDescription {
   margin: var(--space-1) 0 0;
-  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 0.95rem;
 }
 
-.trackProgress {
+/* "2/5", like the progress counts next to a calendar legend. */
+.count {
+  flex-shrink: 0;
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: var(--space-2);
+  border-radius: 50%;
+  background: var(--track);
+}
+
+/* ---------- Lesson cards ---------- */
+
+.list {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Bright gradient cards with dark ink: ≥ 4.7:1 on every stop (see the --track-* tokens). */
+.card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 72px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-m);
+  background-color: var(--track);
+  background-image: linear-gradient(90deg, var(--track), var(--track-2));
+  color: var(--on-track);
+  text-decoration: none;
+  transition: transform var(--duration) var(--bounce);
+}
+
+.card:hover {
+  transform: translateY(-2px);
+}
+
+/* The next lesson gets a ring in its own colour, offset from the card. */
+.nextCard {
+  outline: 3px solid var(--track);
+  outline-offset: 3px;
+}
+
+.nextCard:focus-visible {
+  outline-color: var(--focus);
+}
+
+.cardText {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.cardTitle {
+  font-size: 1.1rem;
+  font-weight: var(--weight-display);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+/* Stars and minutes sit above the title visually; the title stays first for screen readers. */
+.cardMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-2);
+  order: -1;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+/* Stars in the card's ink: gold would vanish on the orange and amber cards. */
+.cardMeta [aria-hidden='true'] {
+  color: inherit;
+  text-shadow: none;
+  opacity: 1;
+}
+
+/* The round indicator on the right, like a habit's check button. */
+.check {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border: 2px solid var(--track-chip);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--track-chip) 35%, transparent);
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.checkDone,
+.checkNext {
+  background: var(--track-chip);
+  color: var(--on-track);
+}
+
+.checkNext {
+  font-size: 0.8rem;
+  padding-left: 2px;
+}
+
+/* ---------- Coming soon: grey filled rows ---------- */
+
+.soonRow {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1) var(--space-3);
-  margin-top: var(--space-2);
-}
-
-.trackProgress p {
-  margin: 0;
-  font-weight: var(--weight-display);
-}
-
-.trackBar {
-  display: block;
-  width: 96px;
-  height: 12px;
-  border-radius: 999px;
-  background: rgb(0 0 0 / 0.25);
-  overflow: hidden;
-}
-
-.trackBar span {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(180deg, var(--gold), var(--gold-2));
-}
-
-/* ---------- The path ---------- */
-
-.path {
-  /* How far nodes swing sideways: smaller on narrow phones so nothing overflows at 320px. */
-  --amp: clamp(0px, (100vw - 220px) / 2, 76px);
-  --coin: 76px;
-  --gap: 40px;
-  --bubble-room: 40px;
-  list-style: none;
-  margin: var(--space-5) 0 0;
-  padding: 0;
-  display: grid;
-  gap: var(--gap);
-}
-
-.stop {
-  --pad: 0px;
-  position: relative;
-  display: flex;
-  justify-content: center;
-  padding-top: var(--pad);
-}
-
-.hasBubble {
-  --pad: var(--bubble-room);
-}
-
-/* Shift the node, not the full-width row: moving the row would overflow the screen. */
-.stop > .node {
-  position: relative;
-  z-index: 1;
-  transform: translateX(calc(var(--a) * var(--amp)));
-}
-
-.connector {
-  position: absolute;
-  z-index: 0;
-  top: calc(var(--pad) + var(--coin) / 2);
-  left: calc(50% + var(--lo) * var(--amp) - 3px);
-  width: calc(var(--span) * var(--amp) + 6px);
-  height: calc(100% - var(--pad) + var(--gap) + var(--next-pad));
-  overflow: visible;
-  fill: none;
-  stroke-width: 9px;
-  stroke-linecap: round;
-  stroke-dasharray: 0.1 15;
-}
-
-.roadOpen {
-  stroke: color-mix(in srgb, var(--track) 70%, var(--bg));
-}
-
-.roadDone {
-  stroke: var(--gold-2);
-}
-
-.roadLocked {
-  stroke: var(--locked);
-}
-
-.node {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-2);
-  width: 168px;
-  color: var(--text);
-  text-decoration: none;
-  text-align: center;
-}
-
-.coinWrap {
-  position: relative;
-  display: grid;
-  place-items: center;
-}
-
-/*
- * 3D coins: a gradient face, a glossy highlight (inset shadow), and a solid "ledge"
- * (a box-shadow with no blur) that makes the coin look thick.
- */
-.coin {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: var(--coin);
-  height: var(--coin);
-  border-radius: 50%;
-  background-color: var(--track);
-  background-image:
-    radial-gradient(circle at 30% 22%, rgb(255 255 255 / 0.32), transparent 28%),
-    linear-gradient(160deg, var(--track), var(--track-2));
-  color: var(--on-track);
-  font-size: 1.85rem;
-  font-weight: var(--weight-display);
-  box-shadow:
-    0 7px 0 color-mix(in srgb, var(--track-2) 55%, #000),
-    inset 0 -5px 0 rgb(0 0 0 / 0.15),
-    inset 0 3px 0 rgb(255 255 255 / 0.3);
-  transition: transform var(--duration) var(--bounce);
-}
-
-a.node:hover .coin {
-  transform: translateY(-3px) scale(1.04);
-}
-
-a.node:active .coin {
-  transform: translateY(5px);
-  box-shadow:
-    0 2px 0 color-mix(in srgb, var(--track-2) 55%, #000),
-    inset 0 -5px 0 rgb(0 0 0 / 0.15);
-}
-
-.doneCoin {
-  background-color: var(--gold-2);
-  background-image:
-    radial-gradient(circle at 30% 22%, rgb(255 255 255 / 0.5), transparent 28%),
-    linear-gradient(160deg, var(--gold), var(--gold-2));
-  color: var(--on-gold);
-  font-size: 2.1rem;
-  box-shadow:
-    0 7px 0 var(--gold-ledge),
-    inset 0 -5px 0 rgb(0 0 0 / 0.1),
-    inset 0 3px 0 rgb(255 255 255 / 0.45);
-}
-
-/* The next lesson: a ring that keeps pulsing outwards (transform + opacity on a ring, no text). */
-.next::before,
-.next::after {
-  content: '';
-  position: absolute;
-  inset: -9px;
-  border: 4px solid var(--track);
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.next::after {
-  animation: ripple 1.8s ease-out infinite;
-}
-
-@keyframes ripple {
-  from {
-    transform: scale(1);
-    opacity: 0.8;
-  }
-  to {
-    transform: scale(1.35);
-    opacity: 0;
-  }
-}
-
-/* The floating "START" speech bubble above the next node. */
-.bubble {
-  position: absolute;
-  bottom: calc(100% + 14px);
-  left: 50%;
-  padding: 3px var(--space-3);
-  border-radius: 12px;
-  background: var(--track-2);
-  color: var(--on-track);
-  font-size: 0.95rem;
-  font-weight: var(--weight-display);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  box-shadow: 0 3px 0 color-mix(in srgb, var(--track-2) 55%, #000);
-  transform: translateX(-50%);
-  animation: float 1.6s ease-in-out infinite;
-}
-
-.bubble::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  border: 8px solid transparent;
-  border-top-color: var(--track-2);
-  transform: translateX(-50%);
-}
-
-@keyframes float {
-  50% {
-    transform: translateX(-50%) translateY(-5px);
-  }
-}
-
-/* Coming soon: flat grey coins, still readable (the number keeps ≥ 3:1). */
-.locked {
+  min-height: 52px;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-m);
   background: var(--surface-2);
   color: var(--text-muted);
-  border: 3px solid var(--border);
-  box-shadow: 0 6px 0 var(--border);
 }
 
-/* Labels sit on their own little card, so the road behind never crosses the text. */
-.label {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  max-width: 100%;
-  padding: var(--space-1) var(--space-3);
-  border: 2px solid var(--border);
-  border-radius: var(--radius-m);
+.soonNumber {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
   background: var(--surface);
-  box-shadow: 0 3px 0 var(--border);
-  font-weight: 800;
+  font-size: 0.85rem;
+  font-weight: var(--weight-display);
+}
+
+.soonTitle {
+  flex: 1;
+  min-width: 8rem;
+  color: var(--text);
+  font-weight: 600;
   overflow-wrap: anywhere;
   hyphens: auto;
-  line-height: 1.3;
-}
-
-a.node:hover .label {
-  border-color: var(--track);
 }
 
 .soon {
   font-size: 0.8rem;
   font-weight: 700;
-  color: var(--text-muted);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .next::after,
-  .bubble {
-    animation: none;
-  }
-
-  .next::after {
-    display: none;
-  }
 }

@@ -3,6 +3,9 @@ import { en, type MessageKey } from './en.ts'
 // One locale for now; a second one is another file with the same keys.
 const messages: Record<MessageKey, string> = en
 
+/** The UI language, for Intl formatters (dates, plurals). */
+export const locale = 'en'
+
 /** Look up a UI string and fill in {placeholders}: t('stats.level', { level: 3 }). */
 export function t(key: MessageKey, vars: Record<string, string | number> = {}): string {
   return messages[key].replace(/\{(\w+)\}/g, (match, name: string) =>
@@ -10,7 +13,7 @@ export function t(key: MessageKey, vars: Record<string, string | number> = {}): 
   )
 }
 
-const pluralRules = new Intl.PluralRules('en')
+const pluralRules = new Intl.PluralRules(locale)
 
 /** Keys that come in plural forms: 'profile.days' for 'profile.days.one' + 'profile.days.other'. */
 type PluralKey = {

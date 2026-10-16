@@ -47,7 +47,7 @@ test('a malformed saved date does not wipe progress', async ({ page }) => {
     )
   }, STORAGE_KEY)
   await page.reload()
-  await expect(page.getByText('150 XP')).toBeVisible()
+  await expect(page.getByText('150 XP', { exact: true })).toBeVisible()
 
   // Earn something, reload: still there, and nothing became NaN/null.
   await page.goto(`${LESSON}?step=10`)
