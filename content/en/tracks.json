@@ -15,11 +15,6 @@
     "colour": "violet",
     "upcoming": [
       {
-        "id": "backpropagation",
-        "title": "Backpropagation",
-        "order": 6
-      },
-      {
         "id": "overfitting",
         "title": "Overfitting & evaluation",
         "order": 7

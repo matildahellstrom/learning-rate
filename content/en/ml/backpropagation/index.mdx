@@ -1,0 +1,236 @@
+---
+id: backpropagation
+title: Backpropagation
+summary: How a network finds the slope for every one of its weights in a single backward sweep.
+track: ml
+order: 6
+prerequisites: [derivatives, gradients, neural-networks]
+minutes: 12
+xp: 100
+volatility: evergreen
+sources:
+  - title: 'Stanford CS231n: Backpropagation, Intuitions (course notes)'
+    url: https://cs231n.github.io/optimization-2/
+  - title: 'Olah (2015): Calculus on Computational Graphs, Backpropagation'
+    url: https://colah.github.io/posts/2015-08-Backprop/
+  - title: 'Goodfellow, Bengio & Courville: Deep Learning, ch. 6 Deep Feedforward Networks'
+    url: https://www.deeplearningbook.org/contents/mlp.html
+  - title: 'Rumelhart, Hinton & Williams (1986): Learning representations by back-propagating errors'
+    url: https://www.nature.com/articles/323533a0
+  - title: 'Stanford CS231n: Neural Networks Part 1, Setting up the Architecture (course notes)'
+    url: https://cs231n.github.io/neural-networks-1/
+  - title: 'Stanford CS231n: Neural Networks Part 3, Learning and Evaluation (course notes)'
+    url: https://cs231n.github.io/neural-networks-3/
+quiz:
+  - type: numeric
+    prompt: 'For f = (x + y) × z with x = 1, y = 2 and z = 3, what is the slope of f with respect to x?'
+    answer: 3
+    tolerance: 0
+    explanation: 'The multiply node sends z = 3 back to q = x + y. The add node passes it through unchanged, so ∂f/∂x = 3 × 1 = 3.'
+  - type: choice
+    prompt: 'Why is the gradient computed backwards from the loss, rather than forwards from each weight?'
+    options:
+      - Going backwards is more accurate
+      - Computers can only run graphs in reverse
+      - There is one loss but millions of weights, and one backward sweep gives the slope for all of them
+      - Going forwards is impossible for networks with ReLU
+    answer: 2
+    explanation: 'A forward sweep tracks how one input affects everything, so you would need one sweep per weight. A backward sweep tracks how everything affects one output, the loss, so a single sweep covers every weight.'
+  - type: numeric
+    prompt: 'A one-weight model predicts p = w × x. With x = 3, w = 2 and target 4, the loss is L = (p − 4)². What is ∂L/∂w?'
+    answer: 12
+    tolerance: 0
+    explanation: 'Forward: p = 6. Backward: ∂L/∂p = 2(p − 4) = 4, and ∂p/∂w = x = 3, so ∂L/∂w = 4 × 3 = 12. Positive means increasing w makes things worse, so gradient descent lowers w.'
+  - type: choice
+    prompt: 'A multiply node computes a × b and receives an upstream gradient of 5. What gradient does it send to a?'
+    options:
+      - '5'
+      - 5 × b
+      - 5 × a
+      - 5 ÷ b
+    answer: 1
+    explanation: 'The local slope of a × b with respect to a is b, so the chain rule gives 5 × b. CS231n describes this as the multiply gate swapping its inputs.'
+  - type: choice
+    prompt: 'The value x feeds into two different parts of a network. How do you combine the gradients flowing back to x?'
+    options:
+      - Add them
+      - Multiply them
+      - Keep only the larger one
+      - Average them
+    answer: 0
+    explanation: 'Each path is a separate way x affects the loss, and the total effect is the sum over paths. Multiplying happens along a single path, by the chain rule.'
+  - type: numeric
+    prompt: "A sigmoid's slope is at most 0.25. Ignoring the weights, what is the largest factor a gradient can keep after passing back through three sigmoid layers? (Give a decimal.)"
+    answer: 0.0156
+    tolerance: 0.0006
+    explanation: '0.25 × 0.25 × 0.25 = 0.015625: at least 64 times smaller, and usually far smaller when neurons saturate. This is the vanishing gradient problem, and one reason ReLU took over.'
+---
+
+# A million knobs 🎛️
+
+A network has a million weights. To learn, it needs to know, for **each** weight: if I nudge this a little, does the loss go up or down, and by how much?
+
+The obvious way is to nudge each weight in turn and rerun the network. That's a million runs for **one** step of gradient descent.
+
+There's a far better way. Chris Olah writes that **backpropagation** can make training with gradient descent "as much as ten million times faster" than a naive approach for modern networks: "the difference between a model taking a week to train and taking 200,000 years."
+
+This lesson covers how it works: the chain rule from the derivatives lesson, run backwards through the network.
+
+---
+
+## Draw the calculation
+
+Any calculation can be drawn as a **computational graph**: each operation is a node, and arrows carry values from one node to the next.
+
+The CS231n notes use a small example: f = (x + y) × z, with x = −2, y = 5 and z = −4.
+
+Give the middle value a name, q = x + y. Then the graph is:
+
+- An **add** node: q = x + y = **3**
+- A **multiply** node: f = q × z = 3 × (−4) = **−12**
+
+Computing values from the inputs to the output like this is the **forward pass**. A neural network's forward pass is the same idea, with many more nodes.
+
+---
+
+## Now walk it backwards
+
+The goal: how much does f change for a small nudge to each of x, y and z?
+
+Start at the end. Each node only needs its **local** slope, how its output responds to its own inputs:
+
+- The multiply node f = q × z: nudging z changes f by q per unit, so ∂f/∂z = q = **3**. Nudging q changes f by z, so ∂f/∂q = z = **−4**.
+
+🤔 Predict: q = x + y. What is ∂f/∂x?
+
+Use the chain rule: ∂f/∂x = ∂f/∂q × ∂q/∂x = −4 × 1 = **−4**. The same goes for y: **−4**.
+
+That's the **backward pass**: start at the output with a slope of 1, and at each node multiply the incoming slope by the local slope. The incoming slope is often called the **upstream gradient**.
+
+---
+
+## Three patterns to spot
+
+CS231n points out that the common nodes each behave in a simple way on the backward pass:
+
+- **Add** distributes: it passes the upstream gradient to every input unchanged. (Its local slopes are all 1.)
+- **Multiply** swaps: each input gets the upstream gradient times the **other** input. That's why z got q, and q got z.
+- **Max** routes: the whole gradient goes to whichever input was larger; the other gets 0.
+
+ReLU is max(0, z), so it's a router: where a neuron was **on**, the gradient flows through; where it was **off**, the gradient stops.
+
+<Deeper title="Go deeper: check it by nudging">
+Nudge x from $-2$ to $-1.999$. Then $q = 3.001$ and $f = 3.001 \times (-4) = -12.004$. The output fell by $0.004$ for a nudge of $0.001$: a slope of $-4$. ✓
+
+The CS231n notes recommend exactly this as a **gradient check** when writing backpropagation by hand, using the centred formula
+
+$$
+\frac{f(x + h) - f(x - h)}{2h}
+$$
+
+which is more accurate than nudging in one direction only.
+
+</Deeper>
+
+---
+
+## When paths split, add
+
+What if one value feeds into **two** places? Take f = x × y + x, with x = 3 and y = 2.
+
+🤔 Predict: what is ∂f/∂x?
+
+x affects f along two paths. Through the multiply, its slope is y = 2. Through the add, its slope is 1. The total is 2 + 1 = **3**.
+
+Check by nudging: at x = 3, f = 9; at x = 3.001, f = 6.002 + 3.001 = 9.003. A slope of 3. ✓
+
+The rule: **multiply along a path, add across paths.** Olah's essay explains that summing every path separately would explode in a big network, and that backpropagation avoids it by merging the paths at every node as it goes.
+
+---
+
+## Why backwards?
+
+You could also run the chain rule **forwards**: pick one input and push its slope through the graph to the output. Olah calls this **forward-mode** differentiation, and the backward version **reverse-mode**.
+
+He puts the difference neatly. Forward mode "tracks how one input affects every node". Reverse mode "tracks how every node affects one output". Both touch each connection in the graph just once.
+
+A network has **one** output we care about, the loss, and **millions** of inputs, the weights. Forward mode would need one sweep per weight; reverse mode gets every weight's slope in a **single** backward sweep. That's where the enormous speedup comes from.
+
+The Deep Learning book describes backpropagation as one approach to **automatic differentiation**, a special case of reverse-mode accumulation.
+
+---
+
+## A tiny network, end to end
+
+One neuron with no activation: prediction **p = w × x + b**, loss **L = (p − t)²**.
+
+Take x = 2, w = 1, b = 0 and target t = 5.
+
+**Forward:** p = 1 × 2 + 0 = 2, so L = (2 − 5)² = **9**.
+
+**Backward:**
+
+- ∂L/∂p = 2(p − t) = 2 × (−3) = **−6**
+- ∂L/∂w = ∂L/∂p × x = −6 × 2 = **−12**
+- ∂L/∂b = ∂L/∂p × 1 = **−6**
+
+Both slopes are negative: increasing w and b would lower the loss.
+
+**Step** (learning rate 0.01): w becomes 1 + 0.12 = 1.12 and b becomes 0 + 0.06 = 0.06. Now p = 2.30 and L = 7.29. Lower than 9: it learned. ✓
+
+A real network does exactly this, with matrices instead of single numbers, layer by layer from the loss back to the input.
+
+---
+
+## What can go wrong: vanishing gradients
+
+Each layer the gradient passes through multiplies it by that layer's local slopes. Long chains of small numbers get **very** small.
+
+The **sigmoid** activation squashes numbers into 0 to 1. Its slope is at most **0.25**, and almost **0** at either end, where it flattens out. CS231n's notes put it bluntly: sigmoids "saturate and kill gradients".
+
+🤔 Predict: even in the best case, how much of the gradient survives ten sigmoid layers?
+
+At most 0.25¹⁰, less than **one millionth**. The early layers barely learn. That's the **vanishing gradient** problem, and a big reason **ReLU** took over: its slope is exactly 1 wherever a neuron is on.
+
+ReLU has its own risk. CS231n warns that a neuron can end up **off** for every input, so no gradient ever reaches it again. With a learning rate set too high, they note, as much as 40% of a network can end up "dead" like this.
+
+---
+
+## Who invented it?
+
+Rumelhart, Hinton and Williams' 1986 Nature paper described "a new learning procedure, back-propagation", and showed that hidden units could learn useful features. It made the method famous.
+
+But the idea is older. The Deep Learning book traces efficient uses of the chain rule to control theory in the 1960s and Linnainmaa's work in 1976. Werbos proposed using it for neural networks in 1981, and it was then **independently rediscovered** by LeCun, by Parker and by Rumelhart and colleagues in the mid-1980s. Olah notes that it has been reinvented "at least dozens of times in different fields".
+
+---
+
+## Common misconceptions
+
+- **"Backpropagation is the learning algorithm."** It only computes the gradient. Gradient descent (or Adam) then uses it to update the weights.
+- **"It's an approximation."** It gives the exact slopes, just computed in a clever order. Nudging is the approximation.
+- **"The forward pass can be thrown away."** The backward pass needs the forward values, like q for the multiply node, so they're kept until the backward pass is done.
+- **"It was invented in 1986."** The 1986 paper made it famous, but the Deep Learning book traces the idea back to the 1960s and 1970s.
+
+---
+
+## Quiz time 🧠
+
+Six questions. For each one, think about which node passes what back.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- A calculation is a **computational graph**; the **forward pass** computes values, the **backward pass** computes slopes.
+- At each node, **upstream gradient × local slope**: add distributes, multiply swaps, max routes.
+- **Multiply along a path, add across paths.**
+- Going **backwards** from one loss gives every weight's slope in a single sweep: that's **reverse-mode** differentiation.
+- Long chains of small slopes cause **vanishing gradients**, one reason **ReLU** replaced the sigmoid.
+
+**Coming up:** the overfitting & evaluation lesson asks how to tell whether a trained network has really learned, or just memorised.
+
+**Related:** the derivatives lesson introduced the chain rule; the SGD, momentum & Adam lesson uses these gradients to take steps; the LoRA lesson fine-tunes huge models by backpropagating into a few small matrices.
+
+Hit **Finish** to collect your XP! 🏁
