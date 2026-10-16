@@ -179,3 +179,18 @@ You asked to be told when the first version was ready, so these phases were buil
 
 1. The grey filled fields are only 1.1:1 against white. Why does that matter for WCAG 1.4.11 (non-text contrast), and how does the underline on the numeric quiz input address it?
 2. Try the system font (`system-ui`) instead of Nunito in `--font`. Which feels closer to the inspiration, and what would you lose?
+
+## First three maths lessons (2026-10-16)
+
+**Built:** Lessons for Vectors & matrices, Dot product & cosine similarity, and Derivatives & the chain rule, written with the `write-lesson` skill: a claim sheet built from the primary sources first, then the text, then the checklist. Many published lessons already listed these three as prerequisites, so the maths track now opens with real lessons. Also a backlog entry for a dot-product widget.
+
+**Concepts:**
+
+- **Evergreen still needs sources.** Timeless maths doesn't go stale, but concrete numbers in it (the Transformer's 512-number vectors, GPT-3's 12,288) and attributions (King − Man + Woman ≈ Queen) are claims, and each one was checked against the paper's own text.
+- **Write for the lessons that depend on you.** Later lessons already said "as in the vectors and matrices lesson" and "the dot product lesson covers this", so these lessons had to introduce the exact ideas those sentences promise (matrices as grids, cosine similarity as a normalised dot product).
+- **Check the arithmetic by a second route.** Each chain-rule example is checked by nudging the input, which caught nothing here but would catch a slip in the rules.
+
+**Explore:**
+
+1. The dot product lesson divides by √d_k in a Deeper box. Simulate it: draw random vectors of size 4, 64 and 1024 and compare the spread of their dot products, with and without the scaling.
+2. Which quiz question in these lessons could a learner answer without understanding the idea? How would you rewrite it?

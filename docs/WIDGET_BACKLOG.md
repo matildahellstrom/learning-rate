@@ -160,6 +160,31 @@ to show Goodhart's law.
 4. After `updateScores`, the chosen score rose by exactly as much as the rejected one fell, and
    other scores are unchanged.
 
+## maths/dot-product: drag-the-arrows similarity explorer
+
+**Idea:** two draggable arrows on a 2-D grid. Live readouts show each arrow's length, the angle
+between them, the dot product and the cosine similarity. A "double arrow A" button shows the dot
+product doubling while the cosine similarity stays put; snapping to a right angle shows both
+reaching 0.
+
+**Pure functions:**
+
+- `dot(a: number[], b: number[]): number`: `Σ a_i b_i`; throws if the lengths differ.
+- `norm(a: number[]): number`: `√(Σ a_i²)`.
+- `cosineSimilarity(a: number[], b: number[]): number`: `dot(a, b) / (norm(a) · norm(b))`;
+  returns `NaN` if either vector is all zeros.
+- `angleDegrees(a: number[], b: number[]): number`: `acos` of the cosine similarity, clamped to
+  [−1, 1] first so rounding can't produce `NaN`.
+
+**Acceptance tests:**
+
+1. `dot([2, 1], [3, 4])` is 10 and `dot([1, 0], [0, 1])` is 0.
+2. `norm([3, 4])` is 5.
+3. `cosineSimilarity([3, 4], [4, 3])` is 0.96, and `cosineSimilarity([3, 4], [6, 8])` is 1.
+4. Scaling either vector by any positive number leaves `cosineSimilarity` unchanged (random
+   inputs, within 1e-12); scaling by −1 flips its sign.
+5. `angleDegrees([1, 0], [0, 1])` is 90 and `angleDegrees([1, 1], [2, 2])` is 0 (not `NaN`).
+
 ## ml/regression: drag-the-line fitter
 
 **Idea:** a scatter plot of the café data (temperature against iced coffees sold) with a line the
