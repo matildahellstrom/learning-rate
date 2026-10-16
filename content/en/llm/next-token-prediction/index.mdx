@@ -1,0 +1,223 @@
+---
+id: next-token-prediction
+title: Next-token prediction
+summary: The one simple game every chatbot is trained to play, and why playing it well teaches so much.
+track: llm
+order: 1
+prerequisites: [softmax, cross-entropy]
+minutes: 11
+xp: 100
+volatility: evergreen
+sources:
+  - title: 'Jurafsky & Martin (2026 draft): Speech and Language Processing, chapter 3, N-gram Language Models'
+    url: https://web.stanford.edu/~jurafsky/slp3/3.pdf
+  - title: 'Bengio, Ducharme, Vincent & Jauvin (2003): A Neural Probabilistic Language Model'
+    url: https://www.jmlr.org/papers/v3/bengio03a.html
+  - title: 'Radford et al. (2019): Language Models are Unsupervised Multitask Learners (GPT-2)'
+    url: https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf
+  - title: 'Brown et al. (2020): Language Models are Few-Shot Learners (GPT-3)'
+    url: https://arxiv.org/abs/2005.14165
+quiz:
+  - type: numeric
+    prompt: 'In a small corpus, the word "the" appears 200 times, and 50 of those times the next word is "cat". What bigram probability P(cat | the) does counting give?'
+    answer: 0.25
+    tolerance: 0.001
+    explanation: 'Count the pair and divide by the count of the first word: 50 / 200 = 0.25. Of all the times "the" appeared, a quarter were followed by "cat".'
+  - type: numeric
+    prompt: 'During training, the model gave the correct next token a probability of 0.25. What is the cross-entropy loss for that position, using the natural log? (Two decimal places.)'
+    answer: 1.39
+    tolerance: 0.01
+    explanation: 'The loss is −ln(0.25) ≈ 1.386. Had the model given it 0.5 the loss would be about 0.69; at 1.0 it would be 0. More probability on the right token means a smaller loss.'
+  - type: choice
+    prompt: 'A model writes a 20-token reply, one token at a time. How many next-token predictions does it make?'
+    options:
+      - One, for the whole reply at once
+      - 20, one per token, each fed back in as input for the next
+      - One per word in its vocabulary
+      - 400, because each token is compared with every other
+    answer: 1
+    explanation: 'Generation is a loop: predict a distribution, pick a token, append it, predict again. A 20-token reply takes 20 rounds of the loop.'
+  - type: choice
+    prompt: 'Where do the "right answers" come from when a language model is pre-trained?'
+    options:
+      - People label each sentence by hand
+      - A second model grades every prediction
+      - A list of correct facts written by the developers
+      - The text itself, since the actual next token is sitting right there
+    answer: 3
+    explanation: "Every position in a text is a free practice question: hide what comes next and ask the model to predict it. That's why pre-training can use so much text without anyone labelling it."
+  - type: choice
+    prompt: "Why could Bengio and colleagues' neural model handle sentences that never appeared in its training text better than a counting (n-gram) model?"
+    options:
+      - It learned a list of numbers for each word, so similar words could share what was learned about them
+      - It memorised more sentences
+      - It used longer word counts
+      - It looked words up in a dictionary
+    answer: 0
+    explanation: 'A counting model knows nothing about a word pair it has never seen. With learned word representations, a new sentence made of words similar to familiar ones still gets a sensible probability.'
+  - type: choice
+    prompt: 'You paste three examples of a new format into a chat with a base model, and it continues in that format. What happened to its weights?'
+    options:
+      - They were updated by your examples
+      - They were reset to their starting values
+      - Nothing; the examples only changed the input it was predicting from
+      - The model retrained itself overnight
+    answer: 2
+    explanation: 'This is in-context learning. In the GPT-3 paper the model was applied "without any gradient updates or fine-tuning"; the examples sit in the context and shape the next-token predictions.'
+---
+
+# Guess the next word 🔮
+
+Your phone does this every day. Type _"See you"_ and it suggests _"soon"_, _"tomorrow"_ or _"later"_.
+
+Now finish this one in your head: _"Once upon a ..."_
+
+You almost certainly thought _"time"_. You didn't look it up; you've seen that phrase so often that the next word feels obvious.
+
+That guessing game, **predict what comes next**, is the whole job a large language model is trained to do. This lesson covers how the guesses are made, how a model writes whole answers with them, how it learns, and why such a simple game teaches so much.
+
+---
+
+## A probability for every option
+
+A language model doesn't give one guess. It gives a **probability to every possible next piece of text** in its vocabulary.
+
+These pieces are called **tokens**. For now, think of a token as a word or part of a word (the tokenisation lesson covers exactly how text is chopped up).
+
+For _"The capital of France is"_, a good model might give:
+
+- **Paris**: 0.92
+- **a**: 0.03
+- **located**: 0.02
+- …and a tiny sliver to each of the thousands of other tokens.
+
+Inside, the model first produces a raw score for every token. **Softmax** then turns those scores into probabilities that are all positive and add up to 1 (the softmax lesson covers how).
+
+---
+
+## Writing = predicting in a loop
+
+A whole answer comes from repeating one step:
+
+1. Predict probabilities for the next token.
+2. Pick one.
+3. Stick it on the end of the text, and go back to step 1 with the longer text.
+
+🤔 Predict: how does the model know when to stop?
+
+It is trained with a special **end token** that marks where a text finishes. When that token is picked, the loop stops, just like the sentence-final symbol in classic counting models.
+
+This one-token-at-a-time style is called **autoregressive**: each output becomes part of the next input. Step 2 can simply take the most likely token, or it can draw one at random by its probability, which is why the same question can get different answers. (The sampling and temperature lesson covers those choices.)
+
+---
+
+## The old way: counting
+
+Long before neural networks, people built language models by **counting**.
+
+Asking "what follows this exact sentence?" doesn't work: most long sentences have never been written before. So a classic **n-gram** model only looks at the last word or two. A **bigram** model looks at just one:
+
+**P(next | previous) = count(previous next) ÷ count(previous)**
+
+If _"once upon"_ appears 40 times in your text and _"once"_ appears 80 times, then P(upon | once) = 40 ÷ 80 = **0.5**.
+
+Treating only the last few words as relevant is called the **Markov assumption**. It makes counting possible, but it's also short-sighted: the model forgets anything further back.
+
+<Deeper title="Go deeper: the chain rule">
+The probability of a whole sentence splits into one next-token prediction per word, exactly (the **chain rule of probability**):
+
+$$
+\begin{aligned}
+P(w_1, \dots, w_n) &= P(w_1)\, P(w_2 \mid w_1) \\
+&\quad \times P(w_3 \mid w_1, w_2) \cdots
+\end{aligned}
+$$
+
+A bigram model approximates each factor $P(w_k \mid w_1, \dots, w_{k-1})$ with $P(w_k \mid w_{k-1})$. Modern models keep the exact chain rule and condition on the whole context they can see; they just compute each factor with a neural network instead of a count.
+
+</Deeper>
+
+---
+
+## Never seen it? No problem
+
+Counting has a deeper flaw. If _"the cat ate"_ is in your text but _"the dog ate"_ never is, a counting model has no idea the second is just as sensible.
+
+In 2003, Yoshua Bengio, Réjean Ducharme, Pascal Vincent and Christian Jauvin pointed to the **curse of dimensionality**: a sentence the model is tested on is likely to differ from every sentence it saw in training.
+
+Their fix was a **neural language model**. It learns, at the same time:
+
+1. a list of numbers for every word, so similar words (cat, dog) end up with similar lists, and
+2. a network that predicts the next word from those lists.
+
+Now a new sentence made of words _similar_ to familiar ones still gets a sensible probability. Those word lists are **embeddings**, and they get their own lesson. Today's large models use the same recipe, scaled up, with a transformer as the network (the attention lesson covers it).
+
+---
+
+## Free practice questions
+
+How does a model learn to predict well? Here's the trick that makes it all possible: **the text grades itself**.
+
+Take any sentence. Hide each next token in turn and ask the model to predict it. The real token is the right answer. Nobody has to label anything, so every page of text becomes thousands of practice questions.
+
+The score for each question is the **cross-entropy loss**: minus the log of the probability the model gave the correct token (the cross-entropy lesson explains why).
+
+🤔 Predict: which is punished more, giving the right token 0.5 or giving it 0.01?
+
+- 0.5 → loss −ln 0.5 ≈ **0.69**
+- 0.01 → loss −ln 0.01 ≈ **4.6**
+
+Confidently wrong hurts most. Training nudges the weights to shrink the average loss over enormous amounts of text: the GPT-3 models were each trained on **300 billion tokens**.
+
+---
+
+## Why one game teaches so much
+
+To predict the next token really well, a model has to pick up a lot along the way: grammar, facts (_"The capital of France is"_), styles, and the patterns in step-by-step reasoning.
+
+Researchers noticed tasks appearing that nobody trained for directly. OpenAI's GPT-2 paper (2019) added the text **TL;DR:** (internet shorthand for "too long; didn't read", usually followed by a short summary) after news articles, and the model started writing summaries. They were weak, the authors noted, only just beating three random sentences from the article. But no one had taught it to summarise.
+
+The GPT-3 paper (2020) went further. Put a few examples of a task in the prompt, and the model continues the pattern. The authors called this **in-context learning**: GPT-3 was applied "without any gradient updates or fine-tuning", so the examples only change what the model is predicting from, not the model itself.
+
+---
+
+## Autocomplete isn't an assistant (yet)
+
+A model trained only on next-token prediction is called a **base model**. It's brilliant at continuing text, but it isn't trying to help you.
+
+Ask it a question and it may continue with more questions, because plenty of web pages are lists of questions. To a base model, your message is just the start of a document.
+
+Turning it into a helpful assistant takes extra training, called **post-training**, on examples of good answers and on human preferences. It's still next-token prediction under the hood; it just learns to predict what a helpful assistant would say. The fine-tuning and RLHF lesson covers how.
+
+---
+
+## Common misconceptions
+
+- **"It looks answers up in a database."** It predicts tokens from patterns stored in its weights. That's why it can write sentences nobody has written before, and also why it can be fluently wrong.
+- **"It always picks the single most likely word."** It can, but chat models usually sample, which is why answers vary.
+- **"Next-token prediction is trivial, so the model must be too."** The game is simple to state, but playing it well on huge amounts of text forces the model to learn a great deal.
+- **"A base model is the same as a chatbot."** A base model just continues text; post-training is what turns it into an assistant.
+
+---
+
+## Quiz time 🧠
+
+Six questions. Keep the natural log handy for one of them.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- A language model gives a **probability to every possible next token**, using **softmax**.
+- It writes by **predicting in a loop**: pick a token, append it, predict again (**autoregressive**).
+- **N-gram** models count; **neural** models learn word representations and generalise to new sentences.
+- Training is free practice: every next token is a label, scored with **cross-entropy**.
+- Playing this game well brings surprising skills, such as **in-context learning**, but a **base model** still needs post-training to become an assistant.
+
+**Coming up:** the tokenisation lesson shows how text is chopped into tokens in the first place.
+
+**Related:** the cross-entropy lesson explains the loss in depth.
+
+Hit **Finish** to collect your XP! 🏁

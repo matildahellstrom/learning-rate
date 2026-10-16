@@ -29,11 +29,6 @@
     "colour": "pink",
     "upcoming": [
       {
-        "id": "next-token-prediction",
-        "title": "Next-token prediction",
-        "order": 1
-      },
-      {
         "id": "tokenisation",
         "title": "Tokenisation",
         "order": 2
