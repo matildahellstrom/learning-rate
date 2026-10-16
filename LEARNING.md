@@ -194,3 +194,18 @@ You asked to be told when the first version was ready, so these phases were buil
 
 1. The dot product lesson divides by √d_k in a Deeper box. Simulate it: draw random vectors of size 4, 64 and 1024 and compare the spread of their dot products, with and without the scaling.
 2. Which quiz question in these lessons could a learner answer without understanding the idea? How would you rewrite it?
+
+## Maths lessons 4–6 (2026-10-16)
+
+**Built:** Lessons for Gradients, Exponentials, logs & softmax, and Probability & Bayes, written with the `write-lesson` skill. The gradients lesson reuses the ravine widget with `kappa={1}` (a round bowl) to show the path heading straight for the bottom, as a contrast to the stretched valley in the gradient descent lesson.
+
+**Concepts:**
+
+- **Sources you can't read don't get cited.** Gigerenzer & Hoffrage's natural-frequency paper and Bayes' 1763 essay both block automated fetching, and the Khan Academy and PyTorch pages render with JavaScript, so none of them could be checked. The lessons use made-up numbers (labelled as such) for the medical-test example instead.
+- **Illustrative numbers stay illustrative.** 3Blue1Brown's 40% and 10% in the Steve example are gut guesses, not data, and the lesson says so; only the 20-to-1 ratio comes from Kahneman and Tversky.
+- **Run the arithmetic, don't trust it.** The softmax values, the 10⁻⁴⁰⁰ underflow and the e¹⁰⁰⁰ overflow were all checked in Python before going into the text.
+
+**Explore:**
+
+1. The softmax lesson says only the gaps between scores matter. Prove it for two scores: show that softmax([a, b]) depends only on a − b. Which familiar S-shaped function do you get?
+2. In the odds form of Bayes, two positive tests multiply the odds by 9 twice. Why would that overstate the evidence if both tests tended to fail on the same people?
