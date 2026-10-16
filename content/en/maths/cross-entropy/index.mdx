@@ -1,0 +1,315 @@
+---
+id: cross-entropy
+title: Entropy & cross-entropy
+summary: How to measure surprise in bits, and why "how surprised was the model by the right answer?" is the loss almost every classifier and language model trains on.
+track: maths
+order: 7
+prerequisites: [probability-bayes, softmax]
+minutes: 12
+xp: 100
+volatility: evergreen
+sources:
+  - title: 'Shannon (1948): A Mathematical Theory of Communication'
+    url: https://people.math.harvard.edu/~ctm/home/text/others/shannon/entropy/entropy.pdf
+  - title: 'Goodfellow, Bengio & Courville: Deep Learning, ch. 3 Probability and Information Theory'
+    url: https://www.deeplearningbook.org/contents/prob.html
+  - title: 'Goodfellow, Bengio & Courville: Deep Learning, ch. 5 Machine Learning Basics'
+    url: https://www.deeplearningbook.org/contents/ml.html
+  - title: 'Goodfellow, Bengio & Courville: Deep Learning, ch. 6 Deep Feedforward Networks'
+    url: https://www.deeplearningbook.org/contents/mlp.html
+  - title: 'Olah (2015): Visual Information Theory'
+    url: https://colah.github.io/posts/2015-09-Visual-Information/
+  - title: 'Hugging Face Transformers docs: Perplexity of fixed-length models'
+    url: https://huggingface.co/docs/transformers/perplexity
+  - title: 'Jurafsky & Martin: Speech and Language Processing, ch. 3 N-gram Language Models (draft)'
+    url: https://web.stanford.edu/~jurafsky/slp3/3.pdf
+quiz:
+  - type: numeric
+    prompt: 'An event has probability 1/8. How surprising is it, in bits?'
+    answer: 3
+    tolerance: 0.01
+    explanation: 'Surprise is −log₂(1/8) = log₂ 8 = 3 bits. Each halving of the probability adds one bit: 1/2 is 1 bit, 1/4 is 2 bits, 1/8 is 3 bits.'
+  - type: choice
+    prompt: 'Which of these has the highest entropy?'
+    options:
+      - A fair coin
+      - A coin that lands heads 90% of the time
+      - A fair four-sided die
+      - A coin with heads on both sides
+    answer: 2
+    explanation: 'Entropy is highest when there are many equally likely outcomes. The fair four-sided die has 2 bits (four outcomes at 1/4 each), the fair coin 1 bit, the 90/10 coin about 0.47 bits, and the two-headed coin 0 bits, because nothing about it is uncertain.'
+  - type: numeric
+    prompt: 'A classifier puts probability 0.25 on the correct label. What is its cross-entropy loss on this example, in nats (natural log)?'
+    answer: 1.386
+    tolerance: 0.01
+    explanation: 'With a one-hot label, the loss is just −ln(probability of the right answer) = −ln 0.25 = ln 4 ≈ 1.386 nats. That is twice the loss of putting 0.5 on it (ln 2 ≈ 0.693).'
+  - type: choice
+    prompt: 'A photo shows a cat. Model A says cat 0.4, dog 0.6. Model B says cat 0.05, dog 0.95. How do their cross-entropy losses compare?'
+    options:
+      - They are equal, because both picked dog
+      - A is penalised more, because it is less sure of its answer
+      - Neither is penalised, because the loss only looks at the top answer
+      - B is penalised much more, because it was confidently wrong
+    answer: 3
+    explanation: 'The loss only looks at the probability on the right answer. A gets −ln 0.4 ≈ 0.92; B gets −ln 0.05 ≈ 3.0, more than three times as much. Cross-entropy is gentle on hesitant mistakes and harsh on confident ones.'
+  - type: choice
+    prompt: 'Is the KL divergence from P to Q always the same as from Q to P?'
+    options:
+      - No; swapping the two distributions can give a different number
+      - Yes; it is a distance, like the length of a road
+      - Yes, but only when both distributions have the same number of outcomes
+      - No; one of the two directions is always zero
+    answer: 0
+    explanation: "KL divergence isn't symmetric. In the Bob and Alice example, Alice using Bob's code wastes 0.5 bits per word, but Bob using Alice's code wastes 0.625. It is zero in both directions only when the two distributions are the same."
+  - type: choice
+    prompt: 'Model X scores a perplexity of 20 on a test set. Model Y, which uses a different tokeniser with a different vocabulary, scores 15 on the same text. What can you conclude?'
+    options:
+      - Y is definitely the better model
+      - The two numbers can't be compared directly, because the vocabularies differ
+      - X is better, because higher perplexity means more knowledge
+      - Y is exactly 25% better than X
+    answer: 1
+    explanation: 'Perplexity is an average per token, and a different vocabulary splits the same text into different tokens with different numbers of choices. Jurafsky and Martin note that perplexities are only comparable for models with identical vocabularies. Lower is better, so "higher means more knowledge" is backwards.'
+---
+
+# How surprised are you? 😲
+
+Two messages arrive.
+
+- _"The sun rose this morning."_
+- _"There was a solar eclipse this morning."_
+
+The first tells you almost nothing: you were sure of it already. The second is news. The _Deep Learning_ book by Goodfellow, Bengio and Courville uses exactly this pair to make the point: learning that an **unlikely** event happened is more informative than learning that a likely one did.
+
+That idea, made precise, gives a number for **surprise**. Average the surprise and you get **entropy**. Measure surprise using the wrong beliefs and you get **cross-entropy**, the loss that trains almost every classifier and language model.
+
+This lesson covers all three, plus the KL divergence and perplexity.
+
+---
+
+## Surprise has a formula
+
+The Deep Learning book lists three things a measure of surprise should do:
+
+- An event that is **certain** should carry **no** information.
+- **Less likely** events should carry **more**.
+- **Independent** events should **add up**: two heads in a row should be twice as informative as one.
+
+"Add up" when probabilities multiply is the job logs were made for (the softmax lesson's undo button). So the surprise of an event with probability p is
+
+**surprise = −log p**
+
+With base-2 logs the unit is the **bit**. Claude Shannon's 1948 paper, which founded information theory, credits the word to J. W. Tukey.
+
+- p = 1/2 (a coin landing heads): **1 bit**.
+- p = 1/4: **2 bits**. Halve the probability, add a bit.
+
+🤔 Predict: how many bits is "a fair coin came up heads twice"?
+
+**2 bits.** The probability is 1/4, and −log₂(1/4) = 2. It's 1 bit plus 1 bit, just as the third rule wanted.
+
+Machine learning usually uses natural logs instead, giving a unit called the **nat**. The Deep Learning book notes that bits and nats are just a rescaling of each other: 1 nat ≈ 1.44 bits.
+
+---
+
+## Entropy: the average surprise
+
+A single event has a surprise. A whole probability distribution has an **average** surprise: weight each outcome's surprise by how often it happens. That average is the **entropy**, written H.
+
+- A **fair coin**: half the time 1 bit, half the time 1 bit. H = **1 bit**.
+- A **fair six-sided die**: every face has surprise log₂ 6, so H ≈ **2.58 bits**.
+
+🤔 Predict: a bent coin lands heads 90% of the time. More or less than 1 bit?
+
+**Less**: about **0.47 bits**. Heads is barely surprising (0.15 bits) and happens nearly every time. Tails is very surprising (3.3 bits) but rare. On average you learn little from each flip, because you could mostly have guessed.
+
+The Deep Learning book puts the pattern simply: distributions that are nearly certain have **low** entropy, and distributions closer to **uniform** (all outcomes equally likely) have **high** entropy. A two-headed coin has entropy 0.
+
+<Deeper title="Go deeper: Shannon's H">
+For outcomes with probabilities $p_1, \dots, p_n$:
+
+$$
+H = -\sum_{i=1}^{n} p_i \log p_i
+$$
+
+Shannon wrote down three requirements for a measure of uncertainty (continuous in the $p_i$; growing with $n$ when all outcomes are equally likely; consistent when a choice is split into two steps) and proved, as his Theorem 2, that this form is the only one that satisfies them, up to a constant that sets the unit. He also noted that it has the same form as entropy in statistical mechanics.
+
+Outcomes with $p_i = 0$ are skipped: by convention $0 \log 0 = 0$.
+
+</Deeper>
+
+---
+
+## Entropy is the shortest code
+
+There's a second way to read entropy: the shortest possible message.
+
+Chris Olah's essay _Visual Information Theory_ imagines Bob, who only ever says four words and sends them as binary codes. Say he uses them this often, with these codes:
+
+- **dog**, half the time: code `0`
+- **cat**, a quarter of the time: code `10`
+- **fish**, an eighth: code `110`
+- **bird**, an eighth: code `111`
+
+Common words get **short** codes, rare words long ones. The average length is ½×1 + ¼×2 + ⅛×3 + ⅛×3 = **1.75 bits**, exactly the entropy of Bob's frequencies.
+
+Olah's point is that no code can do better: 1.75 bits is a fundamental limit for this distribution. The Deep Learning book says the same in general: entropy is a **lower bound** on the average number of bits needed to encode symbols from a distribution.
+
+So entropy measures how much is **really** unknown. Each word's ideal code length is its surprise, −log₂ p.
+
+---
+
+## Cross-entropy: using the wrong code
+
+In Olah's story, Bob marries Alice, who uses the **same four words** at different frequencies: she talks about cats all the time.
+
+- **cat**, half the time: 2 bits in Bob's code
+- **fish**, a quarter of the time: 3 bits
+- **dog**, an eighth: 1 bit
+- **bird**, an eighth: 3 bits
+
+Her own best code would also average 1.75 bits. But if she borrows **Bob's** code, her favourite word costs 2 bits instead of 1. Her average becomes ½×2 + ¼×3 + ⅛×1 + ⅛×3 = **2.25 bits**.
+
+That number is the **cross-entropy**: the average surprise when events come from one distribution (what really happens, here Alice's words) but are scored using the probabilities of **another** (what you believed, here Bob's).
+
+🤔 Predict: could some clever choice of beliefs ever make the cross-entropy **lower** than the true entropy?
+
+**No.** Cross-entropy is always at least the entropy, and equal only when your beliefs match reality. Any mismatch costs extra bits.
+
+---
+
+## KL divergence: the price of being wrong
+
+The **extra** cost has its own name: the **Kullback–Leibler (KL) divergence**.
+
+**cross-entropy = entropy + KL divergence**
+
+For Alice: 2.25 = 1.75 + **0.5 bits** wasted per word. The Deep Learning book describes KL as exactly this: the extra information needed when you use a code designed for one distribution to send messages from another. It is **never negative**, and **zero** only when the two distributions are the same.
+
+That makes it sound like a distance between distributions, but it's not a true one, because it **isn't symmetric**. Flip the story: if Bob borrows Alice's code, "dog" (half his words) costs 3 bits, and his average is **2.375 bits**, wasting 0.625. Olah's essay makes the same point: cross-entropy isn't symmetric.
+
+<Deeper title="Go deeper: the formulas">
+For a true distribution $P$ and a model $Q$ over the same outcomes:
+
+$$
+\begin{gathered}
+H(P, Q) = -\sum_x P(x) \log Q(x) \\[4pt]
+D_{\mathrm{KL}}(P \,\|\, Q) = \sum_x P(x) \log \frac{P(x)}{Q(x)} \\[4pt]
+H(P, Q) = H(P) + D_{\mathrm{KL}}(P \,\|\, Q)
+\end{gathered}
+$$
+
+$H(P)$ doesn't depend on $Q$ at all. So, as the Deep Learning book points out, minimising cross-entropy with respect to $Q$ is the same as minimising the KL divergence.
+
+</Deeper>
+
+---
+
+## Cross-entropy as a loss
+
+Now the payoff. A classifier sees a photo of a cat and outputs probabilities, say cat 0.7, dog 0.2, fox 0.1. The "true distribution" is the label: cat 1, everything else 0.
+
+Plug that into cross-entropy. Every term with a true probability of 0 vanishes, leaving one:
+
+**loss = −ln (probability the model gave the right answer)**
+
+- 0.99 on "cat": loss **0.01** nats
+- 0.7: loss **0.36**
+- 0.5: loss **0.69**
+- 0.01: loss **4.61**
+
+🤔 Predict: going from 0.5 to 0.25 on the right answer, how much does the loss go up?
+
+By **ln 2 ≈ 0.69 nats** (one bit), to 1.39. Every halving adds the same amount, so a **confident mistake** costs far more than a hesitant one.
+
+The Deep Learning book says most modern neural networks are trained this way: the cost function is the negative log-likelihood, equivalently the cross-entropy between the training data and the model. The loss functions lesson calls it **log loss**.
+
+<Deeper title="Go deeper: maximum likelihood is cross-entropy">
+Averaged over a training set, minimising $-\log p_{\text{model}}$ is the same as minimising the KL divergence from the data's distribution to the model's: the book's chapter 5 shows that the data's own entropy drops out, as above.
+
+The book adds that calling only the softmax version "cross-entropy" is a misnomer: **any** negative log-likelihood loss is a cross-entropy between the training data and the model. Mean squared error, for example, is the cross-entropy with a Gaussian model.
+
+</Deeper>
+
+---
+
+## Why it pairs so well with softmax
+
+A classifier's probabilities usually come out of a **softmax** (the softmax lesson covers it). The loss then takes a log of that softmax, and the log **undoes** the exponential:
+
+**−ln softmax(z)ᵢ = −zᵢ + ln Σⱼ e^(zⱼ)**
+
+The Deep Learning book explains why this matters. The first term, the right answer's raw score, always contributes to the loss directly. It can't **saturate** (flatten out the way softmax does when scores get extreme), so learning can proceed. Other losses, such as squared error on the softmax outputs, can fail to train the model to change its output, even when it makes highly confident wrong predictions.
+
+There's a bonus: the gradient comes out beautifully simple. For each class it is
+
+**(predicted probability) − (true probability)**
+
+With scores [2, 1, 0] and "cat" correct, softmax gives about [0.67, 0.24, 0.09], so the gradient is about [−0.33, 0.24, 0.09]: push the cat score **up**, the others **down**, each in proportion to how wrong it is.
+
+<Deeper title="Go deeper: deriving the gradient">
+With $L = -z_y + \ln \sum_j e^{z_j}$ and correct class $y$:
+
+$$
+\begin{aligned}
+\frac{\partial L}{\partial z_i}
+&= -[i = y] + \frac{e^{z_i}}{\sum_j e^{z_j}} \\
+&= \operatorname{softmax}(z)_i - [i = y]
+\end{aligned}
+$$
+
+Here $[i = y]$ is 1 for the correct class and 0 otherwise. The gradient is bounded between −1 and 1, so it never explodes, and it only vanishes when the prediction is right.
+
+</Deeper>
+
+---
+
+## Perplexity: how many choices?
+
+Language models are trained on the same loss, one token at a time: how surprised was the model by the **actual** next token?
+
+The average loss per token is hard to picture, so people often report **perplexity** instead. The Hugging Face docs call it one of the most common metrics for evaluating language models and define it as the exponentiated average negative log-likelihood of a sequence:
+
+**perplexity = e^(average loss per token)**
+
+Jurafsky and Martin's textbook offers an intuition: perplexity is a **weighted average branching factor**, roughly how many next tokens the model is torn between. A model that picks uniformly among three colour words has perplexity 3.
+
+🤔 Predict: a model's average loss is ln 4 ≈ 1.39 nats per token. What's its perplexity?
+
+e^(ln 4) = **4**: on average it's as unsure as if it were choosing among four equally likely tokens. **Lower** perplexity means a better predictor of the text.
+
+One caution from the same textbook: perplexities are only comparable between models with **identical vocabularies**. A different tokeniser chops the text into different pieces, so the averages measure different things.
+
+---
+
+## Common misconceptions
+
+- **"Entropy measures disorder, so it's about physics."** Here it is about **uncertainty**: the average surprise of a probability distribution. Shannon noted that his formula has the same form as entropy in statistical mechanics.
+- **"Cross-entropy is symmetric, like a distance."** It isn't, and neither is KL: Alice using Bob's code and Bob using Alice's code waste different amounts.
+- **"Cross-entropy only cares whether the top answer is right."** It looks at the **probability** on the right answer, so a confident mistake costs far more than a hesitant one.
+- **"A loss of 0 is the goal."** On real data, cross-entropy bottoms out at the entropy of the data itself. Language is genuinely uncertain, so even a perfect model would be surprised sometimes.
+- **"Lower perplexity on any test always means a better model."** Only when the vocabularies match, and Jurafsky and Martin add that a perplexity gain should be confirmed on a real task.
+
+---
+
+## Quiz time 🧠
+
+Six questions. Keep log₂ 2 = 1 and ln 2 ≈ 0.69 handy.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- The **surprise** of an event is **−log p**: in **bits** with base 2, **nats** with natural logs.
+- **Entropy** is the average surprise, highest for uniform distributions, and the limit on the **shortest code**.
+- **Cross-entropy** scores what happens using the wrong beliefs; it is at least the entropy, and the gap is the **KL divergence**, which isn't symmetric.
+- With a one-hot label, cross-entropy becomes **−ln(probability on the right answer)**, the standard loss, and with softmax its gradient is **predicted − true**.
+- **Perplexity** = e^(average loss per token), roughly how many tokens a language model is torn between.
+
+**Coming up:** the eigenvalues lesson returns to matrices and asks which directions a matrix only stretches.
+
+**Related:** the loss functions lesson puts log loss to work; the distillation lesson trains a student on a teacher's soft probabilities with cross-entropy and KL.
+
+Hit **Finish** to collect your XP! 🏁

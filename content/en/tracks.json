@@ -7,11 +7,6 @@
     "colour": "blue",
     "upcoming": [
       {
-        "id": "cross-entropy",
-        "title": "Entropy & cross-entropy",
-        "order": 7
-      },
-      {
         "id": "eigenvalues",
         "title": "Eigenvalues & eigenvectors",
         "order": 8
