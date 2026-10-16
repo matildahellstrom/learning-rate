@@ -1,0 +1,238 @@
+---
+id: embeddings
+title: Embeddings
+summary: How a model turns each token into a list of numbers where similar meanings end up close together.
+track: llm
+order: 3
+prerequisites: [tokenisation, vectors-matrices, dot-product]
+minutes: 12
+xp: 100
+volatility: evergreen
+sources:
+  - title: 'Jurafsky & Martin (2026 draft): Speech and Language Processing, chapter 5, Embeddings'
+    url: https://web.stanford.edu/~jurafsky/slp3/5.pdf
+  - title: 'Bengio, Ducharme, Vincent & Jauvin (2003): A Neural Probabilistic Language Model'
+    url: https://www.jmlr.org/papers/v3/bengio03a.html
+  - title: 'Mikolov, Chen, Corrado & Dean (2013): Efficient Estimation of Word Representations in Vector Space (word2vec)'
+    url: https://arxiv.org/abs/1301.3781
+  - title: 'Nissim, van Noord & van der Goot (2019): Fair is Better than Sensational, Man is to Doctor as Woman is to Doctor'
+    url: https://arxiv.org/abs/1905.09866
+  - title: 'Bolukbasi et al. (2016): Man is to Computer Programmer as Woman is to Homemaker? Debiasing Word Embeddings'
+    url: https://arxiv.org/abs/1607.06520
+  - title: 'Radford et al. (2019): Language Models are Unsupervised Multitask Learners (GPT-2)'
+    url: https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf
+quiz:
+  - type: numeric
+    prompt: 'A model has a vocabulary of 10,000 tokens and embeddings of 300 numbers each. How many numbers are in its embedding table?'
+    answer: 3000000
+    tolerance: 0
+    explanation: 'One row per token, one column per dimension: 10,000 × 300 = 3,000,000 learned numbers.'
+  - type: numeric
+    prompt: 'Two embeddings already have length 1: a = [0.6, 0, 0.8] and b = [0, 0.6, 0.8]. What is their cosine similarity?'
+    answer: 0.64
+    tolerance: 0.001
+    explanation: 'For length-1 vectors, cosine similarity is just the dot product: 0.6 × 0 + 0 × 0.6 + 0.8 × 0.8 = 0.64.'
+  - type: choice
+    prompt: 'Nobody tells the model that "oculist" and "eye-doctor" mean the same. Why do their embeddings still end up close?'
+    options:
+      - They have similar spellings
+      - They have neighbouring token IDs
+      - They appear in similar contexts, so they help predict similar words
+      - A dictionary was loaded into the model
+    answer: 2
+    explanation: 'This is the distributional hypothesis: words used in similar surroundings (near "eye", "examined") tend to have similar meanings, and training pushes them towards similar embeddings.'
+  - type: choice
+    prompt: 'The analogy king − man + woman famously lands nearest to queen. What did Nissim and colleagues point out about how this is usually computed?'
+    options:
+      - It only works in French
+      - The standard code isn't allowed to return any of the input words, so "king" itself can't be the answer
+      - The vectors were picked by hand
+      - Queen was added to the training data on purpose
+    answer: 1
+    explanation: "In the default word2vec code, gensim and Bolukbasi et al.'s code, the input words are excluded from the answers. When they are allowed, the results drop a lot, because often the nearest vector is one of the input words."
+  - type: choice
+    prompt: 'In a static embedding model like word2vec, what happens to "bank" (river bank and money bank)?'
+    options:
+      - It gets two separate vectors automatically
+      - It is left out of the vocabulary
+      - It always matches the money sense
+      - It gets one fixed vector, shared by both meanings
+    answer: 3
+    explanation: 'Static embeddings learn one vector per word, whatever the context. Contextual embeddings, like those inside large language models, change the vector depending on the surrounding words.'
+  - type: choice
+    prompt: "An LLM's embedding table starts as random numbers. What makes the rows meaningful?"
+    options:
+      - Training with the rest of the network to lower the next-token loss
+      - Engineers fill them in by hand after training
+      - The token IDs are sorted by meaning
+      - The tokeniser writes them
+    answer: 0
+    explanation: 'The table is just more weights. Gradient descent adjusts them together with the rest of the model, so tokens that need to behave alike end up with similar rows.'
+---
+
+# Numbers that mean something 🧭
+
+The tokenisation lesson ended with text turned into IDs. Suppose _"cat"_ is token 9,000 and _"dog"_ is token 9,001.
+
+Does that make cats and dogs similar? No. The IDs are just positions in a list. Token 9,002 might be _"carburettor"_.
+
+A model needs numbers where **similar meanings look similar**: cat close to dog, both far from carburettor. Those numbers are called **embeddings**, and they're how every language model starts reading.
+
+This lesson covers what an embedding is, how a model learns them, how to measure "close", and the surprising (and sometimes worrying) things they capture.
+
+---
+
+## A table with one row per token
+
+An **embedding** is a list of numbers, a **vector**, for each token. The model keeps them in a big **embedding table**: one row per token in the vocabulary, with the same number of columns, the **dimensions**, for every row.
+
+Reading a token is just a lookup: take its ID, fetch that row.
+
+🤔 Predict: GPT-2's smallest model has a vocabulary of 50,257 tokens and 768 dimensions. How many numbers are in its embedding table?
+
+50,257 × 768 = **38,597,376**: almost 39 million numbers before the model has done anything else.
+
+<Deeper title="Go deeper: a lookup is a matrix product">
+Write token $i$ as a **one-hot** vector $x$: all zeros except a 1 in position $i$. With the embedding table $E$ (one row per token, $|V|$ rows by $d$ columns), the lookup is
+
+$$
+e = x^\top E
+$$
+
+which picks out row $i$. Nobody computes it this way, since fetching the row is much cheaper, but it shows the table is an ordinary weight matrix that gradient descent can train. The vectors and matrices lesson covers the product.
+
+</Deeper>
+
+---
+
+## Learned, not hand-picked
+
+Where do the numbers come from? Nobody writes them.
+
+The table starts out **random**, and it's trained along with the rest of the network. In Bengio and colleagues' 2003 neural language model, the network learned "a distributed representation for each word" at the same time as learning to predict the next word.
+
+The training signal is the usual next-token loss. If _"cat"_ and _"dog"_ often need to lead to similar predictions (both get fed, stroked and taken to the vet), the cheapest way to get there is to give them similar rows.
+
+The individual dimensions usually don't have tidy human meanings like "is an animal". The meaning lives in how vectors sit relative to each other.
+
+---
+
+## Known by the company it keeps
+
+Why should predicting text put similar words together? Because of an old idea from linguistics.
+
+In the 1950s, linguists such as Martin Joos, Zellig Harris and J. R. Firth noticed that words with similar meanings turn up in similar places. Jurafsky and Martin's example: _"oculist"_ and _"eye-doctor"_ both appear near words like _"eye"_ and _"examined"_.
+
+This is the **distributional hypothesis**: **similar contexts, similar meaning**.
+
+🤔 Predict: another example from the same book. You've never seen the word _"ongchoi"_, but you read that it's _"delicious sauteed with garlic"_ and _"superb over rice"_. What kind of thing is it?
+
+Probably a leafy green, because it keeps the same company as spinach and chard. (It is: a plant sometimes called water spinach in English.) A model trained on text makes the same kind of guess, in numbers.
+
+---
+
+## Measuring "close": cosine similarity
+
+To compare two embeddings, we compare their **directions** with **cosine similarity**: the dot product of the two vectors after scaling each to length 1 (the dot product lesson covers this). It runs from −1 (opposite) through 0 (unrelated) to 1 (same direction).
+
+Here are three made-up embeddings with 3 dimensions, already length 1:
+
+- cat = [0.8, 0.6, 0]
+- dog = [0.6, 0.8, 0]
+- car = [0, 0.6, 0.8]
+
+🤔 Predict: is _cat_ closer to _dog_ or to _car_?
+
+- cat · dog = 0.48 + 0.48 + 0 = **0.96**
+- cat · car = 0 + 0.36 + 0 = **0.36**
+
+Dog wins easily. Real embeddings have hundreds or thousands of dimensions, but the sum works the same way.
+
+---
+
+## word2vec: fast embeddings at scale
+
+In 2013, Tomas Mikolov, Kai Chen, Greg Corrado and Jeffrey Dean at Google released **word2vec**, a deliberately simple model whose only job is to learn word embeddings.
+
+Instead of predicting the next word with a big network, it uses a quick task: predict a word from its neighbours (**CBOW**) or the neighbours from a word (**skip-gram**). Simple enough, the paper reports, to learn high-quality vectors from a **1.6-billion-word** dataset in less than a day.
+
+Word2vec embeddings are **static**: one fixed vector per word, whatever the sentence. Hold that thought; it comes back two steps from now.
+
+---
+
+## Directions with meaning
+
+Embeddings did something nobody explicitly asked for. **Directions** in the space seemed to capture relationships.
+
+The word2vec paper pointed to an earlier result: vector(King) − vector(Man) + vector(Woman) gives a vector closest to **Queen**. It also mentions pairs such as France is to Paris as Germany is to Berlin.
+
+Neat, but there's fine print. Nissim, van Noord and van der Goot (2019) noted that the standard analogy code is **not allowed to return any of the input words**. So _"king"_ itself is ruled out as an answer, and when they allowed input words, performance on the standard test set dropped a lot. Many famous analogies are less magical than they look.
+
+<Deeper title="Go deeper: how the analogy is computed">
+To answer "a is to b as c is to ?", compute
+
+$$
+x = v_b - v_a + v_c
+$$
+
+then return the vocabulary word whose vector has the highest cosine similarity with $x$, excluding $a$, $b$ and $c$. Mikolov and colleagues describe exactly this ("we discard the input question words during this search").
+
+Since $x$ is built from $v_c$, the nearest vector is often $c$ itself. That's why the exclusion matters so much.
+
+</Deeper>
+
+---
+
+## Embeddings learn our biases too
+
+Embeddings learn from human text, so they learn human stereotypes as well.
+
+Bolukbasi and colleagues (2016) found that in popular word2vec embeddings trained on Google News articles, the direction from _man_ to _woman_ roughly matched the direction from _computer programmer_ to _homemaker_. The occupations their method rated most "she" included _homemaker_, _nurse_ and _receptionist_.
+
+Nissim and colleagues add a caution here as well: a well-known biased analogy such as _man : doctor :: woman : nurse_ is only truly meaningful if the system was allowed to answer _doctor_, and the standard code doesn't allow it. Bias in embeddings is real; the analogy test can exaggerate how it looks.
+
+Why it matters: embeddings feed search, recommendations and language models, so a skew in them can carry through.
+
+---
+
+## Static vs contextual
+
+Back to that thought. A static embedding has a problem with words like **bank**: river bank and money bank share one vector, a blend of both.
+
+Large language models fix this. Their embedding table is only the **starting point**: one row per token, like before. Then each layer mixes in information from the surrounding tokens, so by the middle of the model, the vector for _"bank"_ in _"sat on the river bank"_ differs from the one in _"paid into the bank"_. These are **contextual embeddings**.
+
+The mixing is done by **attention**, which the next lesson covers.
+
+---
+
+## Common misconceptions
+
+- **"Each dimension stands for one human idea."** Usually not; meaning sits in directions and distances, spread across many dimensions.
+- **"Embeddings are written by people."** They're weights, learned during training.
+- **"Close IDs mean similar tokens."** Token IDs are arbitrary list positions; only the embeddings carry similarity.
+- **"Vector arithmetic always solves analogies."** Results depend heavily on how the test is set up.
+
+---
+
+## Quiz time 🧠
+
+Six questions, two with a little arithmetic.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- An **embedding** is a learned vector for each token, stored in an **embedding table** and fetched by ID.
+- The rows start random and are **trained** with the rest of the model.
+- The **distributional hypothesis**: words in similar contexts get similar embeddings.
+- **Cosine similarity** measures how close two embeddings point.
+- **word2vec** showed meaningful **directions**, though analogy tests have fine print, and embeddings absorb **biases**.
+- **Static** embeddings give one vector per word; LLMs build **contextual** ones layer by layer.
+
+**Coming up:** the attention lesson shows how tokens mix in information from each other.
+
+**Related:** the CLIP lesson puts images and text into one shared embedding space.
+
+Hit **Finish** to collect your XP! 🏁

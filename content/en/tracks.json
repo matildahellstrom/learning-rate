@@ -29,11 +29,6 @@
     "colour": "pink",
     "upcoming": [
       {
-        "id": "embeddings",
-        "title": "Embeddings",
-        "order": 3
-      },
-      {
         "id": "attention",
         "title": "Attention & transformers",
         "order": 4
