@@ -129,11 +129,6 @@
     "colour": "teal",
     "upcoming": [
       {
-        "id": "clip",
-        "title": "Contrastive learning (CLIP)",
-        "order": 5
-      },
-      {
         "id": "diffusion-models",
         "title": "Diffusion models",
         "order": 6

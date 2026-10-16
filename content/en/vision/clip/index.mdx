@@ -1,0 +1,227 @@
+---
+id: clip
+title: Contrastive learning (CLIP)
+summary: How matching photos to their captions teaches a model to put pictures and words in one shared space.
+track: vision
+order: 5
+prerequisites: [vision-transformers, embeddings, dot-product, softmax, cross-entropy]
+minutes: 12
+xp: 100
+volatility: evergreen
+sources:
+  - title: 'Radford et al. (2021): Learning Transferable Visual Models From Natural Language Supervision (CLIP)'
+    url: https://arxiv.org/abs/2103.00020
+  - title: 'Goh et al. (2021): Multimodal Neurons in Artificial Neural Networks'
+    url: https://distill.pub/2021/multimodal-neurons/
+  - title: 'Ramesh et al. (2022): Hierarchical Text-Conditional Image Generation with CLIP Latents'
+    url: https://arxiv.org/abs/2204.06125
+  - title: 'CompVis: Stable Diffusion (README)'
+    url: https://github.com/CompVis/stable-diffusion
+quiz:
+  - type: numeric
+    prompt: 'A CLIP training batch holds 8 (image, caption) pairs. How many of the image–caption pairings in the grid are wrong?'
+    answer: 56
+    tolerance: 0
+    explanation: 'The grid has 8 × 8 = 64 pairings. Only the 8 on the diagonal really belong together, so 64 − 8 = 56 are wrong. In the paper’s words, N² − N incorrect pairings.'
+  - type: choice
+    prompt: 'What is CLIP trained to do with each batch?'
+    options:
+      - Write the exact caption for each image, word by word
+      - Sort the images into 1,000 fixed ImageNet classes
+      - Work out which caption goes with which image, among all the pairings in the batch
+      - Rebuild each image from its caption
+    answer: 2
+    explanation: 'CLIP plays a matching game: real pairs should get high similarity, wrong pairs low. The paper found predicting the exact words learned far more slowly.'
+  - type: numeric
+    prompt: 'An image embedding and a caption embedding have a cosine similarity of 0.6. CLIP divides by a temperature of 0.1 before the softmax. What number (logit) goes into the softmax?'
+    answer: 6
+    tolerance: 0.01
+    explanation: '0.6 ÷ 0.1 = 6. Dividing by a small temperature stretches the narrow −1 to 1 range of cosine similarities, so the softmax can be confident.'
+  - type: choice
+    prompt: 'You want CLIP to sort photos into "cat", "dog" and "boxer" (the dog breed). Which set of texts is likely to work best?'
+    options:
+      - '"A photo of a cat, a type of pet.", "A photo of a dog, a type of pet.", "A photo of a boxer, a type of pet."'
+      - '"cat", "dog", "boxer"'
+      - '"CAT", "DOG", "BOXER"'
+      - 'Three random captions from the training data'
+    answer: 0
+    explanation: 'Captions on the web are usually sentences, and a bare "boxer" could mean an athlete. The paper found templates like "A photo of a {label}, a type of pet." helped on the Pets dataset.'
+  - type: choice
+    prompt: "Zero-shot CLIP reached 88% on handwritten digits (MNIST), and a plain logistic regression on raw pixels beat it. What was the authors' explanation?"
+    options:
+      - The images were too small for the encoder
+      - The text encoder cannot read numbers
+      - The temperature was set wrongly
+      - Almost no images like MNIST digits were in the pre-training data
+    answer: 3
+    explanation: 'The authors searched their dataset and found almost no MNIST-like images. CLIP generalises well to what resembles its training data, but it did not escape the usual brittleness of deep learning.'
+  - type: choice
+    prompt: 'Stable Diffusion v1 turns your prompt into numbers using which part of CLIP?'
+    options:
+      - The image encoder
+      - The frozen CLIP ViT-L/14 text encoder
+      - The temperature parameter
+      - The ImageNet classifier head
+    answer: 1
+    explanation: 'Its README says the model is conditioned on the text embeddings of a frozen CLIP ViT-L/14 text encoder. Because CLIP learned text in a space shared with images, those embeddings carry visual meaning.'
+---
+
+# A classifier with no fixed list 🏷️
+
+A standard image classifier trained on ImageNet picks one answer from a fixed list of 1,000 classes. Show it a capybara, and if "capybara" isn't on the list, it simply can't say it. Adding a class means collecting and labelling a new pile of photos, then training again.
+
+Meanwhile, the internet is full of images that already come with words: captions, titles, descriptions. Nobody labelled them for machine learning, but the words say a lot about what's in the picture.
+
+In 2021, a team at OpenAI used that idea. They collected **400 million** (image, text) pairs and trained a model called **CLIP**, short for Contrastive Language-Image Pre-training. Afterwards, you could classify images into categories you chose on the spot, by writing them as text.
+
+This lesson covers how CLIP is trained, why "contrastive" is the key word, how zero-shot classification works, and where CLIP breaks.
+
+---
+
+## Captions as labels
+
+To cover as many visual concepts as possible, the CLIP team searched for (image, text) pairs whose text included one of **500,000** queries, such as common Wikipedia words and article names. The paper calls learning from this kind of data **natural language supervision**.
+
+Their first attempt was the obvious one: train an image network and a text network together to **predict the caption**, word by word.
+
+🤔 Predict: which do you think is easier to learn, writing the exact caption for a photo, or picking the right caption out of a handful of options?
+
+Picking is much easier. A photo of a dog could be captioned in a thousand ways, and predicting the exact words wastes effort on phrasing. In the paper's tests, the caption-writing model learned to recognise ImageNet classes **three times slower** than a simpler baseline, and switching to the matching objective improved efficiency **another 4×**.
+
+---
+
+## Two encoders, one space
+
+CLIP has two separate networks:
+
+- An **image encoder**: a ResNet or a vision transformer (the vision transformers lesson covers these).
+- A **text encoder**: a transformer, 63 million parameters with 12 layers at its base size.
+
+Each ends with a **linear projection** into the same **embedding** space, so a photo and a sentence each become a list of numbers of the same length (the embeddings lesson explains embeddings).
+
+The goal: a photo of a dog on a beach and the text "a dog on a beach" should land **close together**, and far from "a bowl of soup".
+
+"Close" is measured with **cosine similarity**: the dot product of the two embeddings after scaling each to length 1 (the dot product lesson covers this). It ranges from −1 (opposite) through 0 (unrelated) to 1 (same direction).
+
+---
+
+## The matching game
+
+Training works on a batch of $N$ real (image, caption) pairs. CLIP embeds all $N$ images and all $N$ captions, then computes the cosine similarity of **every** image with **every** caption: an $N \times N$ grid.
+
+🤔 Predict: with a batch of 4 pairs, how many cells does the grid have, and how many of them are real pairs?
+
+**16 cells**, of which **4** are real: the diagonal, where image 1 meets caption 1, image 2 meets caption 2, and so on. The other **12** are wrong pairings. The paper writes this as $N$ real pairs and $N^2 - N$ incorrect ones.
+
+Training pushes the diagonal similarities **up** and all the others **down**. That's what **contrastive** means: each pair is learned by contrast with the wrong options.
+
+CLIP used a batch size of **32,768**, so each grid had over a billion cells, and every caption had 32,767 wrong images to beat.
+
+---
+
+## Turning the grid into a loss
+
+Read one row of the grid: one image against all $N$ captions. Put the similarities through a **softmax** to get probabilities (the softmax lesson covers this), and score how much probability lands on the right caption with **cross-entropy** (the cross-entropy lesson covers that).
+
+CLIP does this for every row (each image picks its caption) **and** every column (each caption picks its image), and averages the two. The paper calls it a **symmetric cross-entropy loss**.
+
+There's one twist. Cosine similarities only range from −1 to 1, which is too narrow for a confident softmax. So CLIP divides them by a **temperature** $\tau$ first. The paper learns $\tau$ during training, starting it at 0.07 and capping the scaling at 100 to keep training stable.
+
+With $\tau = 0.07$, a similarity of 0.3 becomes about 4.3, and 0.1 becomes about 1.4: a gap the softmax can act on.
+
+<Deeper title="Go deeper: the loss in symbols">
+Write $s_{ij}$ for the cosine similarity of image $i$ and caption $j$. The image-to-text loss for image $i$ is
+
+$$
+\begin{aligned}
+\ell_i^{\text{img}} = -\ln
+\frac{e^{s_{ii}/\tau}}{\sum_{j} e^{s_{ij}/\tau}}
+\end{aligned}
+$$
+
+and the text-to-image loss $\ell_i^{\text{txt}}$ is the same with the sum running down column $i$ instead. The total loss averages both over all $i$.
+
+The CLIP paper traces this objective to the multi-class N-pair loss (Sohn, 2016), popularised for contrastive learning as the **InfoNCE** loss (Oord et al., 2018), and first used for (text, image) pairs in medical imaging (Zhang et al., 2020).
+
+</Deeper>
+
+---
+
+## Zero-shot classification
+
+After training, you can classify images **without any extra training**. This is called **zero-shot** classification. For a cat-or-dog task:
+
+1. Write one text per class and embed each with the text encoder.
+2. Embed the image with the image encoder.
+3. Pick the class whose text embedding is most similar to the image.
+
+🤔 Predict: should the class texts be just "cat" and "dog", or something longer?
+
+Longer helps. Captions on the web are rarely a single word, so the paper's default template was **"A photo of a \{label\}."**, which alone improved ImageNet accuracy by **1.3%**. Context also fixes ambiguous words: in a pet dataset, "boxer" means a dog breed, but on its own it could mean an athlete. Averaging over **80** different templates added another **3.5%** on ImageNet.
+
+The authors point out that this is really an ordinary linear classifier, but one whose weights are **written by the text encoder** from your class names.
+
+---
+
+## How well did it work?
+
+Zero-shot, the best CLIP model reached **76.2%** accuracy on ImageNet. That matches the original ResNet-50, which was trained on ImageNet's **1.28 million** labelled images. CLIP used none of them.
+
+It also held up better when images looked different from ordinary photos. The authors tested on versions of ImageNet with sketches, renditions and other **natural distribution shifts**. Models trained on ImageNet usually lose a lot of accuracy on these; zero-shot CLIP shrank that "robustness gap" by **up to 75%**.
+
+The authors are careful about why. A zero-shot model can't exploit patterns that hold only in ImageNet, since it never trained on it. But they note that CLIP's large, varied dataset or its use of language could also explain the robustness, and that a zero-shot model can still pick up misleading shortcuts.
+
+---
+
+## Where CLIP breaks
+
+**Unfamiliar data.** Zero-shot CLIP managed only **88%** on handwritten digits (MNIST), and a simple logistic regression on raw pixels beat it. The authors found almost no images like MNIST digits in the training data, and concluded that CLIP "does little to address the underlying problem of brittle generalization".
+
+**Reading too well.** CLIP learned to read text in images. In a follow-up study, Gabriel Goh and colleagues took everyday objects and labelled them by hand with the name of a different class. The zero-shot classification often changed. They called these **typographic attacks**.
+
+**Bias.** CLIP learns from internet pairs, so it can pick up their associations too. In the paper's own exploratory probes, crime-related and non-human labels were offered alongside human categories, and the share of photos of people put into those labels differed between race categories. Because anyone can define new classes (what the authors call "class design"), they say CLIP's fitness for purpose needs to be evaluated "in context", and that their bias tests are "limited in scope".
+
+---
+
+## CLIP as a building block
+
+A shared space for pictures and words turned out to be useful well beyond classification.
+
+- **DALL·E 2** (2022) is a two-stage model: a "prior" generates a CLIP **image embedding** from your caption, and a decoder generates an image from that embedding. Its authors call the system **unCLIP**, because it inverts CLIP's image encoder.
+- **Stable Diffusion v1** uses a frozen CLIP ViT-L/14 **text encoder** to turn your prompt into embeddings that steer image generation.
+
+Both generators are **diffusion models**: they build an image by gradually removing noise. That's the next lesson.
+
+---
+
+## Common misconceptions
+
+- **"CLIP generates images."** CLIP only embeds images and text and compares them. Image generators use CLIP as one part.
+- **"Zero-shot means CLIP has never seen anything like the task."** It means no training on that task's labels. Its pre-training data may well contain similar images, and it struggles when it doesn't (MNIST).
+- **"CLIP learns to write captions."** It learns to match. Predicting exact captions was the slower approach the authors abandoned.
+- **"Only the correct pairs matter for training."** The wrong pairings do half the work: contrast with them is what pushes the embeddings apart.
+- **"The class names don't matter."** Wording changes results: templates and context improved ImageNet accuracy by almost 5% in the paper.
+
+---
+
+## Quiz time 🧠
+
+Six questions, two with a little arithmetic.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- **CLIP** trains an **image encoder** and a **text encoder** on 400 million (image, text) pairs so both map into **one embedding space**.
+- The **contrastive** objective scores an $N \times N$ grid: **real pairs up**, the $N^2 - N$ **wrong pairs down**, with a symmetric cross-entropy loss and a learned **temperature**.
+- **Zero-shot classification** embeds a text per class, such as "A photo of a \{label\}.", and picks the closest one.
+- Zero-shot CLIP matched the original ResNet-50 on ImageNet and was more **robust to distribution shift**, but it fails on unfamiliar data, can be fooled by **typographic attacks** and inherits **biases**.
+- CLIP's embeddings power image generators such as **DALL·E 2** and **Stable Diffusion**.
+
+**Coming up:** the diffusion models lesson shows how a network learns to turn noise into images, steered by text.
+
+**Related:** the vision transformers lesson covers CLIP's ViT image encoders; the embeddings lesson covers the idea of a shared space.
+
+Hit **Finish** to collect your XP! 🏁
