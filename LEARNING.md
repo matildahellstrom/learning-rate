@@ -239,3 +239,18 @@ You asked to be told when the first version was ready, so these phases were buil
 
 1. Simulate momentum by hand with μ = 0.9 on a constant slope. How many steps until the velocity reaches 90% of its top speed of 10?
 2. Draw the graph for f = x × x and backpropagate through it. Why does treating x as two separate inputs whose gradients add give the familiar 2x?
+
+## LLM lessons 1–3 (2026-10-16)
+
+**Built:** Lessons for Next-token prediction, Tokenisation, and Embeddings, written with the `write-lesson` skill. They open the LLM track, so the later lessons that already listed them as prerequisites now point at real pages.
+
+**Concepts:**
+
+- **A textbook can be a primary source for teaching examples.** Jurafsky & Martin's 2026 draft supplied the BPE walkthrough style, the GPT-4o tokeniser quirks and the ongchoi example, each checked in the raw PDF text rather than a summary.
+- **Design a worked example so it has one answer.** The first toy BPE corpus had ties between pairs, which would make "which pair merges first?" ambiguous. The lesson uses a corpus whose merge counts (20, 16, 15) never tie.
+- **Famous results come with fine print.** king − man + woman ≈ queen holds only because the standard code can't return an input word (Nissim et al.), so the lesson shows the trick and the caveat together.
+
+**Explore:**
+
+1. Train BPE by hand on "low ×6, lot ×3, slow ×2" for four merges. Which tokens does "slot" end up as?
+2. Paste the same paragraph in English and another language into a tokeniser visualiser. How close is the ratio to Petrov et al.'s numbers?
