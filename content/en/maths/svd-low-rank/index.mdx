@@ -1,0 +1,248 @@
+---
+id: svd-low-rank
+title: SVD & low-rank approximation
+summary: How any matrix splits into a ranked list of simple ingredients, and why keeping only the biggest few compresses images, powers PCA and makes LoRA cheap.
+track: maths
+order: 9
+prerequisites: [vectors-matrices, eigenvalues]
+minutes: 11
+xp: 100
+volatility: evergreen
+sources:
+  - title: 'Roughgarden & Valiant: CS168 Lecture 9, The Singular Value Decomposition (SVD) and Low-Rank Matrix Approximations (Stanford course notes)'
+    url: https://web.stanford.edu/class/cs168/l/l9.pdf
+  - title: 'Goodfellow, Bengio & Courville: Deep Learning, ch. 2 Linear Algebra'
+    url: https://www.deeplearningbook.org/contents/linear_algebra.html
+  - title: 'Hu et al. (2021): LoRA, Low-Rank Adaptation of Large Language Models'
+    url: https://arxiv.org/abs/2106.09685
+quiz:
+  - type: numeric
+    prompt: 'A 200 × 300 matrix is approximated with rank 10, stored as a 200 × 10 matrix times a 10 × 300 matrix. How many numbers is that in total?'
+    answer: 5000
+    tolerance: 0
+    explanation: '200 × 10 + 10 × 300 = 2,000 + 3,000 = 5,000, or k(m + n) = 10 × 500. The full matrix has 60,000 numbers, so this is about 8% of the size.'
+  - type: choice
+    prompt: 'A matrix has rank 1. Its first row is [1, 2, 3] and its second row is [4, ?, 12]. What is the missing entry?'
+    options:
+      - '6'
+      - '10'
+      - '8'
+      - '5'
+    answer: 2
+    explanation: 'In a rank-1 matrix every row is a multiple of every other. 12 is 4 × 3 and 4 is 4 × 1, so the second row is 4 × [1, 2, 3] = [4, 8, 12]. Guessing 5 assumes the numbers go up by a fixed step, but rank is about multiples, not patterns.'
+  - type: choice
+    prompt: 'Geometrically, what does the SVD say every matrix does to space?'
+    options:
+      - It only ever stretches along the x and y axes
+      - It moves every point by the same amount
+      - It always rotates, but never stretches
+      - It rotates, then stretches along perpendicular directions, then rotates again
+    answer: 3
+    explanation: 'A = UΣVᵀ: Vᵀ is a rotation, Σ stretches each axis by a singular value (adding or dropping dimensions if the shape changes), and U is another rotation. That is why any matrix turns a circle into an ellipse.'
+  - type: choice
+    prompt: 'How are the singular values of a matrix A related to the eigenvalues of AᵀA?'
+    options:
+      - The singular values are the square roots of those eigenvalues
+      - They are exactly equal
+      - The singular values are the squares of those eigenvalues
+      - They are unrelated
+    answer: 0
+    explanation: 'The Deep Learning book: the non-zero singular values of A are the square roots of the eigenvalues of AᵀA. In the worked example, AᵀA has eigenvalues 25 and 9 (plus a 0), and the singular values are 5 and 3.'
+  - type: choice
+    prompt: 'A matrix has singular values 50, 20, 0.3 and 0.1. What rank would you choose for a good low-rank approximation?'
+    options:
+      - '1'
+      - '2'
+      - '3'
+      - '4'
+    answer: 1
+    explanation: 'The top two are big and the rest are tiny, so keeping k = 2 throws away almost nothing. Rank 1 would drop the 20, which is a lot; ranks 3 and 4 keep pieces too small to matter.'
+  - type: numeric
+    prompt: 'A 1,000 × 1,000 greyscale image is stored as a rank-100 approximation, with k(m + n) numbers. What fraction of the original count of numbers is that? (Answer as a decimal.)'
+    answer: 0.2
+    tolerance: 0.005
+    explanation: '100 × (1,000 + 1,000) = 200,000 numbers, against 1,000 × 1,000 = 1,000,000 for the full image: 0.2, or a fifth.'
+---
+
+# Fill in the blanks 🧩
+
+Stanford's CS168 course notes open their SVD lecture with a quiz. Here is a 5 × 3 matrix with 7 entries shown and 8 missing:
+
+$$
+\begin{pmatrix}
+7 & ? & ? \\
+? & 8 & ? \\
+? & 12 & 6 \\
+? & ? & 2 \\
+21 & 6 & ?
+\end{pmatrix}
+$$
+
+What are the missing entries? It seems unfair: they could be anything.
+
+Now a hint: **every row is a multiple of every other row**. Suddenly the puzzle has a single answer.
+
+That hint is an extreme version of a matrix being **low-rank**. This lesson covers what rank means, the **singular value decomposition** (SVD) that breaks any matrix into a ranked list of simple pieces, and why keeping only the top few pieces is so useful.
+
+---
+
+## Solving the puzzle
+
+If every row is a multiple of one basic row, you only need to find that row and the multipliers.
+
+- Row 3 is [?, 12, 6], so in the basic row the middle entry is **twice** the last.
+- Row 5 is [21, 6, ?], so the first entry is **3.5 times** the middle.
+
+The simplest row that fits is **[7, 2, 1]**, and then row 1 (which starts with 7) is exactly it. Row 2 is 4 times it, row 3 is 6 times it, row 5 is 3 times it.
+
+🤔 Predict: row 4 is [?, ?, 2]. What are its missing entries?
+
+It ends in 2, so it's 2 × [7, 2, 1] = **[14, 4, 2]**.
+
+The whole 5 × 3 grid, 15 numbers, was really just **8** numbers: one row of 3 and 5 multipliers.
+
+---
+
+## Rank 1: a column times a row
+
+A matrix like that, where every row is a multiple of one row, is called **rank 1**. You can always write it as a **column** of multipliers times a **row**:
+
+$$
+\begin{pmatrix} 1 \\ 4 \\ 6 \\ 2 \\ 3 \end{pmatrix}
+\begin{pmatrix} 7 & 2 & 1 \end{pmatrix}
+$$
+
+Each entry is (its row's multiplier) × (its column's entry). This is called an **outer product**: unlike the dot product, it takes two vectors and makes a whole grid.
+
+The saving grows with size. An m × n rank-1 matrix needs only **m + n** numbers instead of **m × n**. For a 1,000 × 1,000 matrix, that's 2,000 numbers instead of a million.
+
+---
+
+## Rank k: a few simple layers
+
+Most matrices aren't rank 1. But many are close to a **sum of a few** rank-1 pieces.
+
+The CS168 notes define it this way: a **rank-2** matrix is one that can be written as the sum of two rank-1 matrices, and so on. The **rank** is the smallest number of rank-1 pieces you need.
+
+Stacking k columns side by side and k rows on top of each other, a rank-k matrix is a tall, skinny m × k matrix times a short, wide k × n one. That takes **k(m + n)** numbers.
+
+🤔 Predict: a 1,000 × 1,000 matrix has rank 10. How many numbers do you need to store it?
+
+10 × (1,000 + 1,000) = **20,000**, instead of 1,000,000: 2% of the size.
+
+Think of a spreadsheet of film ratings, people as rows and films as columns. If most of the pattern comes from a few hidden tastes (how much each person likes action, how action-heavy each film is), the spreadsheet is close to low-rank.
+
+---
+
+## The SVD: any matrix, ranked
+
+Here is the big result. **Every** matrix can be written as a sum of rank-1 pieces, each with a weight called a **singular value**, sorted from the biggest weight to the smallest. That is the **singular value decomposition**:
+
+**A = σ₁ u₁v₁ᵀ + σ₂ u₂v₂ᵀ + σ₃ u₃v₃ᵀ + …**
+
+The CS168 notes describe it as a list of the matrix's "ingredients", ordered by "importance". The singular values σ are never negative, and the pieces are built from perpendicular directions (u's on the output side, v's on the input side).
+
+A small example. The matrix with rows [3, 2, 2] and [2, 3, −2] has singular values **5** and **3**. Its biggest piece, 5 u₁v₁ᵀ, is the matrix with rows [2.5, 2.5, 0] and [2.5, 2.5, 0]: already the general shape of the original.
+
+<Deeper title="Go deeper: the matrix form">
+Collect the $u_i$ as the columns of $U$, the $v_i$ as the columns of $V$, and the singular values on the diagonal of $\Sigma$:
+
+$$
+A = U \Sigma V^\top
+$$
+
+For an $m \times n$ matrix, $U$ is $m \times m$ and orthogonal, $V$ is $n \times n$ and orthogonal, and $\Sigma$ is $m \times n$, diagonal, with non-negative entries sorted from high to low. For the example:
+
+$$
+\begin{gathered}
+u_1 = \tfrac{1}{\sqrt 2}(1, 1), \quad
+v_1 = \tfrac{1}{\sqrt 2}(1, 1, 0) \\[4pt]
+\sigma_1 u_1 v_1^\top
+= \begin{pmatrix} 2.5 & 2.5 & 0 \\ 2.5 & 2.5 & 0 \end{pmatrix}
+\end{gathered}
+$$
+
+</Deeper>
+
+---
+
+## Rotate, stretch, rotate
+
+The SVD also has a lovely picture. The CS168 notes call it kind of amazing: every matrix, no matter how weird, is only doing three things:
+
+1. a **rotation** (that's Vᵀ),
+2. a **stretch** along perpendicular axes, adding or deleting dimensions as needed (that's Σ, with the singular values as stretch factors),
+3. another **rotation** (that's U).
+
+So any matrix turns a circle into an **ellipse**, and the singular values are the lengths of the ellipse's half-axes.
+
+This is the eigenvalues lesson's idea, but **for every matrix**. The Deep Learning book notes that every real matrix has an SVD, while not every matrix has an eigendecomposition: non-square matrices, for instance, don't. The two are closely linked. The book states that the right-singular vectors of A are the eigenvectors of AᵀA, and that the non-zero singular values of A are the **square roots** of the eigenvalues of AᵀA.
+
+---
+
+## Keep the biggest pieces
+
+Now the payoff. To approximate A with rank k, **keep the first k pieces** and drop the rest.
+
+The CS168 notes state that this is not just a reasonable choice but the **best** one: no other rank-k matrix is closer to A, measuring distance as the square root of the sum of squared entry-by-entry differences (the **Frobenius norm**).
+
+🤔 Predict: in the 2 × 3 example (singular values 5 and 3), how far is the rank-1 approximation from the real matrix?
+
+Exactly **3**, the singular value you dropped. Subtract the rank-1 piece and what's left is the second piece, 3 u₂v₂ᵀ, whose size is just 3.
+
+How do you pick k? The notes' advice: if the top few singular values are big and the rest small, take k equal to the number of big ones. Otherwise, pick the smallest k that's still useful for your application.
+
+<Deeper title="Go deeper: how big is the error?">
+The pieces are built from perpendicular vectors, so their squared sizes add up. Dropping pieces $k+1$ onwards leaves an error of
+
+$$
+\| A - A_k \|_F = \sqrt{\sigma_{k+1}^2 + \sigma_{k+2}^2 + \dots}
+$$
+
+So the dropped singular values tell you exactly what you lose. For the example, $\sqrt{3^2} = 3$.
+
+</Deeper>
+
+---
+
+## Low rank in the wild
+
+The CS168 notes list several uses of low-rank approximation:
+
+- **Compression.** A greyscale image is a matrix of pixel brightnesses. The notes say a modest rank, say 100 or 150, is usually enough for approximations that look a lot like the original image, when the image is a few hundred pixels across.
+- **De-noising.** If the true signal is roughly low-rank, dropping the small pieces can throw out lots of noise and little signal.
+- **Filling in the blanks.** Back to the opening puzzle: assuming a matrix is low-rank lets you guess its missing entries, like ratings people haven't given yet.
+- **PCA.** The notes show that principal component analysis (the eigenvalues lesson's top eigenvectors of XᵀX) reduces to the SVD of the data matrix X itself: its right singular vectors are the principal components.
+- **Fine-tuning huge models.** LoRA (Hu and colleagues, 2021) learns each weight **update** as a product of two thin matrices, a low-rank update. Its abstract reports that, compared with fully fine-tuning GPT-3 175B with Adam, LoRA can cut the number of trainable parameters by **10,000 times** and the GPU memory requirement by 3 times.
+
+---
+
+## Common misconceptions
+
+- **"The SVD only works for square matrices."** Every real matrix has one, any shape. It's the eigendecomposition that needs a square matrix.
+- **"Singular values are the same as eigenvalues."** They're related (square roots of the eigenvalues of AᵀA) but different, and they're never negative.
+- **"Low-rank means lots of zeros."** A rank-1 matrix can have no zeros at all, like the puzzle's. Low rank means the rows (and columns) are built from a few shared patterns.
+- **"Dropping the small pieces is just a rough heuristic."** Keeping the top k is provably the closest rank-k matrix, in the Frobenius norm.
+- **"Low-rank approximation is always lossless."** It's lossy unless the dropped singular values are exactly zero. Whether the loss matters depends on your application.
+
+---
+
+## Quiz time 🧠
+
+Six questions. Remember: a rank-k, m × n matrix takes k(m + n) numbers.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- A **rank-1** matrix is a column times a row; **rank k** means a sum of k such pieces, stored in **k(m + n)** numbers.
+- The **SVD** writes **any** matrix as rank-1 pieces weighted by **singular values**, sorted by importance: **A = UΣVᵀ**.
+- Geometrically, every matrix **rotates, stretches, rotates**. Singular values are the square roots of the eigenvalues of **AᵀA**.
+- Keeping the top k pieces gives the **best rank-k approximation**; the dropped singular values measure the error.
+- Low rank powers **compression**, **de-noising**, **filling in missing entries**, **PCA** and **LoRA**.
+
+**Related:** the LoRA lesson uses low-rank updates to fine-tune huge models cheaply; the eigenvalues lesson covers the stretch directions of square matrices; the images-as-tensors lesson shows how a photo becomes a matrix.
+
+Hit **Finish** to collect your XP! 🏁

@@ -5,13 +5,7 @@
     "description": "Vectors, derivatives, probability: the toolkit behind every model.",
     "icon": "📐",
     "colour": "blue",
-    "upcoming": [
-      {
-        "id": "svd-low-rank",
-        "title": "SVD & low-rank approximation",
-        "order": 9
-      }
-    ]
+    "upcoming": []
   },
   {
     "id": "ml",
