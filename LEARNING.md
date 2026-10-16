@@ -254,3 +254,18 @@ You asked to be told when the first version was ready, so these phases were buil
 
 1. Train BPE by hand on "low ×6, lot ×3, slow ×2" for four merges. Which tokens does "slot" end up as?
 2. Paste the same paragraph in English and another language into a tokeniser visualiser. How close is the ratio to Petrov et al.'s numbers?
+
+## LLM lessons 4–5 (2026-10-16)
+
+**Built:** Lessons for Attention & transformers and Sampling & temperature, written with the `write-lesson` skill. No widget fits either yet, so an attention weight explorer and a sampling knobs explorer went into the widget backlog.
+
+**Concepts:**
+
+- **Reuse one worked example across a lesson.** The sampling lesson keeps Jurafsky & Martin's four-token "So long and thanks for" menu (logits 1.2, 0.9, 0.1, −0.5) for greedy, temperature, top-k and top-p, so each knob changes one familiar set of numbers.
+- **Fast-moving facts can reverse a lesson's advice.** The Claude API reference (October 2026) marks temperature, top_k and top_p as deprecated for models after Claude Opus 4.6, so the lesson says the knobs exist but may be fixed by the provider.
+- **"Deterministic in theory" isn't "deterministic in practice".** Thinking Machines got 80 different answers from 1,000 runs at temperature 0, because results depended on the server's batch size.
+
+**Explore:**
+
+1. Count the weights in one transformer block with d = 512 and a feed-forward width of 2,048. What share is attention?
+2. With the logits 1.2, 0.9, 0.1, −0.5, find the temperature at which "all" has probability 0.5.
