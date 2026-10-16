@@ -349,3 +349,29 @@ questions, so the learner sees an overconfident model's bars fall below the diag
    calibration error of 0.2.
 5. A perfectly calibrated synthetic set (confidence equals the true correctness rate in each
    bin) has an expected calibration error below 0.01 with 10,000 items.
+
+## ml/sgd-momentum-adam: optimiser race in the ravine
+
+**Idea:** the ravine from the gradient descent lesson with three balls released from the same
+start: plain gradient descent, momentum and Adam, each leaving a coloured trail. Sliders for the
+learning rate, μ and κ; a step counter per ball shows who reaches the bottom first. A "noisy
+gradients" toggle adds minibatch-style noise so the learner sees SGD wobble.
+
+**Pure functions:**
+
+- `momentumStep(x: number[], v: number[], grad: number[], lr: number, mu: number): { x: number[]; v: number[] }`:
+  `v = mu·v − lr·grad`, then `x = x + v`.
+- `adamStep(x: number[], m: number[], s: number[], grad: number[], t: number, lr: number, b1: number, b2: number, eps: number)`:
+  the bias-corrected Adam update; returns the new `x`, `m` and `s`.
+- `stepsToConverge(step: (state) => state, start, tol: number, maxSteps: number): number`:
+  how many steps until the distance to the minimum drops below `tol`.
+
+**Acceptance tests:**
+
+1. With a constant gradient of 1, lr 1 and μ = 0.9, the velocity tends to −10 (within 1e-6
+   after 500 steps).
+2. With gradients alternating +1, −1, the velocity's size settles near 1 / 1.9 ≈ 0.526.
+3. `adamStep` from m = s = 0 at t = 1 moves every coordinate by lr (within 1e-6), whatever the
+   gradient's size, e.g. gradients 100 and 0.01.
+4. On the ravine with κ = 100 and both methods tuned, momentum needs fewer than a fifth of the
+   steps plain descent needs to shrink the error by 1000.
