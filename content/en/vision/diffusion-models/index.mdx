@@ -1,0 +1,242 @@
+---
+id: diffusion-models
+title: Diffusion models
+summary: How a network that only learns to remove a little noise can paint a whole picture from static.
+track: vision
+order: 6
+prerequisites: [clip, cnns, loss-functions, attention]
+minutes: 12
+xp: 100
+volatility: evergreen
+sources:
+  - title: 'Sohl-Dickstein et al. (2015): Deep Unsupervised Learning using Nonequilibrium Thermodynamics'
+    url: https://arxiv.org/abs/1503.03585
+  - title: 'Ho, Jain & Abbeel (2020): Denoising Diffusion Probabilistic Models (DDPM)'
+    url: https://arxiv.org/abs/2006.11239
+  - title: 'Song, Meng & Ermon (2020): Denoising Diffusion Implicit Models (DDIM)'
+    url: https://arxiv.org/abs/2010.02502
+  - title: 'Rombach et al. (2021): High-Resolution Image Synthesis with Latent Diffusion Models'
+    url: https://arxiv.org/abs/2112.10752
+  - title: 'Ho & Salimans (2022): Classifier-Free Diffusion Guidance'
+    url: https://arxiv.org/abs/2207.12598
+  - title: 'Ramesh et al. (2022): Hierarchical Text-Conditional Image Generation with CLIP Latents'
+    url: https://arxiv.org/abs/2204.06125
+  - title: 'CompVis: Stable Diffusion (README)'
+    url: https://github.com/CompVis/stable-diffusion
+quiz:
+  - type: choice
+    prompt: 'In a DDPM, which part is learned by a neural network?'
+    options:
+      - The forward process that adds noise
+      - Both directions, trained separately
+      - Neither; both are fixed formulas
+      - The reverse process that removes noise
+    answer: 3
+    explanation: 'Adding noise is a fixed recipe with a set schedule, so no learning is needed. The network learns the hard direction: predicting the noise so it can be removed step by step.'
+  - type: numeric
+    prompt: 'At some step, a noisy image is √ᾱ × image + √(1 − ᾱ) × noise, with ᾱ = 0.64. What number multiplies the noise?'
+    answer: 0.6
+    tolerance: 0.001
+    explanation: '1 − 0.64 = 0.36, and √0.36 = 0.6. The image itself is multiplied by √0.64 = 0.8, so this step is still mostly picture.'
+  - type: choice
+    prompt: 'During DDPM training, what does the network output for a noisy image?'
+    options:
+      - A guess of the noise that was added
+      - A caption for the image
+      - Whether the image is real or fake
+      - The step number t
+    answer: 0
+    explanation: 'The training loop picks an image, a random step and random noise, mixes them, and asks the network for the noise. The loss is the squared error between the real and predicted noise.'
+  - type: numeric
+    prompt: 'Classifier-free guidance combines two noise predictions as (1 + w) × conditional − w × unconditional. With conditional = 0.4, unconditional = 0.1 and w = 3, what is the guided prediction?'
+    answer: 1.3
+    tolerance: 0.001
+    explanation: '(1 + 3) × 0.4 = 1.6, and 3 × 0.1 = 0.3. 1.6 − 0.3 = 1.3. The result is pushed further in the direction the prompt points, away from the unconditional guess.'
+  - type: choice
+    prompt: 'Why does a latent diffusion model like Stable Diffusion run the diffusion on a compressed latent instead of on pixels?'
+    options:
+      - Because pixels cannot hold noise
+      - Because the text encoder only accepts latents
+      - Because each of the many denoising steps becomes much cheaper on a smaller grid
+      - Because latents remove the need for a noise schedule
+    answer: 2
+    explanation: 'Sampling runs the network many times. A downsampling factor of 8 turns a 512 × 512 grid into 64 × 64, which is 64 times fewer positions to process at every step.'
+  - type: choice
+    prompt: 'You turn the guidance strength w way up. What trade-off should you expect, according to the classifier-free guidance paper?'
+    options:
+      - More diverse images that ignore the prompt
+      - Images that match the condition more closely, at the cost of diversity
+      - Faster sampling with no other change
+      - No change at all
+    answer: 1
+    explanation: 'Ho and Salimans describe guidance as trading off sample quality against diversity, and compare it to low-temperature sampling. Turn it up and images match the prompt better but vary less.'
+---
+
+# Painting with static 📺
+
+Drop some ink into a glass of water. It spreads out until the water is evenly grey. Running that film backwards, ink gathering itself into a neat drop, looks impossible.
+
+In 2015, Jascha Sohl-Dickstein and colleagues, inspired by physics, suggested doing exactly that to images. Their idea: "systematically and slowly destroy structure" in data by adding noise, then **learn a reverse process** that restores it. Start from pure noise, run the learned reverse, and you get a new picture.
+
+Five years later, Jonathan Ho, Ajay Jain and Pieter Abbeel showed this could produce high-quality images. **Diffusion models** went on to power image generators: Stable Diffusion is one, and DALL·E 2 uses them to turn CLIP embeddings into images.
+
+This lesson covers how noise is added, what the network learns, how an image is generated, and how text steers it.
+
+---
+
+## Destroying an image, slowly
+
+Take a photo, with pixel values scaled to the range −1 to 1. Add a tiny bit of random Gaussian noise. Then a bit more. Repeat.
+
+This is the **forward process**. In the DDPM paper (Ho et al., 2020) it has **T = 1000** steps, and the amount of noise per step grows linearly from 0.0001 to 0.02. After all 1,000 steps, the photo is indistinguishable from pure noise.
+
+🤔 Predict: does a neural network need to learn how to add this noise?
+
+No. The forward process is a **fixed formula** with a set schedule. Nothing in it is learned. All the learning goes into the hard direction: undoing it.
+
+---
+
+## Jumping straight to any step
+
+You don't actually need to add noise 500 times to see step 500. Adding Gaussian noise to Gaussian noise gives Gaussian noise, so the paper writes any step as one mix:
+
+**noisy image = √ᾱ × original + √(1 − ᾱ) × noise**
+
+Here ᾱ (alpha-bar) is a number between 0 and 1 set by the schedule. It starts near 1 (almost all image) and falls towards 0 (almost all noise) as the steps go on.
+
+With ᾱ = 0.36, the mix is 0.6 × image + 0.8 × noise. The picture is still in there, but it's mostly noise.
+
+<Deeper title="Go deeper: the forward process in symbols">
+Each step adds noise with variance $\beta_t$:
+
+$$
+\begin{aligned}
+q(x_t \mid x_{t-1}) = \mathcal{N}\big(&\sqrt{1-\beta_t}\,x_{t-1},\\
+&\beta_t I\big)
+\end{aligned}
+$$
+
+With $\alpha_t = 1 - \beta_t$ and $\bar\alpha_t = \alpha_1 \alpha_2 \cdots \alpha_t$, the steps combine into one:
+
+$$
+\begin{aligned}
+x_t = \sqrt{\bar\alpha_t}\,x_0
++ \sqrt{1-\bar\alpha_t}\,\epsilon
+\end{aligned}
+$$
+
+where $\epsilon$ is standard Gaussian noise. The two squared coefficients always add up to 1, so the overall scale of the numbers stays about the same.
+
+</Deeper>
+
+---
+
+## What the network learns
+
+Training repeats one simple exercise:
+
+1. Pick a training image.
+2. Pick a random step $t$ between 1 and 1,000.
+3. Draw random noise and mix it with the image using the formula above.
+4. Show the network the noisy image and $t$, and ask it a question.
+
+🤔 Predict: what should the network be asked to output? The clean image, or something else?
+
+In DDPM it predicts **the noise that was added**. The loss is the **squared error** between the real noise and the network's guess (the loss functions lesson covers squared error). The authors tried other targets too, and found that predicting the noise with this simplified loss gave the best image quality in their experiments.
+
+Because $t$ is random, one network learns to denoise at **every** noise level, from a faint haze to pure static.
+
+---
+
+## The network: a U-Net
+
+Which network does the predicting? DDPM used a **U-Net**: a convolutional network (the CNN lesson covers these) that shrinks the image to coarse feature maps and then expands it back to full size, with shortcuts between matching sizes. Its output has the same shape as its input, which is exactly what a noise prediction needs.
+
+The same weights are used at every step. The network is told which step it is on through a **sinusoidal position embedding**, the trick transformers use to encode word positions.
+
+---
+
+## Generating an image
+
+To make a new image, run the process backwards:
+
+1. Start from **pure random noise**.
+2. Ask the network to predict the noise in it.
+3. Remove a bit of the predicted noise, and add back a small amount of fresh noise.
+4. Repeat, from step 1,000 down to step 1.
+
+The paper watched its estimate of the final image during this loop: "Large scale image features appear first and details appear last." The rough layout settles early; fine texture comes at the end.
+
+On the CIFAR-10 dataset of small 32 × 32 images, DDPM reached an **FID** of **3.17**, state of the art at the time. FID compares the statistics of generated images with real ones; lower is better.
+
+The catch is speed. One image needs 1,000 passes through the network. In the paper, a batch of 128 images at 256 × 256 took **300 seconds** on its hardware.
+
+---
+
+## Faster sampling
+
+Do you really need all 1,000 steps? Jiaming Song, Chenlin Meng and Stefano Ermon showed you don't.
+
+Their **DDIM** method uses the same training objective, so an already trained DDPM network can be reused, but takes a different, **deterministic** path back from noise that can skip steps. They report high-quality samples **10× to 50× faster** in wall-clock time than DDPM.
+
+Being deterministic has a bonus: the same starting noise always gives the same image, so you can change the noise gradually and watch the image change smoothly.
+
+---
+
+## Diffusing in a smaller space
+
+A 512 × 512 colour image has 786,432 numbers, and the network runs on all of them at every step. Robin Rombach and colleagues asked: why denoise every pixel?
+
+Their **latent diffusion** model first trains an **autoencoder**: an encoder that compresses an image into a smaller grid of numbers called a **latent**, and a decoder that turns a latent back into an image. The diffusion then happens **in the latent space**. Only at the very end does the decoder turn the result into pixels.
+
+🤔 Predict: the encoder shrinks each side by a downsampling factor of 8. How many times fewer grid positions is that for a 512 × 512 image?
+
+512 ÷ 8 = 64, so the latent is 64 × 64. That's 8 × 8 = **64 times** fewer positions.
+
+**Stable Diffusion v1** is built this way: a downsampling-factor 8 autoencoder and an 860-million-parameter U-Net, trained on images from the LAION-5B dataset.
+
+---
+
+## Steering with text
+
+A model that turns noise into _some_ image isn't enough. You want _a fox in the snow_.
+
+**Text in.** The prompt goes through a text encoder. Stable Diffusion v1 uses a frozen **CLIP** ViT-L/14 text encoder (the CLIP lesson explains why its embeddings carry visual meaning). The latent diffusion paper feeds text embeddings into the U-Net through **cross-attention** layers, letting each part of the image attend to the relevant words (the attention lesson covers attention).
+
+**Guidance.** In **classifier-free guidance** (Ho & Salimans, 2022), one network is trained both with the prompt and, some of the time, with the prompt randomly replaced by an empty "null" input. When sampling, you get two noise predictions, with and without the prompt, and push further in the prompt's direction:
+
+**guided = (1 + w) × with prompt − w × without**
+
+A larger $w$ makes images follow the prompt more closely. The authors describe guidance as a trade-off between sample quality and diversity, and compare the idea to low-temperature sampling in other kinds of generative model.
+
+---
+
+## Common misconceptions
+
+- **"The model makes the image in one go."** It refines it over many steps: 1,000 in DDPM, fewer with faster samplers like DDIM.
+- **"Adding the noise is learned too."** The forward process is a fixed formula; only the reverse is learned.
+- **"The network directly outputs the finished picture."** In DDPM it predicts the noise at each step, and the sampler uses that to take a small step towards a cleaner image.
+- **"Diffusion always works on pixels."** Latent diffusion models such as Stable Diffusion denoise a compressed latent and decode it at the end.
+- **"More guidance is always better."** Higher guidance follows the prompt more closely but trades away diversity.
+
+---
+
+## Quiz time 🧠
+
+Six questions, two with a little arithmetic.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- A **diffusion model** learns to reverse a fixed **forward process** that slowly turns images into noise.
+- Any step can be reached directly as **√ᾱ × image + √(1 − ᾱ) × noise**.
+- **Training**: noise an image to a random step and train a **U-Net** to **predict the noise**, using squared error.
+- **Sampling** starts from pure noise and removes it step by step; large-scale features appear first. **DDIM** cuts the number of steps.
+- **Latent diffusion** denoises a small **latent** instead of pixels, and text steers it through **CLIP** embeddings, **cross-attention** and **classifier-free guidance**.
+
+**Related:** the CLIP lesson covers the text encoder behind Stable Diffusion; the sampling & temperature lesson covers the language-model idea that guidance is compared to.
+
+Hit **Finish** to collect your XP! 🏁

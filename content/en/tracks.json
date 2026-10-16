@@ -127,13 +127,7 @@
     "description": "How machines see: from pixels to image generators.",
     "icon": "👁️",
     "colour": "teal",
-    "upcoming": [
-      {
-        "id": "diffusion-models",
-        "title": "Diffusion models",
-        "order": 6
-      }
-    ]
+    "upcoming": []
   },
   {
     "id": "ai-coding",
