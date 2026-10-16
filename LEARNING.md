@@ -209,3 +209,18 @@ You asked to be told when the first version was ready, so these phases were buil
 
 1. The softmax lesson says only the gaps between scores matter. Prove it for two scores: show that softmax([a, b]) depends only on a − b. Which familiar S-shaped function do you get?
 2. In the odds form of Bayes, two positive tests multiply the odds by 9 twice. Why would that overstate the evidence if both tests tended to fail on the same people?
+
+## Maths lessons 7–9 (2026-10-16)
+
+**Built:** Lessons for Entropy & cross-entropy, Eigenvalues & eigenvectors, and SVD & low-rank approximation, written with the `write-lesson` skill. This finishes the maths track: it has no upcoming lessons left. The eigenvalues lesson reuses the ravine widget with `kappa={10}`, because that valley's Hessian has eigenvalues 1 and 10, so the condition number shows up on screen.
+
+**Concepts:**
+
+- **The renderer limits the writing.** The MDX pipeline has no GFM plugin, so Markdown tables don't render. The code-length and loss tables became bullet lists instead of a new dependency.
+- **Rebuild an example, then check it against the source's numbers.** Olah's essay gives only the totals (1.75 bits, 2.25 bits), so the lesson writes out frequencies that reproduce both and uses them for the reverse direction (2.375 bits). That shows KL isn't symmetric without claiming a number the essay doesn't give.
+- **A dead link gets swapped for a primary source that works.** The PageRank tech report's server returned an error page, so the lesson cites Brin & Page's 1998 paper, which states the eigenvector link in its own words.
+
+**Explore:**
+
+1. Run power iteration by hand on the matrix with rows [2, 1] and [1, 2], starting from [1, 0]. After how many steps is the angle to [1, 1] under 1°? How would that change if the eigenvalues were 3 and 2.9?
+2. Take a small greyscale image as a matrix, compute its SVD with NumPy, and plot the singular values. At what rank does the picture stop looking blocky?
