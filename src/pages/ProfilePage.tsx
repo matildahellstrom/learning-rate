@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react'
 import { gameStore, useGameState } from '../app/game'
 import { usePageTitle } from '../app/usePageTitle'
 import { useToday } from '../app/useToday'
+import { Mascot, type MascotColour, type MascotShape } from '../components/Mascot'
 import { badges } from '../content/lessons'
 import { levelFromXp } from '../game/levels'
 import { activeStreak, MAX_FREEZES } from '../game/streak'
@@ -15,26 +16,32 @@ export function ProfilePage() {
   const today = useToday()
   const currentStreak = activeStreak(state.streak, today)
 
-  const stats = [
-    { label: t('profile.level'), value: level.level, icon: '⬆️', tint: 'var(--track-violet)' },
-    { label: t('profile.totalXp'), value: state.xp, icon: '⭐', tint: 'var(--gold-2)' },
+  // Each stat is a pastel tile with its own mascot peeking in, like a grid of mood tiles.
+  const stats: {
+    label: string
+    value: string | number
+    shape: MascotShape
+    colour: MascotColour
+  }[] = [
+    { label: t('profile.level'), value: level.level, shape: 'pentagon', colour: 'purple' },
+    { label: t('profile.totalXp'), value: state.xp, shape: 'circle', colour: 'amber' },
     {
       label: t('profile.streak'),
       value: tn('profile.days', currentStreak, { days: currentStreak }),
-      icon: '🔥',
-      tint: 'var(--flame)',
+      shape: 'flame',
+      colour: 'coral',
     },
     {
       label: t('profile.bestStreak'),
       value: tn('profile.days', state.streak.best, { days: state.streak.best }),
-      icon: '🏆',
-      tint: 'var(--track-pink)',
+      shape: 'blob',
+      colour: 'pink',
     },
     {
       label: t('profile.freezes'),
       value: `${state.streak.freezes} / ${MAX_FREEZES}`,
-      icon: '🧊',
-      tint: 'var(--track-blue)',
+      shape: 'cloud',
+      colour: 'blue',
     },
   ]
   const fill = level.xpForNextLevel > 0 ? level.xpIntoLevel / level.xpForNextLevel : 0
@@ -71,14 +78,19 @@ export function ProfilePage() {
 
       <dl className={styles.stats}>
         {stats.map((s) => (
-          <div key={s.label} className={styles.stat} style={{ '--tint': s.tint } as CSSProperties}>
-            <dt>
-              <span className={styles.statIcon} aria-hidden="true">
-                {s.icon}
-              </span>
-              {s.label}
-            </dt>
+          <div
+            key={s.label}
+            className={styles.stat}
+            style={{ '--tint': `var(--mascot-${s.colour})` } as CSSProperties}
+          >
+            <dt>{s.label}</dt>
             <dd>{s.value}</dd>
+            <Mascot
+              className={styles.statMascot}
+              shape={s.shape}
+              colour={s.colour}
+              mood={s.shape === 'flame' && currentStreak > 0 ? 'star' : 'happy'}
+            />
           </div>
         ))}
       </dl>
@@ -86,13 +98,23 @@ export function ProfilePage() {
 
       <h2>{t('profile.badges')}</h2>
       <ul className={styles.badges}>
-        {badges.map((b) => {
+        {badges.map((b, i) => {
           const earned = b.id in state.badges
           return (
             <li key={b.id} className={`${styles.badge} ${earned ? styles.earned : styles.locked}`}>
-              <span className={styles.medal} aria-hidden="true">
-                <span className={styles.badgeIcon}>{earned ? b.icon : '🔒'}</span>
-              </span>
+              {earned ? (
+                <span className={styles.medal} aria-hidden="true">
+                  <span className={styles.badgeIcon}>{b.icon}</span>
+                </span>
+              ) : (
+                // Locked: a sleepy grey mascot waits for you to earn it.
+                <Mascot
+                  className={styles.sleeper}
+                  shape={sleeperShapes[i % sleeperShapes.length]}
+                  colour="grey"
+                  mood="sleepy"
+                />
+              )}
               <strong>{b.title}</strong>
               <span className={styles.muted}>
                 {earned ? b.description : `${t('profile.locked')}: ${b.description}`}
@@ -118,3 +140,5 @@ export function ProfilePage() {
     </>
   )
 }
+
+const sleeperShapes: MascotShape[] = ['circle', 'pentagon', 'cloud', 'square', 'triangle', 'blob']

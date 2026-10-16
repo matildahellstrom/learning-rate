@@ -2,16 +2,10 @@ import { Link } from 'react-router'
 import { usePageTitle } from '../app/usePageTitle'
 import { t } from '../i18n'
 
-const pageStyle = {
-  maxWidth: 'var(--content-width)',
-  margin: '0 auto',
-  padding: 'var(--space-6) var(--space-4)',
-}
-
 /** Shown while the lesson chunk downloads on a deep link or reload. No fade: text stays readable. */
 export function LessonLoading() {
   return (
-    <main style={pageStyle}>
+    <main className="sheet sheet-page">
       <output>{t('lesson.loading')}</output>
     </main>
   )
@@ -21,7 +15,7 @@ export function LessonLoading() {
 export function LessonLoadError() {
   usePageTitle(t('lesson.loadErrorTitle'))
   return (
-    <main style={pageStyle}>
+    <main className="sheet sheet-page">
       <h1>
         <span aria-hidden="true">🛰️ </span>
         {t('lesson.loadErrorTitle')}

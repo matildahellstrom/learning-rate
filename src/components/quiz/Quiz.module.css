@@ -7,13 +7,11 @@
   justify-self: start;
   margin: 0;
   padding: 2px var(--space-3);
-  border: 2px solid var(--border);
   border-radius: 999px;
-  background: var(--surface);
-  color: var(--text-muted);
-  font-size: 0.9rem;
+  background: var(--primary-tint);
+  color: var(--primary);
+  font-size: 0.85rem;
   font-weight: var(--weight-display);
-  letter-spacing: 0.03em;
 }
 
 .fieldset {
@@ -33,33 +31,33 @@
   line-height: 1.35;
 }
 
-/* Answer tiles: chunky cards with a ledge that squash a little when picked. */
+/*
+ * Answer rows: grey filled boxes with no visible border. The 2px border is transparent until a
+ * row is picked, so the picked row is marked by a purple outline, not only by colour.
+ */
 .option {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   min-height: 56px;
   padding: var(--space-2) var(--space-4);
-  border: 2px solid var(--border);
-  border-radius: 16px;
-  background: var(--surface);
-  box-shadow: 0 4px 0 var(--border);
-  font-weight: 700;
+  border: 2px solid transparent;
+  border-radius: var(--radius-s);
+  background: var(--surface-2);
+  font-weight: 600;
   cursor: pointer;
   transition:
     transform var(--duration),
-    box-shadow var(--duration);
+    background-color var(--duration);
 }
 
 .fieldset:not(:disabled) .option:hover {
-  transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--primary) 50%, var(--border));
+  background: var(--surface-3);
 }
 
 .option:has(input:checked) {
   border-color: var(--primary);
-  background: var(--surface-2);
-  box-shadow: 0 4px 0 var(--primary);
+  background: var(--primary-tint);
 }
 
 .option:has(input:focus-visible) {
@@ -83,7 +81,6 @@
 .fieldset:disabled .correct {
   border-color: var(--success);
   background: var(--success-bg);
-  box-shadow: 0 4px 0 var(--success-ledge);
   animation: bounce 520ms var(--bounce);
 }
 
@@ -91,7 +88,6 @@
 .fieldset:disabled .wrong {
   border-color: var(--danger);
   background: var(--danger-bg);
-  box-shadow: 0 4px 0 var(--danger);
   animation: shake 420ms ease-in-out;
 }
 
@@ -129,13 +125,17 @@
   font-weight: 800;
 }
 
+/*
+ * A grey filled input. The fill alone is too faint to show where the field is (1.1:1), so a
+ * muted underline (≥ 4.5:1) marks it, like a "filled" text field.
+ */
 .numeric {
   min-height: 52px;
   padding: var(--space-2) var(--space-3);
-  border: 2px solid var(--border);
-  border-radius: 14px;
-  background: var(--surface);
-  box-shadow: inset 0 3px 0 rgb(0 0 0 / 0.05);
+  border: 2px solid transparent;
+  border-bottom-color: var(--text-muted);
+  border-radius: var(--radius-s);
+  background: var(--surface-2);
   color: var(--text);
   font: inherit;
   font-size: 1.2rem;
@@ -161,7 +161,7 @@
 .feedback {
   padding: var(--space-3) var(--space-4);
   border: 2px solid;
-  border-radius: var(--radius-l);
+  border-radius: var(--radius-m);
   animation: rise 360ms var(--bounce);
 }
 
@@ -172,13 +172,11 @@
 .feedbackGood {
   border-color: var(--success);
   background: var(--success-bg);
-  box-shadow: 0 4px 0 var(--success-ledge);
 }
 
 .feedbackBad {
   border-color: var(--danger);
   background: var(--danger-bg);
-  box-shadow: 0 4px 0 var(--danger);
 }
 
 .verdict {
@@ -203,9 +201,8 @@
 .done {
   padding: var(--space-4);
   border: 2px solid var(--success);
-  border-radius: var(--radius-l);
+  border-radius: var(--radius-m);
   background: var(--success-bg);
-  box-shadow: 0 4px 0 var(--success-ledge);
   font-size: 1.1rem;
   font-weight: 800;
   animation: rise 360ms var(--bounce);

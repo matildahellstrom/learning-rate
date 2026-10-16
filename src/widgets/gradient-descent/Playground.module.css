@@ -1,14 +1,13 @@
 /*
- * A game "console": surface card with a track-coloured frame and ledge. The background is
- * --surface (not --surface-2) so the green/red outcome messages keep ≥ 4.5:1 contrast.
+ * The widget's card: white with a soft track-coloured frame. The background is --surface
+ * (not --surface-2) so the green/red outcome messages keep ≥ 4.5:1 contrast.
  */
 .playground {
   margin: var(--space-4) 0;
   padding: var(--space-3);
-  border: 3px solid color-mix(in srgb, var(--track, var(--primary)) 55%, var(--border));
+  border: 2px solid color-mix(in srgb, var(--track, var(--primary)) 45%, var(--border));
   border-radius: var(--radius-l);
   background: var(--surface);
-  box-shadow: 0 5px 0 color-mix(in srgb, var(--track, var(--primary)) 55%, var(--border));
 }
 
 .playground :global(.MafsView) {
@@ -126,18 +125,16 @@
   gap: var(--space-2);
   min-height: 44px;
   padding: 0 var(--space-3);
-  border: 2px solid var(--border);
+  border: 2px solid transparent;
   border-radius: 999px;
-  background: var(--surface);
-  box-shadow: 0 3px 0 var(--border);
+  background: var(--surface-2);
   font-weight: 700;
   cursor: pointer;
 }
 
 .choice:has(input:checked) {
   border-color: var(--primary);
-  background: var(--surface-2);
-  box-shadow: 0 3px 0 var(--primary);
+  background: var(--primary-tint);
   font-weight: 900;
 }
 

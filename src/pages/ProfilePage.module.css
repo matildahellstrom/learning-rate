@@ -1,5 +1,5 @@
 .title {
-  margin: var(--space-2) 0 var(--space-4);
+  margin: 0 0 var(--space-4);
   font-size: 1.75rem;
 }
 
@@ -16,35 +16,30 @@
   gap: var(--space-4);
 }
 
-/* The ring is a conic-gradient: gold up to --fill, track colour after it. */
+/* The ring is a conic-gradient: purple up to --fill, white after it. */
 .levelRing {
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  width: 96px;
-  height: 96px;
+  width: 92px;
+  height: 92px;
   border-radius: 50%;
   background: conic-gradient(
-    var(--gold-2) calc(var(--fill) * 1turn),
-    var(--surface-2) calc(var(--fill) * 1turn)
+    var(--btn) calc(var(--fill) * 1turn),
+    var(--surface) calc(var(--fill) * 1turn)
   );
-  box-shadow: 0 4px 0 var(--border);
 }
 
 .levelNumber {
   display: grid;
   place-items: center;
-  width: 74px;
-  height: 74px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
-  background-color: var(--btn);
-  background-image: linear-gradient(160deg, var(--track-violet), var(--track-violet-2));
-  color: #ffffff;
-  font-size: 2.3rem;
+  background: var(--hero);
+  color: var(--on-hero);
+  font-size: 2.2rem;
   font-weight: var(--weight-display);
-  box-shadow:
-    inset 0 -4px 0 rgb(0 0 0 / 0.18),
-    inset 0 3px 0 rgb(255 255 255 / 0.25);
 }
 
 .levelInfo {
@@ -60,30 +55,29 @@
 
 .levelInfo progress {
   width: 100%;
-  height: 16px;
+  height: 12px;
   appearance: none;
   border: 0;
   border-radius: 999px;
-  background: var(--surface-2);
+  background: var(--surface);
   overflow: hidden;
 }
 
 .levelInfo progress::-webkit-progress-bar {
-  background: var(--surface-2);
+  background: var(--surface);
 }
 
 .levelInfo progress::-webkit-progress-value {
-  background: linear-gradient(180deg, var(--gold), var(--gold-2));
+  background: var(--btn);
   border-radius: 999px;
-  box-shadow: inset 0 4px 0 -1px rgb(255 255 255 / 0.45);
 }
 
 .levelInfo progress::-moz-progress-bar {
-  background: linear-gradient(180deg, var(--gold), var(--gold-2));
+  background: var(--btn);
   border-radius: 999px;
 }
 
-/* ---------- Stat tiles, each with its own colour ---------- */
+/* ---------- Stat tiles: pastel tints, label top-right, a mascot peeking in ---------- */
 
 .stats {
   display: grid;
@@ -92,39 +86,40 @@
   margin: var(--space-5) 0 var(--space-2);
 }
 
-/* A faint wash of the tile's colour (12%) keeps both body and muted text well above AA. */
+/* A 22% wash of the mascot's colour: body text stays ≥ 10:1, muted text ≥ 4.5:1. */
 .stat {
-  padding: var(--space-3) var(--space-4);
-  border: 2px solid color-mix(in srgb, var(--tint) 45%, var(--border));
-  border-radius: var(--radius-l);
-  background: color-mix(in srgb, var(--tint) 12%, var(--surface));
-  box-shadow: 0 4px 0 color-mix(in srgb, var(--tint) 45%, var(--border));
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-height: 112px;
+  padding: var(--space-3) var(--space-3) var(--space-3) 64px;
+  border-radius: var(--radius-m);
+  background: color-mix(in srgb, var(--tint) 22%, var(--surface));
+  text-align: right;
+  overflow: hidden;
 }
 
 .stat dt {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--text-muted);
-  font-size: 0.85rem;
-  font-weight: 800;
-}
-
-.statIcon {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--surface);
-  font-size: 1rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.3;
 }
 
 .stat dd {
-  margin: var(--space-1) 0 0;
-  font-size: 1.6rem;
+  margin: auto 0 0;
+  font-size: 1.5rem;
   font-weight: var(--weight-display);
   font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.statMascot {
+  position: absolute;
+  left: -10px;
+  bottom: -18px;
+  width: 72px;
+  height: 72px;
 }
 
 /* ---------- Trophy shelf ---------- */
@@ -143,61 +138,43 @@
   align-items: center;
   gap: var(--space-1);
   padding: var(--space-4) var(--space-3);
-  border-radius: var(--radius-l);
+  border-radius: var(--radius-m);
   text-align: center;
-  background: var(--surface);
-  border: 2px solid var(--border);
-  box-shadow: 0 4px 0 var(--border);
+  background: var(--surface-2);
   /* Badge names may break with large text instead of overflowing. */
   overflow-wrap: anywhere;
   hyphens: auto;
 }
 
 .earned {
-  border-color: var(--gold-2);
-  background: color-mix(in srgb, var(--gold) 14%, var(--surface));
-  box-shadow: 0 4px 0 var(--gold-ledge);
+  background: var(--gold-tint);
 }
 
-/* Medallions: a gold coin with a rim when earned, a dashed empty socket when locked. */
+/* Earned: a flat amber medallion. Locked: a sleepy grey mascot. */
 .medal {
   display: grid;
   place-items: center;
-  width: 72px;
-  height: 72px;
+  width: 68px;
+  height: 68px;
   margin-bottom: var(--space-2);
   border-radius: 50%;
+  background: var(--gold-2);
 }
 
-.earned .medal {
-  border: 3px solid var(--gold-ledge);
-  background: radial-gradient(circle at 35% 30%, #fffbeb, var(--gold) 45%, var(--gold-2));
-  box-shadow:
-    0 5px 0 var(--gold-ledge),
-    inset 0 -4px 0 rgb(0 0 0 / 0.1);
-}
-
-.locked .medal {
-  border: 3px dashed var(--locked);
-  background: var(--surface-2);
+.sleeper {
+  width: 68px;
+  height: 68px;
+  margin-bottom: var(--space-2);
 }
 
 .badgeIcon {
-  font-size: 2.1rem;
+  font-size: 2rem;
   line-height: 1;
-}
-
-.earned .badgeIcon {
   transition: transform var(--duration) var(--bounce);
 }
 
 .earned:hover .badgeIcon {
   transform: scale(1.15) rotate(-8deg);
-}
-
-.locked .badgeIcon {
-  filter: grayscale(1);
-  opacity: 0.6;
 }
 
 .storage {

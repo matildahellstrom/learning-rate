@@ -1,16 +1,9 @@
-/* A gold-framed "boss level" card. The tint is light, so body text keeps its full contrast. */
+/* A pastel amber "boss level" card. The tint is light, so body text keeps its full contrast. */
 .challenge {
   margin: var(--space-4) 0;
   padding: var(--space-4);
-  border: 3px solid var(--gold-2);
   border-radius: var(--radius-l);
-  background-color: var(--surface);
-  background-image: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--gold) 18%, var(--surface)),
-    var(--surface) 140px
-  );
-  box-shadow: 0 6px 0 var(--gold-ledge);
+  background: var(--gold-tint);
 }
 
 .header {
@@ -28,14 +21,11 @@
   gap: var(--space-1);
   padding: 3px var(--space-3);
   border-radius: 999px;
-  background-color: var(--gold-2);
-  background-image: linear-gradient(180deg, var(--gold), var(--gold-2));
+  background: var(--gold-2);
   color: var(--on-gold);
   font-size: 0.85rem;
   font-weight: var(--weight-display);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  box-shadow: 0 3px 0 var(--gold-ledge);
+  letter-spacing: 0.04em;
 }
 
 .best {
@@ -56,13 +46,13 @@
   margin-bottom: 0;
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-m);
-  background: var(--surface-2);
+  background: var(--surface);
   font-weight: 800;
 }
 
 /* Three stars: a gold, bouncy result banner. */
 .result .perfect {
-  background: color-mix(in srgb, var(--gold) 30%, var(--surface));
+  background: var(--surface);
   border: 2px solid var(--gold-2);
   animation: perfect 600ms var(--bounce);
 }

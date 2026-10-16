@@ -149,24 +149,20 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
         <Link to="/" className={styles.close} aria-label={t('lesson.close')}>
           ✕
         </Link>
-        <span
-          className={styles.progressWrap}
-          style={{ '--fill': (step + 1) / lesson.stepCount } as CSSProperties}
-        >
+        <span className={styles.progressWrap}>
           <progress
             className={styles.progress}
             max={lesson.stepCount}
             value={step + 1}
             aria-label={t('lesson.progress', { step: step + 1, total: lesson.stepCount })}
           />
-          <span className={styles.shine} aria-hidden="true" />
         </span>
         <span className={styles.counter} aria-hidden="true">
           {step + 1}/{lesson.stepCount}
         </span>
       </header>
 
-      <main className={styles.content}>
+      <main className={`sheet ${styles.content}`}>
         {/* key: each step remounts, so its slide-in animation plays again. */}
         <div key={step} ref={stepRef} tabIndex={-1} className={styles.step}>
           {step === 0 && <PrerequisiteHint lesson={lesson} />}

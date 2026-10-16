@@ -40,7 +40,7 @@ export function CompletionScreen({ lesson, rewards, quizCorrect, onReview, style
   useEffect(() => headingRef.current?.focus(), [])
 
   return (
-    <main className={styles.screen} style={style}>
+    <main className={`sheet ${styles.screen}`} style={style}>
       {/* Nothing to celebrate in a tab that can't save (see ReadOnlyBanner). */}
       {!readOnly && <Confetti />}
       <div className={styles.hero} aria-hidden="true">

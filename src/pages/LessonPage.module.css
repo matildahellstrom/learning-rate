@@ -4,6 +4,7 @@
   padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
 }
 
+/* The top bar sits on the lavender backdrop, so everything in it uses --text or a white chip. */
 .top {
   position: sticky;
   top: 0;
@@ -11,10 +12,10 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  max-width: var(--content-width);
+  max-width: calc(var(--content-width) + 2 * var(--space-2));
   margin: 0 auto;
   padding: var(--space-3) var(--space-4);
-  background: var(--bg);
+  background: var(--backdrop);
 }
 
 .close {
@@ -24,26 +25,24 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  color: var(--text-muted);
-  font-size: 1.4rem;
+  color: var(--text);
+  font-size: 1.3rem;
   font-weight: 900;
   text-decoration: none;
   transition: transform var(--duration) var(--bounce);
 }
 
 .close:hover {
-  background: var(--surface-2);
+  background: var(--surface);
   transform: rotate(90deg);
 }
 
-/* Chunky progress bar: a real <progress> plus a glossy highlight and a sweeping glint. */
+/* A flat purple progress bar in a white track. */
 .progressWrap {
-  position: relative;
   flex: 1;
-  height: 20px;
+  height: 12px;
   border-radius: 999px;
-  background: var(--surface-2);
-  box-shadow: inset 0 3px 0 rgb(0 0 0 / 0.08);
+  background: var(--surface);
   overflow: hidden;
 }
 
@@ -63,62 +62,38 @@
 }
 
 .progress::-webkit-progress-value {
-  background: linear-gradient(180deg, #4ade80, #16a34a);
+  background: var(--btn);
   border-radius: 999px;
-  box-shadow: inset 0 4px 0 -1px rgb(255 255 255 / 0.4);
   transition: width 500ms var(--bounce);
 }
 
 .progress::-moz-progress-bar {
-  background: linear-gradient(180deg, #4ade80, #16a34a);
+  background: var(--btn);
   border-radius: 999px;
-}
-
-/* Clipped to the filled part (--fill is set from React), so the glint never runs past it. */
-.shine {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: calc(var(--fill) * 100%);
-  border-radius: 999px;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.shine::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  width: 28px;
-  background: linear-gradient(100deg, transparent, rgb(255 255 255 / 0.65), transparent);
-  transform: translateX(-40px);
-  animation: glint 2.8s ease-in-out infinite;
-}
-
-@keyframes glint {
-  0%,
-  50% {
-    transform: translateX(-40px);
-  }
-  100% {
-    transform: translateX(640px);
-  }
 }
 
 .counter {
-  padding: 2px var(--space-2);
-  border: 2px solid var(--border);
+  padding: 2px var(--space-3);
   border-radius: 999px;
   background: var(--surface);
-  color: var(--text-muted);
+  color: var(--text);
   font-size: 0.9rem;
   font-weight: var(--weight-display);
   font-variant-numeric: tabular-nums;
 }
 
+/* The lesson's white sheet, inset so the lavender shows round it. */
 .content {
   max-width: var(--content-width);
-  margin: 0 auto;
-  padding: 0 var(--space-4);
+  margin: 0 var(--space-2);
+  padding: var(--space-2) var(--space-4) var(--space-5);
+}
+
+@media (min-width: 656px) {
+  .content {
+    margin: 0 auto;
+    padding: var(--space-3) var(--space-5) var(--space-6);
+  }
 }
 
 /* New step: content slides up into place (transform only, text stays at full contrast). */
@@ -160,10 +135,8 @@
 
 .hint {
   padding: var(--space-3) var(--space-4);
-  border: 2px solid var(--border);
   border-radius: var(--radius-m);
-  background: var(--surface);
-  box-shadow: 0 3px 0 var(--border);
+  background: var(--surface-2);
   font-weight: 700;
 }
 
@@ -184,7 +157,8 @@
   z-index: 10;
   padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom));
   background: var(--surface);
-  border-top: 2px solid var(--border);
+  border-radius: var(--radius-l) var(--radius-l) 0 0;
+  box-shadow: 0 -4px 20px rgb(28 21 48 / 0.08);
 }
 
 .footerInner {
@@ -203,14 +177,11 @@
   min-width: 0;
   padding-inline: var(--space-3);
   overflow-wrap: anywhere;
-  min-height: 54px;
-  font-size: 1.15rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  min-height: 52px;
+  font-size: 1.1rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .shine::after,
   .step {
     animation: none;
   }

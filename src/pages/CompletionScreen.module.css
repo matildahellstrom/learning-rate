@@ -1,11 +1,18 @@
+/* A white sheet on the lavender backdrop, like every other page. */
 .screen {
   display: flex;
   flex-direction: column;
   align-items: center;
   max-width: var(--content-width);
-  margin: 0 auto;
+  margin: var(--space-3) var(--space-2);
   padding: var(--space-5) var(--space-4) var(--space-6);
   text-align: center;
+}
+
+@media (min-width: 656px) {
+  .screen {
+    margin: var(--space-5) auto;
+  }
 }
 
 /* Eta jumps in, with slowly turning sun rays behind (decoration only, no text on top). */
@@ -63,8 +70,12 @@
   margin: var(--space-2) 0 var(--space-4);
   padding: 2px var(--space-3);
   border-radius: 999px;
-  background-color: var(--track, var(--btn));
-  background-image: linear-gradient(90deg, var(--track, var(--btn)), var(--track-2, var(--btn)));
+  background-color: var(--track, var(--track-violet));
+  background-image: linear-gradient(
+    90deg,
+    var(--track, var(--track-violet)),
+    var(--track-2, var(--track-violet-2))
+  );
   color: var(--on-track);
   font-weight: var(--weight-display);
 }
@@ -91,7 +102,7 @@
   gap: var(--space-2);
   margin: 0;
   padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-l);
+  border-radius: var(--radius-m);
   font-weight: 800;
 }
 
@@ -100,22 +111,16 @@
 }
 
 .tiles .xp {
-  background-color: var(--gold-2);
-  background-image: linear-gradient(180deg, var(--gold), var(--gold-2));
+  background: var(--gold-2);
   color: var(--on-gold);
   font-size: 1.9rem;
   font-weight: var(--weight-display);
   font-variant-numeric: tabular-nums;
-  box-shadow:
-    0 5px 0 var(--gold-ledge),
-    inset 0 3px 0 rgb(255 255 255 / 0.4);
   animation: pop-in 500ms var(--bounce) 200ms both;
 }
 
 .quiz {
-  border: 2px solid var(--border);
-  background: var(--surface);
-  box-shadow: 0 4px 0 var(--border);
+  background: var(--surface-2);
 }
 
 .level {
@@ -134,15 +139,13 @@
   color: var(--on-btn);
   font-weight: var(--weight-display);
   white-space: nowrap;
-  box-shadow: 0 3px 0 var(--btn-ledge);
 }
 
 .levelBar {
   flex: 1;
-  height: 16px;
+  height: 12px;
   border-radius: 999px;
   background: var(--surface-2);
-  box-shadow: inset 0 3px 0 rgb(0 0 0 / 0.08);
   overflow: hidden;
 }
 
@@ -160,27 +163,25 @@
 }
 
 .levelBar progress::-webkit-progress-value {
-  background: linear-gradient(180deg, var(--gold), var(--gold-2));
+  background: var(--btn);
   border-radius: 999px;
-  box-shadow: inset 0 4px 0 -1px rgb(255 255 255 / 0.45);
 }
 
 .levelBar progress::-moz-progress-bar {
-  background: linear-gradient(180deg, var(--gold), var(--gold-2));
+  background: var(--btn);
   border-radius: 999px;
 }
 
-/* Level-up ribbon: white text on the violet hero gradient (≥ 4.6:1 at every stop). */
+/* Level-up ribbon: white text on the purple hero gradient (≥ 4.9:1 at every stop). */
 .levelUp {
   margin: var(--space-5) 0 0;
   padding: var(--space-2) var(--space-5);
   border-radius: var(--radius-m);
-  background-color: #6d28d9;
+  background-color: var(--hero);
   background-image: var(--hero-gradient);
-  color: #ffffff;
+  color: var(--on-hero);
   font-size: 1.2rem;
   font-weight: var(--weight-display);
-  box-shadow: 0 5px 0 var(--hero-ledge);
   animation: pop-in 600ms var(--bounce) 900ms both;
 }
 
@@ -207,10 +208,8 @@
   column-gap: var(--space-3);
   align-items: center;
   padding: var(--space-3);
-  border: 2px solid var(--gold-2);
-  border-radius: var(--radius-l);
-  background: var(--surface);
-  box-shadow: 0 4px 0 var(--gold-ledge);
+  border-radius: var(--radius-m);
+  background: var(--gold-tint);
   text-align: left;
   animation: pop-in 500ms var(--bounce) both;
   animation-delay: calc(1100ms + var(--i) * 150ms);
@@ -222,17 +221,15 @@
   font-size: 0.9rem;
 }
 
-/* A gold medallion: gradient face, rim and ledge. */
+/* A flat amber medallion. */
 .medal {
   display: grid;
   place-items: center;
   grid-row: span 2;
   width: 56px;
   height: 56px;
-  border: 3px solid var(--gold-ledge);
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #fffbeb, var(--gold) 45%, var(--gold-2));
-  box-shadow: 0 4px 0 var(--gold-ledge);
+  background: var(--gold-2);
   font-size: 1.7rem;
 }
 
@@ -244,7 +241,7 @@
 }
 
 .actions :global(.btn) {
-  min-height: 54px;
+  min-height: 52px;
   font-size: 1.1rem;
 }
 

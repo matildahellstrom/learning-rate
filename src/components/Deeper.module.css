@@ -1,14 +1,13 @@
-/* The optional maths layer: a "secret area" card with a dashed frame. */
+/* The optional maths layer: a lavender-tinted box that opens up. */
 .deeper {
   margin: var(--space-4) 0;
-  border: 3px dashed var(--primary);
-  border-radius: var(--radius-l);
-  background: var(--surface);
+  border: 2px dashed color-mix(in srgb, var(--primary) 60%, var(--primary-tint));
+  border-radius: var(--radius-m);
+  background: var(--primary-tint);
 }
 
 .deeper[open] {
   border-style: solid;
-  box-shadow: 0 4px 0 var(--primary);
 }
 
 .summary {
@@ -23,8 +22,7 @@
 }
 
 .summary:hover {
-  background: var(--surface-2);
-  border-radius: calc(var(--radius-l) - 3px);
+  text-decoration: underline;
 }
 
 .body {
