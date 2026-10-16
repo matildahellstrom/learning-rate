@@ -7,11 +7,6 @@
     "colour": "blue",
     "upcoming": [
       {
-        "id": "gradients",
-        "title": "Gradients",
-        "order": 4
-      },
-      {
         "id": "softmax",
         "title": "Exponentials, logs & softmax",
         "order": 5

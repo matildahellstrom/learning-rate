@@ -1,0 +1,256 @@
+---
+id: gradients
+title: Gradients
+summary: How to find the steepest way uphill when a function has many inputs, and why every model learns by stepping the other way.
+track: maths
+order: 4
+prerequisites: [vectors-matrices, dot-product, derivatives]
+minutes: 11
+xp: 100
+volatility: evergreen
+sources:
+  - title: 'Goodfellow, Bengio & Courville: Deep Learning, ch. 4 Numerical Computation'
+    url: https://www.deeplearningbook.org/contents/numerical.html
+  - title: 'Stanford CS231n: Optimization (course notes)'
+    url: https://cs231n.github.io/optimization-1/
+  - title: '3Blue1Brown: Gradient descent, how neural networks learn'
+    url: https://www.3blue1brown.com/lessons/gradient-descent/
+quiz:
+  - type: numeric
+    prompt: 'For f(x, y) = 3x + y², what is the partial derivative with respect to y at the point (5, 2)?'
+    answer: 4
+    tolerance: 0.001
+    explanation: 'Freeze x, so 3x is just a constant with derivative 0. The y² part gives 2y, and at y = 2 that is 4. The value of x (5) does not matter at all here.'
+  - type: choice
+    prompt: 'What is the gradient of f(x, y) = x² + 3y at the point (1, 4)?'
+    options:
+      - '[2, 12]'
+      - '[1, 3]'
+      - '[2, 3]'
+      - '[5, 3]'
+    answer: 2
+    explanation: 'Take each partial derivative in turn: x² gives 2x, which is 2 at x = 1; 3y gives 3 wherever you are. So the gradient is [2, 3]. [2, 12] multiplies by y instead of taking the slope in y.'
+  - type: numeric
+    prompt: 'At some point the gradient is [6, 8]. How steep is the slope if you walk in the steepest uphill direction?'
+    answer: 10
+    tolerance: 0.01
+    explanation: 'The steepest slope is the length of the gradient: √(6² + 8²) = √100 = 10. Any other direction gives the dot product with a shorter shadow of the gradient, so a smaller slope.'
+  - type: choice
+    prompt: 'At a point the gradient is [4, 0]. You take a small step in the direction [0, 1]. What is the slope in that direction?'
+    options:
+      - '4'
+      - '0'
+      - '−4'
+      - '2'
+    answer: 1
+    explanation: 'The slope in a direction is the dot product of the gradient with that direction: 4 × 0 + 0 × 1 = 0. The direction is at right angles to the gradient, so you are walking along a contour line and the height does not change.'
+  - type: choice
+    prompt: 'Your weights are [1, 2], the gradient of the loss is [2, −4] and the learning rate is 0.5. Where does one step of gradient descent take you?'
+    options:
+      - '[2, 0]'
+      - '[−1, 6]'
+      - '[0, 0]'
+      - '[0, 4]'
+    answer: 3
+    explanation: 'New weights = old weights − learning rate × gradient = [1, 2] − 0.5 × [2, −4] = [1 − 1, 2 + 2] = [0, 4]. [2, 0] adds the gradient, which steps uphill; [−1, 6] forgets the learning rate.'
+  - type: choice
+    prompt: 'At some point every entry of the gradient is 0. What can you conclude?'
+    options:
+      - 'The ground is flat there in every direction, but it could be a minimum, a maximum or a saddle point'
+      - 'It is the lowest point of the whole function'
+      - 'The function itself equals 0 there'
+      - 'The learning rate is too small'
+    answer: 0
+    explanation: 'A zero gradient means a flat spot (a critical point). The bottom of a bowl, the top of a hill and the middle of a saddle all have a zero gradient, so you need more information to tell them apart. Even a true minimum might only be a local one.'
+---
+
+# Lost in the fog 🌫️
+
+You're on a hillside in thick fog. You can't see the summit or the valley; all you can feel is the ground under your boots.
+
+You want to climb as fast as possible. Which way do you go?
+
+One plan: test each direction. Take a tiny step east and feel whether you rose or fell. Then a tiny step north. Those two measurements turn out to be **all you need** to work out the steepest way up, in any direction.
+
+This lesson covers **partial derivatives**, the **gradient** they build, why it points straight uphill, and how a model with millions of numbers uses it to learn.
+
+---
+
+## Many inputs, one output
+
+The derivatives lesson handled functions with one input. A hillside has two (east and west, north and south), and a neural network's loss has one input **per weight**.
+
+Take a made-up landscape: the height is f(x, y) = x² + 3y. At the point (2, 1), the height is 4 + 3 = **7**.
+
+To measure the slope in one direction, **freeze every other input** and nudge just that one. That's a **partial derivative**. The Deep Learning book puts it as measuring how f changes "as only the variable" you're nudging increases.
+
+🤔 Predict: hold y at 1 and nudge x from 2 to 2.001. About how much does f change, per unit of nudge?
+
+f(2.001, 1) = 4.004001 + 3 = 7.004001. A rise of 0.004001 for a nudge of 0.001: **about 4**. That matches the rule from the derivatives lesson: with y frozen, x² has derivative 2x, which is 4 at x = 2.
+
+Now hold x at 2 and nudge y to 1.001: f rises by exactly 0.003, so the slope in y is **3**.
+
+---
+
+## The gradient: one slope per direction
+
+Stack the partial derivatives into a vector and you have the **gradient**. The Deep Learning book defines it as "the vector containing all the partial derivatives".
+
+For our landscape at (2, 1):
+
+**gradient = [slope in x, slope in y] = [4, 3]**
+
+It's written ∇f (the symbol is called "nabla"). A function of 1,000 inputs has a gradient with 1,000 entries; a function of a billion inputs, a billion.
+
+Because it's a vector, the gradient is also an **arrow**. This one has length √(4² + 3²) = **5**, using Pythagoras from the vectors and matrices lesson.
+
+<Deeper title="Go deeper: notation">
+Partial derivatives use a curly $\partial$ to show that the other inputs are held fixed:
+
+$$
+\nabla f(x, y) =
+\begin{bmatrix}
+\partial f / \partial x \\
+\partial f / \partial y
+\end{bmatrix}
+=
+\begin{bmatrix}
+2x \\
+3
+\end{bmatrix}
+$$
+
+At $(2, 1)$ that's $[4, 3]$. Each entry is computed exactly like an ordinary derivative, treating every other input as a constant number.
+
+</Deeper>
+
+---
+
+## Slope in any direction
+
+East and north are only two of the directions you could walk. What about north-east?
+
+The slope in a direction comes from the **dot product**: take the gradient and a direction arrow of length 1, multiply matching entries and add. The Deep Learning book calls this the **directional derivative**.
+
+- East, [1, 0]: 4 × 1 + 3 × 0 = **4**
+- North, [0, 1]: 4 × 0 + 3 × 1 = **3**
+- Direction [0.8, 0.6]: 4 × 0.8 + 3 × 0.6 = **5**
+
+🤔 Predict: which direction gives the biggest slope of all?
+
+Remember from the dot product lesson that a · b = length × length × cos(angle). The direction has length 1, so the slope is 5 × cos(angle), which is largest when the angle is 0: when you walk **along the gradient itself**. [0.8, 0.6] is exactly that direction, and its slope, 5, is the gradient's length.
+
+---
+
+## Straight uphill, straight downhill
+
+That gives the gradient's two big properties:
+
+- Its **direction** is the steepest way uphill.
+- Its **length** is how steep that is.
+
+Walk the opposite way, [−0.8, −0.6], and the slope is **−5**: the steepest way down. The Deep Learning book sums it up: the gradient "points directly uphill, and the negative gradient points directly downhill".
+
+Walk at a right angle to the gradient, say [−0.6, 0.8], and the slope is −2.4 + 2.4 = **0**. You're following a **contour line**, a path of constant height like on a hiking map. So the gradient always crosses contour lines at right angles.
+
+<Deeper title="Go deeper: why it's the steepest">
+For a unit vector $u$, the slope in direction $u$ is
+
+$$
+\begin{aligned}
+u \cdot \nabla f &= \|u\|\,\|\nabla f\| \cos\theta \\
+&= \|\nabla f\| \cos\theta
+\end{aligned}
+$$
+
+where $\theta$ is the angle between $u$ and the gradient. This is largest at $\theta = 0$ (straight up the gradient), smallest at $\theta = 180°$ (straight against it) and zero at $\theta = 90°$ (along a contour). The Deep Learning book derives it the same way, from the chain rule applied to $f(x + \alpha u)$.
+
+</Deeper>
+
+---
+
+## Watch it roll
+
+Here's a round bowl seen from above, f(x, y) = ½(x² + y²). The circles are contour lines, and the green dot is the bottom.
+
+<RavinePlayground kappa={1} />
+
+Press **Play**. Each step goes against the gradient, at right angles to the contour it's on. On a perfectly round bowl, "steepest downhill" points straight at the bottom, so the path is a straight line.
+
+That's a special case. The gradient descent lesson shows a stretched valley where the steepest way down points mostly at the steep walls, not along the valley floor, so the path zig-zags.
+
+---
+
+## Downhill in a million dimensions
+
+Training a model means finding weights that make the loss small. The loss is a landscape with one direction per weight, and the gradient says which way is uphill in all of them at once.
+
+So you step the other way. The Deep Learning book calls this the **method of steepest descent**, or **gradient descent**:
+
+**new weights = weights − learning rate × gradient**
+
+On our landscape, starting at (2, 1) with a learning rate of 0.1: (2, 1) − 0.1 × [4, 3] = **(1.6, 0.7)**. The height drops from 7 to 2.56 + 2.1 = **4.66**.
+
+3Blue1Brown's example network for reading handwritten digits has **13,002** weights and biases. Its negative gradient is a vector with 13,002 entries: in 3Blue1Brown's words, "a list of all the little nudges" to make to every weight and bias to move downhill. Each weight moves in proportion to its own partial derivative, so the weights the loss is most sensitive to move the most.
+
+---
+
+## Two ways to get a gradient
+
+The CS231n course notes describe two ways to compute a gradient:
+
+- **Numerical:** nudge each input and measure, like in this lesson. They call it "slow, approximate but easy". The notes add that nudging both ways, the **centred difference** [f(x + h) − f(x − h)] ÷ 2h, often works better in practice.
+- **Analytic:** use calculus rules to get an exact formula. "Fast, exact but more error-prone" to implement.
+
+The numerical way needs extra runs of the function for **every** input, which is hopeless for millions of weights. So models use the analytic gradient, computed by backpropagation (the chain rule from the derivatives lesson, organised to share work).
+
+The two still team up. The notes say it's very common to compare the analytic gradient with the numerical one to check the code is right, called a **gradient check**.
+
+---
+
+## Flat spots
+
+Where every entry of the gradient is zero, there's no uphill direction at all. The Deep Learning book calls these **critical points**.
+
+A zero gradient tells you the ground is flat, but not what kind of flat. It could be:
+
+- a **minimum**: the bottom of a bowl,
+- a **maximum**: the top of a hill,
+- a **saddle point**: uphill in some directions and downhill in others, like the middle of a horse's saddle.
+
+f(x, y) = x² − y² has a saddle at (0, 0): its gradient [2x, −2y] is [0, 0] there, yet walking along x goes up and walking along y goes down. Gradient descent slows to a crawl near flat spots, because its steps are proportional to the gradient.
+
+---
+
+## Common misconceptions
+
+- **"The gradient is a single number."** It's a **vector**: one slope per input. Its length is a single number, the steepest slope.
+- **"The gradient points to the minimum."** It points **uphill**, and even its opposite only points straight at the bottom on special landscapes like the round bowl.
+- **"Partial derivatives ignore the other inputs."** They hold them **fixed**. The slope in x can depend on where y is.
+- **"A zero gradient means you've found the best answer."** It's a flat spot: possibly a minimum, but maybe a maximum, a saddle, or a minimum that isn't the lowest one.
+- **"Models compute gradients by nudging every weight."** That works for checking, but training uses the analytic gradient from backpropagation.
+
+---
+
+## Quiz time 🧠
+
+Six questions. A pencil might help with a couple of them.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- A **partial derivative** is the slope in one input while every other input is frozen.
+- The **gradient** stacks them into a vector: it points **straight uphill**, and its **length** is how steep that is.
+- The slope in any direction is a **dot product** with the gradient; at right angles you follow a **contour**.
+- **Gradient descent** steps against the gradient: weights − learning rate × gradient.
+- Gradients can be measured **numerically** (slow, for checking) or computed **analytically** (fast, by backpropagation).
+- A **zero gradient** is a flat spot: a minimum, a maximum or a saddle.
+
+**Coming up:** the softmax lesson turns a model's raw scores into probabilities.
+
+**Related:** the gradient descent lesson puts this to work on stretched valleys; the backpropagation lesson computes the gradient through a whole network.
+
+Hit **Finish** to collect your XP! 🏁
