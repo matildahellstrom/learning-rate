@@ -15,11 +15,6 @@
     "colour": "violet",
     "upcoming": [
       {
-        "id": "neural-networks",
-        "title": "Neural networks",
-        "order": 5
-      },
-      {
         "id": "backpropagation",
         "title": "Backpropagation",
         "order": 6
