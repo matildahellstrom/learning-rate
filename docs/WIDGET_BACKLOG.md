@@ -375,3 +375,52 @@ gradients" toggle adds minibatch-style noise so the learner sees SGD wobble.
    gradient's size, e.g. gradients 100 and 0.01.
 4. On the ravine with κ = 100 and both methods tuned, momentum needs fewer than a fifth of the
    steps plain descent needs to shrink the error by 1000.
+
+## llm/attention: attention weight explorer
+
+**Idea:** a short sentence as a row of token chips. Tapping a token shows its attention weights
+over the earlier tokens as shaded bars, with the causal mask greying out later ones. Small 2-number
+query and key vectors can be dragged on a plane, so the learner sees a dot product grow, the
+softmax weight follow, and the output vector move towards the heavier values. A d_k selector shows
+the effect of scaling by √d_k.
+
+**Pure functions:**
+
+- `scores(q: number[], keys: number[][], dk: number): number[]`: `q · k_j / √dk` for each key.
+- `causalWeights(scores: number[][]): number[][]`: row-wise softmax of an n × n score matrix
+  after setting every entry with j > i to −∞ (computed stably by subtracting the row max).
+- `attend(weights: number[], values: number[][]): number[]`: `Σ_j weights_j · values_j`.
+
+**Acceptance tests:**
+
+1. `scores([1, 1], [[2, 0], [0, 2], [0, 0]], 1)` is `[2, 2, 0]`, and with `dk = 4` it is
+   `[1, 1, 0]`.
+2. Softmax of `[2, 2, 0]` gives ≈ `[0.468, 0.468, 0.063]`, and every row of `causalWeights` sums
+   to 1.
+3. In `causalWeights`, entry (i, j) is exactly 0 for every j > i, and row 0 is `[1, 0, …]`.
+4. `attend([0.75, 0.25], [[4], [8]])` is `[5]`.
+
+## llm/sampling-temperature: sampling knobs explorer
+
+**Idea:** bar chart of next-token probabilities for a fixed context (the textbook's
+"So long and thanks for" with logits 1.2, 0.9, 0.1, −0.5, plus a longer tail), with sliders for
+temperature, top-k and top-p. Removed tokens grey out, kept ones renormalise live, and a "sample
+20 tokens" button shows how often each comes up, so the learner sees greedy, pure sampling and
+the truncation methods side by side.
+
+**Pure functions:**
+
+- `softmaxT(logits: number[], T: number): number[]`: as in the distillation entry; reuse it.
+- `topK(p: number[], k: number): number[]`: zero all but the k largest, renormalise.
+- `topP(p: number[], threshold: number): number[]`: keep the smallest set of largest entries
+  whose sum is at least `threshold`, zero the rest, renormalise.
+- `sample(p: number[], u: number): number`: the index i where the running sum of `p` first
+  exceeds `u` (u in [0, 1)), so tests can pass fixed random numbers.
+
+**Acceptance tests:**
+
+1. `softmaxT([1.2, 0.9, 0.1, -0.5], 1)` ≈ `[0.443, 0.328, 0.148, 0.081]`; at T = 0.5 the first
+   entry ≈ 0.591 and at T = 2 ≈ 0.349.
+2. `topK([0.5, 0.3, 0.2], 2)` is `[0.625, 0.375, 0]`, and `topK(p, 1)` is one-hot at the argmax.
+3. `topP([0.5, 0.25, 0.15, 0.1], 0.8)` keeps exactly three entries, and `topP(p, 1)` returns p.
+4. `sample([0.5, 0.3, 0.2], 0.6)` is 1, and `sample(p, 0)` is the first nonzero index.
