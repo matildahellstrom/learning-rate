@@ -7,11 +7,6 @@
     "colour": "blue",
     "upcoming": [
       {
-        "id": "eigenvalues",
-        "title": "Eigenvalues & eigenvectors",
-        "order": 8
-      },
-      {
         "id": "svd-low-rank",
         "title": "SVD & low-rank approximation",
         "order": 9

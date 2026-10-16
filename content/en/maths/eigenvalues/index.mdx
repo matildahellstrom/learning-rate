@@ -1,0 +1,267 @@
+---
+id: eigenvalues
+title: Eigenvalues & eigenvectors
+summary: The special directions a matrix only stretches, and how they explain PageRank, PCA and why gradient descent struggles in a ravine.
+track: maths
+order: 8
+prerequisites: [vectors-matrices, gradients]
+minutes: 12
+xp: 100
+volatility: evergreen
+sources:
+  - title: '3Blue1Brown: Eigenvectors and eigenvalues (Essence of linear algebra)'
+    url: https://www.3blue1brown.com/lessons/eigenvalues/
+  - title: 'Goodfellow, Bengio & Courville: Deep Learning, ch. 2 Linear Algebra'
+    url: https://www.deeplearningbook.org/contents/linear_algebra.html
+  - title: 'Goodfellow, Bengio & Courville: Deep Learning, ch. 4 Numerical Computation'
+    url: https://www.deeplearningbook.org/contents/numerical.html
+  - title: 'Roughgarden & Valiant: CS168 Lecture 8, How PCA Works (Stanford course notes)'
+    url: https://web.stanford.edu/class/cs168/l/l8.pdf
+  - title: 'Brin & Page (1998): The Anatomy of a Large-Scale Hypertextual Web Search Engine'
+    url: http://infolab.stanford.edu/~backrub/google.html
+  - title: 'Goh (2017): Why Momentum Really Works (Distill)'
+    url: https://distill.pub/2017/momentum/
+quiz:
+  - type: numeric
+    prompt: 'The matrix has rows [4, 1] and [2, 3]. Multiply it by the vector [1, 1]. The result is a multiple of [1, 1]: what is the eigenvalue?'
+    answer: 5
+    tolerance: 0.001
+    explanation: 'Row by row: 4 × 1 + 1 × 1 = 5 and 2 × 1 + 3 × 1 = 5, so the result is [5, 5] = 5 × [1, 1]. The vector stayed on its line and was stretched by 5, so [1, 1] is an eigenvector with eigenvalue 5.'
+  - type: choice
+    prompt: 'Which of these 2 × 2 transformations has no real eigenvectors at all?'
+    options:
+      - Stretching by 2 left-to-right and by 3 up-and-down
+      - Rotating everything by 90°
+      - A shear that slides the top of a square sideways
+      - Flipping every vector to point the opposite way
+    answer: 1
+    explanation: 'A 90° rotation knocks every arrow off its line, so no direction is only stretched (its eigenvalues are the imaginary numbers i and −i). The stretch has the two axes, the shear keeps its horizontal line, and the flip keeps every line, with eigenvalue −1.'
+  - type: numeric
+    prompt: 'A symmetric matrix has eigenvalues 8 and 2. What is its condition number (largest eigenvalue divided by smallest)?'
+    answer: 4
+    tolerance: 0.001
+    explanation: '8 ÷ 2 = 4. The bigger this ratio, the more lopsided the matrix: as a loss surface, one direction curves 4 times as sharply as the other.'
+  - type: choice
+    prompt: 'A matrix has an eigenvalue of 0. What does that tell you?'
+    options:
+      - The matrix is all zeros
+      - Every vector is an eigenvector
+      - The matrix leaves its eigenvectors unchanged
+      - It squashes a whole direction down to zero, so it cannot be undone (it has no inverse)
+    answer: 3
+    explanation: 'Av = 0 × v = 0: some non-zero vector lands on zero. Information along that direction is destroyed, so no inverse can bring it back. The Deep Learning book states it as: a matrix is singular if and only if one of its eigenvalues is 0. "Unchanged" would be an eigenvalue of 1.'
+  - type: choice
+    prompt: 'You multiply a random vector by the same symmetric matrix again and again, rescaling it each time. Where does it end up pointing?'
+    options:
+      - Along the eigenvector with the largest eigenvalue (in size)
+      - Along the eigenvector with the smallest eigenvalue
+      - In the same direction it started
+      - In a random direction that keeps changing
+    answer: 0
+    explanation: 'Each multiplication scales every eigenvector part by its own eigenvalue, so the part with the biggest eigenvalue grows fastest and soon dominates. This is power iteration, the idea behind computing PageRank and the top principal component.'
+  - type: choice
+    prompt: "At the bottom of a loss valley, the Hessian's eigenvalues are 100 and 1. What happens to plain gradient descent?"
+    options:
+      - It is fastest in the gentle direction and slowest in the steep one
+      - The eigenvalues are irrelevant to gradient descent
+      - The learning rate must stay small for the steep direction, so progress along the gentle one is slow
+      - It reaches the bottom in one step
+    answer: 2
+    explanation: 'The steep direction (curvature 100) bounces out of control unless the step size is small. That same small step then barely moves along the gentle direction (curvature 1). The condition number, 100, measures how badly the two clash.'
+---
+
+# The axis of a spinning globe 🌍
+
+Spin a globe. Every point on its surface moves: London, Lima, Lagos all swing round.
+
+Every point except two. The North and South Poles stay exactly where they are, and so does every point on the line through them. That line is the **axis**, and once you know it (plus the angle) you know everything about the spin.
+
+3Blue1Brown's _Essence of linear algebra_ makes this point about 3-D rotations: the axis is an **eigenvector** of the rotation, a direction the transformation doesn't knock off course.
+
+This lesson covers what eigenvectors and eigenvalues are, how to find them, and three places they turn up in AI: ranking web pages, compressing data and training models.
+
+---
+
+## Most arrows get knocked off course
+
+The vectors and matrices lesson showed that a matrix **moves space around**: multiply a vector by it and the arrow lands somewhere new.
+
+3Blue1Brown's example is the matrix with rows [3, 1] and [0, 2]. Watch what it does to a few arrows:
+
+- [1, 1] lands on [4, 2]. It was pointing diagonally; now it points much flatter. It has been **knocked off its line**.
+- [1, 0] lands on [3, 0]. Still on the horizontal axis, just **3 times longer**.
+
+As 3Blue1Brown puts it, most vectors get knocked off the line they span. It would be a coincidence for one to land on it. But a few special ones do.
+
+🤔 Predict: what happens to [1, −1]?
+
+Row by row: 3 × 1 + 1 × (−1) = 2 and 0 × 1 + 2 × (−1) = −2. It lands on **[2, −2]**: same line, **2 times longer**. Another special direction.
+
+---
+
+## Eigenvectors and eigenvalues
+
+A vector that a matrix only **stretches** (or shrinks, or flips), without knocking it off its line, is an **eigenvector** of the matrix. The stretch factor is its **eigenvalue**, written λ (lambda):
+
+**A v = λ v**
+
+For our matrix, [1, 0] is an eigenvector with eigenvalue **3**, and [1, −1] is one with eigenvalue **2**. ("Eigen" is German for "own": the matrix's own directions.)
+
+Two details:
+
+- It's really a whole **line**: any multiple of an eigenvector, like [5, 0] or [−2, 2], is one too, with the same eigenvalue.
+- The eigenvalue says **what happens** along that line. Above 1: stretched. Between 0 and 1: squashed. Negative: flipped round (3Blue1Brown shows one with eigenvalue −½, flipped and halved). **Zero**: flattened to nothing.
+
+That last case matters. If some direction is crushed to zero, the matrix has destroyed information and can't be undone. The Deep Learning book states it neatly: a matrix is **singular** (has no inverse) if and only if one of its eigenvalues is 0.
+
+---
+
+## Not every matrix has them
+
+Back to the globe, flattened to 2-D. 🤔 Predict: a matrix that rotates the plane by 90°. Which arrows stay on their line?
+
+**None.** Every arrow swings a quarter turn, so none ends up on its own line. 3Blue1Brown works through the maths: the eigenvalue equation has no real solutions, only the imaginary numbers i and −i. (In 3-D there's a third direction, the axis, which the rotation leaves alone: eigenvalue 1.)
+
+A **shear**, which slides the top of a square sideways like a pushed deck of cards, has just **one** line of eigenvectors: the horizontal one, with eigenvalue 1.
+
+So a matrix can have a full set of eigenvectors, only some, or none that are real. The Deep Learning book notes that not every matrix can be broken into eigenvectors and eigenvalues, and some only with complex numbers.
+
+---
+
+## How to find them
+
+For small matrices there's a recipe. 3Blue1Brown's version: **subtract λ from the diagonal** and ask when the result squashes some direction to zero. That happens exactly when its **determinant**, the factor by which it scales areas, is 0.
+
+For a 2 × 2 matrix there's a handy shortcut. The eigenvalues always:
+
+- **add up** to the **trace**, the sum of the diagonal entries;
+- **multiply** to the **determinant**.
+
+Our matrix has trace 3 + 2 = **5** and determinant 3 × 2 − 1 × 0 = **6**. Two numbers that add to 5 and multiply to 6: **3 and 2**. ✓
+
+Real models never do this by hand. Libraries compute eigenvalues numerically, even for matrices with thousands of rows.
+
+<Deeper title="Go deeper: the characteristic equation">
+$Av = \lambda v$ means $(A - \lambda I)v = 0$ for a non-zero $v$, which needs $\det(A - \lambda I) = 0$. For our matrix:
+
+$$
+\begin{aligned}
+\det \begin{pmatrix} 3-\lambda & 1 \\ 0 & 2-\lambda \end{pmatrix}
+&= (3-\lambda)(2-\lambda) \\
+&= 0
+\end{aligned}
+$$
+
+so $\lambda = 3$ or $\lambda = 2$. In general, a 2 × 2 matrix gives
+
+$$
+\lambda^2 - (\operatorname{tr} A)\,\lambda + \det A = 0
+$$
+
+To find the eigenvectors for $\lambda = 2$, solve $(A - 2I)v = 0$: the rows become [1, 1] and [0, 0], so $x + y = 0$, the line through [1, −1].
+
+</Deeper>
+
+---
+
+## Eigenvectors make matrices easy
+
+Why care? Because along its eigenvectors a matrix is just **multiplication by a number**.
+
+3Blue1Brown's example: if your coordinate axes happen to be eigenvectors, the matrix becomes **diagonal** (zeros everywhere off the diagonal), and applying it 100 times just means raising each eigenvalue to the 100th power. No giant matrix products.
+
+Breaking a matrix into its eigenvectors and eigenvalues is called its **eigendecomposition**. The Deep Learning book compares it to breaking a whole number into prime factors: it reveals properties that are hidden in the raw grid of numbers.
+
+The nicest case is a **symmetric** matrix, one that equals its own mirror image across the diagonal. The book notes that every real symmetric matrix has **real** eigenvalues and a full set of eigenvectors that are all **perpendicular** to each other. Such a matrix simply scales space by λᵢ along each eigenvector direction. The covariance matrices and Hessians later in this lesson are both symmetric.
+
+<Deeper title="Go deeper: the decomposition">
+If $A$ has $n$ independent eigenvectors, stack them as the columns of $V$ and the eigenvalues into a diagonal matrix:
+
+$$
+A = V \operatorname{diag}(\lambda)\, V^{-1}
+$$
+
+For a real symmetric matrix the eigenvectors can be chosen orthonormal (perpendicular, length 1), so $V^{-1} = V^\top$:
+
+$$
+A = Q \Lambda Q^\top
+$$
+
+Powers are then cheap: $A^k = Q \Lambda^k Q^\top$, where $\Lambda^k$ just raises each diagonal entry to the power $k$.
+
+</Deeper>
+
+---
+
+## Multiply, multiply, multiply
+
+Here's a surprising way to **find** the biggest eigenvector without any algebra: just keep multiplying.
+
+Take the symmetric matrix with rows [2, 1] and [1, 2]. Its eigenvectors are [1, 1] (eigenvalue 3) and [1, −1] (eigenvalue 1). Start with [1, 0] and multiply again and again:
+
+[1, 0] → [2, 1] → [5, 4] → [14, 13] → [41, 40]
+
+The arrow swings towards **[1, 1]**. Each multiplication triples the [1, 1] part but leaves the [1, −1] part the same size, so the biggest eigenvalue wins.
+
+This is **power iteration**. Stanford's CS168 notes describe this method and note that it's popular in practice, especially when you only want the top few eigenvectors. (Real code rescales the arrow as it goes, so the numbers don't explode.) It converges fast when the top eigenvalue is well clear of the second: the notes call the ratio λ₁ / λ₂ the **spectral gap**.
+
+Its most famous use: **PageRank**. In Brin and Page's 1998 paper on Google, a page's rank is the chance that a "random surfer", clicking links forever and occasionally jumping to a random page, is on it. They note that PageRank can be calculated with a simple iterative algorithm and corresponds to the **principal eigenvector** (the top one) of the normalised link matrix of the web.
+
+---
+
+## The directions data varies most
+
+A table of data, one row per example, gives a symmetric matrix called the **covariance matrix**. It records how strongly each pair of columns rises and falls together. (With the data centred and the table called X, it is XᵀX, possibly divided by the number of rows.)
+
+Its eigenvectors are the directions along which the data **spreads out** the most. Stanford's CS168 notes put it in one line: PCA, **principal component analysis**, boils down to computing the k eigenvectors of the covariance matrix XᵀX that have the largest eigenvalues.
+
+Keep only those top few directions and you can describe each data point with a handful of numbers instead of hundreds, losing as little spread as possible. The SVD lesson picks up exactly here.
+
+---
+
+## Eigenvalues as curvature
+
+Last stop: training. Near the bottom of a loss valley, the shape is described by the **Hessian**, a symmetric matrix holding every **second** derivative: how quickly each slope itself changes, in each pair of directions.
+
+The Deep Learning book explains what its eigen-pieces mean. The eigenvectors are the valley's main directions, and along each one the **curvature** (how sharply it bends) is the matching eigenvalue.
+
+The ravine from the gradient descent lesson is $\tfrac12(x^2 + \kappa y^2)$ with κ = 10: its Hessian is diagonal with eigenvalues **1** (along the floor) and **10** (across the walls).
+
+<RavinePlayground kappa={10} />
+
+The ratio of the largest to the smallest eigenvalue is the **condition number**. The book notes that when the Hessian has a poor (large) condition number, gradient descent performs poorly: one direction's slope changes quickly while another's changes slowly, and plain gradient descent can't tell. Gabriel Goh's Distill article _Why Momentum Really Works_ shows that in the eigenvector directions, each part of the error shrinks independently, at its own rate, and the condition number sets how slow the whole thing is.
+
+---
+
+## Common misconceptions
+
+- **"Every matrix has real eigenvectors."** A 2-D rotation has none, and a shear has only one line of them.
+- **"An eigenvector is one particular arrow."** Any non-zero multiple works too, so it's really a whole line (and for repeated eigenvalues, possibly a whole plane).
+- **"Eigenvalues are always positive."** They can be negative (a flip), zero (a squash) or even complex.
+- **"The eigenvectors of a matrix are always perpendicular."** That's guaranteed for **symmetric** matrices. 3Blue1Brown's [3, 1] / [0, 2] example has eigenvectors [1, 0] and [1, −1], at 45°.
+- **"You find eigenvalues by solving equations by hand."** Only for tiny matrices. Real systems use numerical methods such as power iteration.
+
+---
+
+## Quiz time 🧠
+
+Six questions. Keep **A v = λ v** in mind.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- An **eigenvector** is a direction a matrix only stretches, shrinks or flips: **A v = λ v**. The stretch factor λ is its **eigenvalue**.
+- Some matrices have no real eigenvectors (rotations); an eigenvalue of **0** means the matrix can't be undone.
+- For 2 × 2 matrices the eigenvalues add to the **trace** and multiply to the **determinant**.
+- **Symmetric** matrices have real eigenvalues and perpendicular eigenvectors, and act as pure stretches along them.
+- **Power iteration** finds the top eigenvector by repeated multiplication: it's behind **PageRank** and **PCA**.
+- The **Hessian's** eigenvalues are curvatures; their ratio, the **condition number**, says how hard gradient descent's job is.
+
+**Coming up:** the SVD lesson breaks **any** matrix, not just symmetric ones, into stretches along special directions, and keeps only the biggest.
+
+**Related:** the gradient descent lesson lets you fight the ravine yourself; the dot product lesson explains the perpendicular directions used here.
+
+Hit **Finish** to collect your XP! 🏁
