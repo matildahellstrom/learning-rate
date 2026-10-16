@@ -1,0 +1,260 @@
+---
+id: sgd-momentum-adam
+title: SGD, momentum & Adam
+summary: The three upgrades that turn plain gradient descent into the optimisers that train real networks.
+track: ml
+order: 4
+prerequisites: [gradient-descent, gradients]
+minutes: 12
+xp: 100
+volatility: evergreen
+sources:
+  - title: 'Goodfellow, Bengio & Courville: Deep Learning, ch. 8 Optimization for Training Deep Models'
+    url: https://www.deeplearningbook.org/contents/optimization.html
+  - title: 'Stanford CS231n: Neural Networks Part 3, Learning and Evaluation (course notes)'
+    url: https://cs231n.github.io/neural-networks-3/
+  - title: 'Goh (2017): Why Momentum Really Works (Distill)'
+    url: https://distill.pub/2017/momentum/
+  - title: 'Kingma & Ba (2014): Adam, A Method for Stochastic Optimization'
+    url: https://arxiv.org/abs/1412.6980
+  - title: 'Loshchilov & Hutter (2017): Decoupled Weight Decay Regularization'
+    url: https://arxiv.org/abs/1711.05101
+  - title: '3Blue1Brown: Backpropagation, intuitively'
+    url: https://www.3blue1brown.com/lessons/backpropagation
+quiz:
+  - type: numeric
+    prompt: 'Your training set has 50,000 examples and you use minibatches of 100. How many update steps make up one epoch (one pass through the data)?'
+    answer: 500
+    tolerance: 0
+    explanation: '50,000 ÷ 100 = 500 steps. Full-batch gradient descent would take just one step for the same amount of work, which is why minibatches learn so much faster per pass.'
+  - type: choice
+    prompt: 'Why not estimate the gradient from 10,000 examples instead of 100?'
+    options:
+      - It costs 100 times more computation but only makes the estimate about 10 times less noisy
+      - Larger batches always give a worse gradient
+      - Gradients cannot be averaged over more than a few hundred examples
+      - It makes no difference to the cost
+    answer: 0
+    explanation: 'The noise in an average shrinks with the square root of the number of examples: 100 times the data buys only √100 = 10 times less noise. Many cheap, slightly noisy steps usually beat a few expensive, precise ones.'
+  - type: numeric
+    prompt: 'Momentum with μ = 0.9 keeps rolling down a slope that never changes. Eventually, how many times bigger is each step than a plain gradient descent step with the same learning rate?'
+    answer: 10
+    tolerance: 0.1
+    explanation: 'At top speed the velocity stops changing, so v = 0.9v + (step), which gives v = step ÷ (1 − 0.9) = 10 × step.'
+  - type: choice
+    prompt: 'In a narrow ravine, what does momentum do to the zig-zag across the walls and the slow drift along the floor?'
+    options:
+      - It makes both faster
+      - It makes both slower
+      - The zig-zag pushes cancel out while the steady push along the floor builds up
+      - It removes the need for a learning rate
+    answer: 2
+    explanation: 'Across the ravine the slope flips sign every step, so the remembered pushes cancel. Along the floor it points the same way every time, so they add up. That is what lets momentum get through ravines much faster.'
+  - type: choice
+    prompt: 'On its very first step, Adam sees a gradient of 50 for weight A and 0.5 for weight B. How do their step sizes compare?'
+    options:
+      - A's step is 100 times bigger
+      - B's step is 100 times bigger
+      - A's step is 10 times bigger
+      - They are about the same size, roughly the learning rate
+    answer: 3
+    explanation: "Adam divides the averaged gradient by the root of the averaged squared gradient. On step one that's g ÷ |g|, which is ±1 for any size of gradient, so every weight moves by about the learning rate. Plain gradient descent would have moved A 100 times further."
+  - type: choice
+    prompt: 'What does AdamW change compared with Adam?'
+    options:
+      - It removes the momentum term
+      - It applies weight decay directly to the weights instead of mixing it into the gradient that Adam rescales
+      - It uses the full dataset for every step
+      - It replaces the square root with a logarithm
+    answer: 1
+    explanation: "Loshchilov & Hutter showed that adding an L2 penalty to the loss is not the same as weight decay once Adam rescales each gradient. Decoupling the two restored proper weight decay and improved Adam's generalisation in their experiments."
+---
+
+# The slow, careful hiker 🥾
+
+In the gradient descent lesson you rolled a ball down a landscape: feel the slope, step downhill, repeat.
+
+Now imagine the landscape is built from a million training examples. To feel the slope **exactly**, the hiker has to check every one of them before taking a single step. Then do it again. And again.
+
+Worse, in a narrow ravine the hiker bounces between the walls and barely creeps along the floor.
+
+Real training uses three upgrades that fix this: **stochastic gradient descent** (SGD), **momentum** and **Adam**. This lesson covers what each one does, and why.
+
+---
+
+## Slopes from a sample
+
+The true gradient of the loss is an **average** over every training example. But you don't need everyone in the country to estimate an average height: a random sample gets you close.
+
+**Stochastic gradient descent** does the same. Each step it picks a small random group of examples, a **minibatch**, and uses their average gradient as an estimate. Then it steps and picks a fresh minibatch.
+
+With a million examples and minibatches of 100, one pass through the data (an **epoch**) gives you 10,000 steps instead of 1.
+
+3Blue1Brown pictures the result as "a drunk man stumbling aimlessly down a hill but taking quick steps", rather than a careful walker taking slow, deliberate ones. Each step is a bit off, but there are so many more of them.
+
+---
+
+## Why not a bigger sample?
+
+A bigger minibatch gives a better estimate. So why not use 10,000 examples per step?
+
+🤔 Predict: going from 100 to 10,000 examples costs 100 times more work. How much less noisy is the gradient estimate?
+
+Only about **10 times**. The noise in an average shrinks with the **square root** of the sample size, and √100 = 10. The Deep Learning book uses exactly this comparison to explain why most optimisers converge much faster, in total computation, when they take quick approximate steps.
+
+In practice, minibatch sizes are a trade-off with the hardware. The book notes that typical power-of-2 sizes on GPUs run from 32 to 256, and that small batches can offer a **regularising** effect, perhaps because of the noise they add, which can help the model generalise.
+
+<Deeper title="Go deeper: the standard error">
+If one example's gradient has standard deviation $\sigma$, the average of $n$ independent examples has standard deviation
+
+$$
+\text{standard error} = \frac{\sigma}{\sqrt{n}}
+$$
+
+So $n = 100$ gives $\sigma / 10$ and $n = 10{,}000$ gives $\sigma / 100$: 100 times the work for a 10 times smaller error.
+
+</Deeper>
+
+---
+
+## The ravine problem, again
+
+SGD makes each step cheap, but it doesn't fix the shape of the landscape. Here's the ravine from the gradient descent lesson, 10 times steeper across than along:
+
+<RavinePlayground kappa={10} learningRate={0.18} />
+
+Press **Play**. The ball zig-zags across the steep walls, and a learning rate small enough to keep that under control leaves it crawling along the gentle floor.
+
+The fix comes from physics. A real ball doesn't stop dead after every step: it **remembers** how it was moving.
+
+---
+
+## Momentum: a heavy ball
+
+**Momentum** keeps a running **velocity**. Each step, the old velocity is kept (mostly) and the new slope is added on top:
+
+**velocity = μ × velocity − learning rate × slope**
+
+**position = position + velocity**
+
+The number μ ("mu") says how much of the old velocity survives. CS231n's notes give about **0.9** as a typical value, and point out that μ really behaves like friction: without it, the ball would never come to rest at the bottom.
+
+🤔 Predict: on a slope that never changes, with μ = 0.9, how much bigger do the steps eventually get than plain gradient descent's?
+
+**10 times.** Each step adds one push and keeps 90% of the old speed, so speed builds until 10% leaks away each step, exactly as much as one push adds: 1 ÷ (1 − 0.9) = 10.
+
+---
+
+## Why momentum tames ravines
+
+Now look at the ravine through momentum's eyes.
+
+- **Across** the ravine, the slope flips sign every step: left wall, right wall, left wall. Those pushes **cancel** in the velocity.
+- **Along** the floor, the slope points the same way every step. Those pushes **add up**.
+
+So the zig-zag is damped and the slow direction speeds up, which is exactly what plain descent was missing.
+
+Gabriel Goh's Distill article "Why Momentum Really Works" makes this precise for quadratic valleys. With both settings tuned, momentum can give "up to a quadratic speedup". For a valley 100 times steeper one way than the other, that's roughly the difference between about 345 steps and about 34 to shrink the error a thousandfold.
+
+<Deeper title="Go deeper: convergence rates">
+For a quadratic with condition number $\kappa$ (steepest curvature divided by gentlest), Goh shows that the best tuned rates per step are
+
+$$
+\begin{gathered}
+\text{gradient descent: } \frac{\kappa - 1}{\kappa + 1} \\[4pt]
+\text{momentum: } \frac{\sqrt{\kappa} - 1}{\sqrt{\kappa} + 1}
+\end{gathered}
+$$
+
+With $\kappa = 100$ these are $0.980$ and $0.818$. Shrinking the error by $1000$ takes $\ln 1000 / {-\ln r}$ steps: about $345$ for gradient descent and $34$ for momentum. The number of steps grows like $\kappa$ for one and like $\sqrt{\kappa}$ for the other, which is the quadratic speedup.
+
+</Deeper>
+
+---
+
+## One learning rate per weight
+
+Momentum still uses **one** learning rate for every weight. But in a ravine, one direction is steep and another is gentle. What if each weight got its own step size?
+
+That's the idea behind **adaptive** optimisers. **RMSProp** keeps, for every weight, a running average of its **squared** gradients, and divides each step by the square root of that average. Weights with big, steep gradients take smaller steps; weights with tiny gradients take bigger ones. (CS231n's notes describe RMSProp as unpublished: people cite a slide from Geoff Hinton's Coursera course.)
+
+🤔 Predict: one weight's gradient is always 10, another's is always 0.1. After dividing by the root of their average squared gradients, how do the two steps compare?
+
+They're the **same size**. 10 ÷ √100 = 1 and 0.1 ÷ √0.01 = 1. The steep and gentle directions now move at the same pace.
+
+---
+
+## Adam: momentum plus adaptive steps
+
+**Adam** (Kingma & Ba, 2014) combines both ideas. The Deep Learning book explains that the name comes from "adaptive moments". For every weight, Adam keeps two running averages:
+
+- **m**, an average of recent gradients: the momentum part.
+- **v**, an average of recent **squared** gradients: the RMSProp part.
+
+Each step moves the weight by about **learning rate × m ÷ √v**.
+
+The Deep Learning book lists the suggested defaults: a learning rate of 0.001, 0.9 for the m average, 0.999 for the v average, and a tiny 10⁻⁸ to avoid dividing by zero. CS231n's notes call Adam the recommended default, while adding that SGD with momentum is often worth trying too.
+
+There's one subtlety. Both averages start at zero, so early on they're too small. Adam corrects for this (**bias correction**) by dividing each average by how much of it has "warmed up" so far.
+
+<Deeper title="Go deeper: the full update">
+With gradient $g_t$ at step $t$ and defaults $\beta_1 = 0.9$, $\beta_2 = 0.999$:
+
+$$
+\begin{aligned}
+m_t &= \beta_1 m_{t-1} + (1 - \beta_1)\, g_t \\
+v_t &= \beta_2 v_{t-1} + (1 - \beta_2)\, g_t^2 \\
+\hat m_t &= m_t / (1 - \beta_1^t) \\
+\hat v_t &= v_t / (1 - \beta_2^t) \\
+\theta_t &= \theta_{t-1} - \alpha\, \hat m_t / (\sqrt{\hat v_t} + \epsilon)
+\end{aligned}
+$$
+
+On step 1, $m_1 = 0.1\, g$ and $v_1 = 0.001\, g^2$. Without correction, $m_1 / \sqrt{v_1} \approx 3.16$ for any $g$; with it, $\hat m_1 / \sqrt{\hat v_1} = g / |g| = \pm 1$. So Adam's first step has size about $\alpha$ for every weight, whatever its gradient.
+
+The price is memory: two extra numbers per weight, on top of the weight itself.
+
+</Deeper>
+
+---
+
+## AdamW: fixing weight decay
+
+A common trick against overfitting is **weight decay**: gently shrink every weight towards zero each step. For plain SGD, adding a penalty on large weights to the loss (L2 regularisation) does the same job.
+
+Loshchilov & Hutter (2017) showed that this equivalence **breaks** for adaptive optimisers such as Adam. Adding the penalty to the loss sends its gradient through Adam's per-weight rescaling along with everything else, so it no longer acts like a plain, even shrink. Many implementations still called it "weight decay", which the authors call misleading.
+
+Their fix, **AdamW**, **decouples** the two: it applies the decay directly to the weights, outside the rescaling. In their experiments it substantially improved Adam's generalisation and let it compete with SGD with momentum on image classification, where Adam had typically been outperformed.
+
+---
+
+## Common misconceptions
+
+- **"SGD means using one example at a time."** The Deep Learning book notes that one-example methods are sometimes called stochastic, but most deep learning algorithms use minibatches of several examples, and "SGD" usually refers to them.
+- **"A noisy gradient is a bad gradient."** The noise is the price of many cheap steps, and small batches can even help a model generalise.
+- **"Adam needs no tuning."** The Deep Learning book calls it fairly robust to its settings, but notes that the learning rate sometimes needs to be changed from the default.
+- **"Adam is always best."** CS231n's notes suggest also trying SGD with momentum, and Loshchilov & Hutter found plain Adam lagging behind it on image classification before their fix.
+
+---
+
+## Quiz time 🧠
+
+Six questions. A pencil helps for a couple of them.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- **SGD** estimates the gradient from a random **minibatch**: noisier steps, but many more of them per pass.
+- 100 times the data buys only about 10 times less noise, because noise shrinks with the **square root** of the sample size.
+- **Momentum** keeps a velocity: consistent pushes add up and zig-zags cancel, so it tames **ravines**.
+- **RMSProp** and **Adam** give each weight its own step size by dividing by the root of its recent squared gradients.
+- **AdamW** applies weight decay directly to the weights, outside Adam's rescaling.
+
+**Coming up:** the neural networks lesson builds the models these optimisers train, and the backpropagation lesson computes the gradients they need.
+
+**Related:** the eigenvalues lesson explains the condition number behind the ravine.
+
+Hit **Finish** to collect your XP! 🏁
