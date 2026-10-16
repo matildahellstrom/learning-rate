@@ -1,0 +1,269 @@
+---
+id: attention
+title: Attention & transformers
+summary: How every token looks back at the others and pulls in what it needs, and how stacking that idea built the transformer.
+track: llm
+order: 4
+prerequisites: [embeddings, dot-product, softmax, next-token-prediction]
+minutes: 12
+xp: 100
+volatility: evergreen
+sources:
+  - title: 'Jurafsky & Martin (2026 draft): Speech and Language Processing, chapter 7, Transformers and Pretraining'
+    url: https://web.stanford.edu/~jurafsky/slp3/7.pdf
+  - title: 'Vaswani et al. (2017): Attention Is All You Need'
+    url: https://arxiv.org/abs/1706.03762
+  - title: 'Bahdanau, Cho & Bengio (2014): Neural Machine Translation by Jointly Learning to Align and Translate'
+    url: https://arxiv.org/abs/1409.0473
+quiz:
+  - type: choice
+    prompt: 'In "The keys to the cabinet ___ on the table", the model must choose between "is" and "are". Which earlier word should the blank pay most attention to?'
+    options:
+      - cabinet, because it is the nearest noun
+      - keys, because it is the subject and decides singular or plural
+      - table, because it comes right after the blank
+      - the, because it appears twice
+    answer: 1
+    explanation: 'The verb has to agree with the subject, "keys", which is plural, so the answer is "are". The nearest noun, "cabinet", is the tempting trap. Attention can reach back past it to the word that matters, however far away.'
+  - type: numeric
+    prompt: 'A token attends to two earlier tokens with weights 0.75 and 0.25. Their value vectors are just single numbers: 4 and 8. What is the attention output?'
+    answer: 5
+    tolerance: 0.01
+    explanation: 'The output is the weighted sum of the values: 0.75 × 4 + 0.25 × 8 = 3 + 2 = 5.'
+  - type: numeric
+    prompt: 'Query and key vectors have 64 numbers each (d_k = 64), and one query-key dot product comes out as 24. What score goes into the softmax after scaling?'
+    answer: 3
+    tolerance: 0.01
+    explanation: 'Scaled dot-product attention divides by √d_k. √64 = 8, so the score is 24 ÷ 8 = 3.'
+  - type: choice
+    prompt: 'Why does a language model mask out the tokens that come later in the text?'
+    options:
+      - To make each attention head learn something different
+      - To save memory on long texts
+      - To make the softmax faster to compute
+      - "So a token can't see the very word it is being trained to predict"
+    answer: 3
+    explanation: 'In training, the whole text is fed in at once. Without the mask, the position predicting word 5 could simply look at word 5. Setting the future scores to −∞ makes their softmax weights exactly 0.'
+  - type: choice
+    prompt: 'You double the length of the text. Roughly how many more query-key scores does each attention head have to compute?'
+    options:
+      - The same number
+      - Twice as many
+      - Four times as many
+      - Eight times as many
+    answer: 2
+    explanation: 'Every token is compared with every other (or every earlier) token, so the count grows with the square of the length: twice the tokens means about 2 × 2 = 4 times the scores. With the mask it is about half of n², but doubling n still roughly quadruples it.'
+  - type: choice
+    prompt: 'Inside a transformer block, which part moves information from one token to another?'
+    options:
+      - The attention layer
+      - The feed-forward network
+      - Layer normalisation
+      - The embedding lookup
+    answer: 0
+    explanation: 'The feed-forward network and layer norm work on each token separately, and the embedding lookup happens once at the bottom. Attention is the only part that reads from other tokens, which is why it is called the token-mixing component.'
+---
+
+# What does "it" mean? 🔦
+
+Read these two sentences, from Jurafsky and Martin's textbook:
+
+- _The chicken didn't cross the road because **it** was too tired._
+- _The chicken didn't cross the road because **it** was too wide._
+
+You knew at once: the first _it_ is the chicken, the second is the road. One word changed at the very end, and the meaning of _it_ flipped.
+
+The embeddings lesson ended with a problem: a token's starting embedding is the same in every sentence. To understand _it_, a model must **look back at other words** and pull in what it needs.
+
+That looking back is called **attention**. This lesson covers how it works, the queries, keys and values behind it, and how stacking it built the **transformer**, the design inside today's chatbots.
+
+---
+
+## The old bottleneck
+
+In 2014, neural translation models often worked like this: a **recurrent network** read the sentence one word at a time and squeezed it into a single **fixed-length vector**. A second network then wrote the translation from that one summary.
+
+Imagine reading a long paragraph, then having to translate it from a single sticky note.
+
+In 2014, Dzmitry Bahdanau, Kyunghyun Cho and Yoshua Bengio suggested that this fixed-length vector was "a bottleneck". Their fix: while writing each word of the translation, let the model **(soft-)search** back over the whole source sentence for the parts relevant to that word.
+
+That soft search was an early form of attention. Three years later, it would take over the whole model.
+
+---
+
+## Attention is a weighted average
+
+Here's the core idea, in Jurafsky and Martin's words: attention "is really just a weighted sum of context vectors".
+
+For each token, the model:
+
+1. **Scores** every earlier token: how relevant is it to me? The score is a **dot product**, which is big when two vectors point the same way (the dot product lesson covers this).
+2. Turns the scores into **weights** with **softmax**, so they're positive and add up to 1.
+3. Takes the **weighted average** of those tokens' vectors.
+
+Let's try it at the word _it_, with made-up 2-number vectors. Say the scores against _chicken_, _road_ and _because_ come out as 2, 2 and 0.
+
+🤔 Predict: roughly what weights does softmax give?
+
+e² ≈ 7.4 and e⁰ = 1, so the weights are about **0.47, 0.47 and 0.06**. At this point in the sentence _it_ could still be either the chicken or the road, so it draws on both. The textbook's illustration shows this pattern: high weights on _chicken_ and _road_.
+
+---
+
+## Queries, keys and values
+
+Real attention gives each token **three roles**, each with its own learned vector:
+
+- a **query**: what am I looking for?
+- a **key**: what do I contain, for others to match against?
+- a **value**: what do I hand over if someone picks me?
+
+Think of a library search. Your **query** is matched against the **keys** (titles and labels), and what you take home is the **value** (the book itself).
+
+Each vector comes from the token's embedding times a learned matrix: one for queries, one for keys, one for values. The score between two tokens is **query · key**, and the output is the weighted sum of the **values**.
+
+Back to _it_. If the value for _chicken_ is [1, 0] and for _road_ is [0, 1] (and _because_ is [0, 0]), the output is
+
+0.47 × [1, 0] + 0.47 × [0, 1] + 0.06 × [0, 0] = **[0.47, 0.47]**
+
+a blend of both candidates. This new vector is what the next layer works with.
+
+<Deeper title="Go deeper: the attention formula">
+For one token $i$ with embedding $x_i$, and every token $j$ up to and including it:
+
+$$
+\begin{gathered}
+q_i = x_i W^Q,\quad k_j = x_j W^K,\quad v_j = x_j W^V \\[4pt]
+\alpha_{ij} = \mathrm{softmax}_j\!\left(\frac{q_i \cdot k_j}{\sqrt{d_k}}\right) \\[4pt]
+a_i = \sum_{j \le i} \alpha_{ij}\, v_j
+\end{gathered}
+$$
+
+Packing all the queries, keys and values into matrices $Q$, $K$ and $V$ gives the whole layer in one line, the formula from the 2017 transformer paper:
+
+$$
+\mathrm{Attention}(Q, K, V) = \mathrm{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right) V
+$$
+
+The $\sqrt{d_k}$ is explained in the next step.
+
+</Deeper>
+
+---
+
+## Why divide by √d?
+
+The 2017 paper calls its version **scaled dot-product attention**: every score is divided by **√d_k**, the square root of the length of the query and key vectors.
+
+Why? A dot product adds up one product per dimension. With more dimensions, the totals tend to get bigger. The paper's authors suspected that big scores push softmax into a place where it gives almost all the weight to one token and its gradients become "extremely small", so learning stalls.
+
+For example, with 64-number vectors, √64 = 8. A raw score of 16 becomes **2**.
+
+<Deeper title="Go deeper: where √d_k comes from">
+The paper's footnote: suppose each component of $q$ and $k$ is an independent random number with mean 0 and variance 1. Then
+
+$$
+q \cdot k = \sum_{m=1}^{d_k} q_m k_m
+$$
+
+has mean 0 and **variance $d_k$**, so its typical size (standard deviation) is $\sqrt{d_k}$. Dividing by $\sqrt{d_k}$ brings the variance back to 1, whatever the vector length.
+
+</Deeper>
+
+---
+
+## No peeking at the future
+
+A language model is trained to predict the next token. During training, the whole text goes in at once, so every position can be practised in parallel.
+
+🤔 Predict: if the position predicting word 5 were allowed to attend to word 5 itself, what would the model learn?
+
+To cheat. As Jurafsky and Martin put it, "guessing the next word is pretty simple if you already know it!"
+
+So language models use a **causal mask**: before the softmax, every score for a _later_ token is set to **−∞**. Since e^−∞ = 0, those tokens get a weight of exactly 0. Each token sees only itself and what came before.
+
+This mask is what lets every position in a training text serve as a practice question at the same time, which makes transformers very efficient to train.
+
+---
+
+## Many heads at once
+
+One set of queries, keys and values can only look for one kind of thing at a time. But a word might need its subject, its verb and the topic of the paragraph.
+
+So transformers run several attention **heads** side by side, each with its own query, key and value matrices. Their outputs are joined together and mixed by one more matrix. This is **multi-head attention**.
+
+The original transformer used **8 heads**. Its token vectors had 512 numbers, and each head worked with a smaller slice: 512 ÷ 8 = **64** numbers per query, key and value. That keeps the total cost close to one big head.
+
+What do the heads learn? Nobody assigns them jobs. The paper's authors looked at their models and reported that individual heads "clearly learn to perform different tasks", with many seeming to follow the grammar and meaning of the sentence.
+
+---
+
+## The transformer block
+
+Attention is one part of a bigger unit, the **transformer block**. Each block has:
+
+- **multi-head attention**, where tokens pull in information from each other,
+- a **feed-forward network**, a small neural network applied to each token on its own,
+- **residual connections**, which add each part's output back onto its input instead of replacing it,
+- and **layer normalisation**, which keeps the numbers in a steady range.
+
+A helpful picture, from Jurafsky and Martin: each token has a **residual stream**, a vector that flows up through the blocks. Each part reads from the stream and **adds** its result back. Attention is the only part that reads from _other_ tokens' streams; it's the token-mixing step.
+
+Blocks are stacked one on top of another (the original transformer used 6). At the top, the final vector of the last token is turned into scores for every possible next token, and softmax makes them probabilities, as in the next-token prediction lesson.
+
+---
+
+## Where's the word order?
+
+Notice that nothing in the attention score depends on _where_ a token sits. Attention compares contents, not positions.
+
+But _"dog bites man"_ and _"man bites dog"_ mean different things. So, as the 2017 paper says, with no recurrence and no convolution the model needs position information injected from outside.
+
+The fix is a **positional encoding**: a vector that depends on the position, added to each token's embedding at the very bottom. The original transformer used a pattern of sine and cosine waves. The authors also tried positional embeddings learned during training and found that the two "produced nearly identical results". As the paper notes, there are many choices, learned and fixed.
+
+---
+
+## Attention is all you need
+
+In 2017, eight researchers working at Google published **"Attention Is All You Need"**. Their model, the **Transformer**, was "based solely on attention mechanisms, dispensing with recurrence and convolutions entirely".
+
+Why did that matter? A recurrent network has to read token 1 before token 2 before token 3. Attention handles every position **in parallel**, so the paper's models needed "significantly less time to train".
+
+The results were striking for translation: a new best score on English-to-German, and a state-of-the-art English-to-French model after **3.5 days on eight GPUs**, "a small fraction" of earlier models' training costs.
+
+The original was an encoder–decoder built for translation. Language models later kept just the decoder half, with its causal mask, giving **decoder-only** transformers, the standard design for large language models.
+
+There's one cost. Every token is scored against every earlier token, so the work grows with the **square** of the text length: 1,000 tokens means about half a million scores per head, per layer.
+
+---
+
+## Common misconceptions
+
+- **"A transformer is mostly attention."** With the common choice of a feed-forward layer 4 times wider than the token vectors, the feed-forward network holds about twice as many weights as attention in each block.
+- **"Each token only looks at its neighbours."** Attention can reach any earlier token in the context, near or far.
+- **"Attention weights are hand-written rules."** The query, key and value matrices are learned, like every other weight.
+- **"Transformers are only for text."** The same blocks work on image patches too; the vision transformers lesson shows how.
+
+---
+
+## Quiz time 🧠
+
+Six questions, two with a little arithmetic.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- **Attention** lets each token build a new vector as a **weighted average** of earlier tokens.
+- Scores come from **query · key**, scaled by **√d_k**, turned into weights by **softmax**, and used to average the **values**.
+- A **causal mask** stops tokens from seeing the future, so every position can be trained at once.
+- **Multi-head attention** runs several heads side by side; a **transformer block** adds a feed-forward network, residual connections and layer norm.
+- **Positional encodings** supply word order, which attention alone ignores.
+- The 2017 **Transformer** dropped recurrence for attention and trains in parallel; its cost grows with the **square** of the length.
+
+**Coming up:** the sampling and temperature lesson shows how a model picks one token from its probabilities.
+
+**Related:** the embeddings lesson gives the starting vectors attention mixes, and the vision transformers lesson applies the same blocks to images.
+
+Hit **Finish** to collect your XP! 🏁

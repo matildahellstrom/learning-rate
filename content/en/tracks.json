@@ -29,11 +29,6 @@
     "colour": "pink",
     "upcoming": [
       {
-        "id": "attention",
-        "title": "Attention & transformers",
-        "order": 4
-      },
-      {
         "id": "sampling-temperature",
         "title": "Sampling & temperature",
         "order": 5
