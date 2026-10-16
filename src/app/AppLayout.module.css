@@ -1,9 +1,10 @@
 .app {
   min-height: 100dvh;
-  /* Room for the fixed bottom nav on phones. */
+  /* Room for the fixed bottom tab bar. */
   padding-bottom: calc(84px + env(safe-area-inset-bottom));
 }
 
+/* The header sits on the lavender backdrop (only --text-coloured things go here). */
 .header {
   position: sticky;
   top: 0;
@@ -14,10 +15,10 @@
   justify-content: space-between;
   align-items: center;
   gap: var(--space-2) var(--space-3);
+  max-width: calc(var(--content-width) + 2 * var(--space-2));
+  margin: 0 auto;
   padding: var(--space-2) var(--space-3);
-  background: var(--surface);
-  border-bottom: 2px solid var(--border);
-  box-shadow: 0 2px 0 var(--border);
+  background: var(--backdrop);
 }
 
 .brand {
@@ -25,25 +26,18 @@
   align-items: center;
   gap: var(--space-2);
   flex-shrink: 0;
+  border-radius: var(--radius-s);
   color: var(--text);
   font-weight: var(--weight-display);
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   text-decoration: none;
   white-space: nowrap;
 }
 
-/* App icon: a little glossy gradient tile. */
+/* App icon: a little mascot. */
 .logo {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 11px;
-  background: var(--hero-gradient);
-  box-shadow:
-    0 3px 0 var(--hero-ledge),
-    inset 0 2px 0 rgb(255 255 255 / 0.25);
-  font-size: 1.15rem;
+  width: 38px;
+  height: 38px;
 }
 
 /* On phones the HUD needs the room: keep the name for screen readers, show only the icon. */
@@ -58,16 +52,26 @@
   }
 }
 
+/* The page's white sheet, a little inset from the screen edge so the lavender shows. */
 .main {
   max-width: var(--content-width);
-  margin: 0 auto;
-  padding: var(--space-4);
+  min-height: calc(100dvh - 160px);
+  margin: var(--space-1) var(--space-2) 0;
+  padding: var(--space-5) var(--space-4);
 }
 
 .main:focus {
   outline: none;
 }
 
+@media (min-width: 656px) {
+  .main {
+    margin: var(--space-2) auto 0;
+    padding: var(--space-6) var(--space-5);
+  }
+}
+
+/* Bottom tab bar: outline icons with small labels; the active tab is bold and purple. */
 .nav {
   position: fixed;
   bottom: 0;
@@ -76,71 +80,66 @@
   z-index: 10;
   display: flex;
   justify-content: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-4) calc(var(--space-2) + env(safe-area-inset-bottom));
+  gap: var(--space-5);
+  padding: var(--space-1) var(--space-4) calc(var(--space-1) + env(safe-area-inset-bottom));
   background: var(--surface);
-  border-top: 2px solid var(--border);
+  border-radius: var(--radius-l) var(--radius-l) 0 0;
+  box-shadow: 0 -4px 20px rgb(28 21 48 / 0.08);
 }
 
 .nav a {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 104px;
+  justify-content: center;
+  gap: 2px;
+  min-width: 88px;
   min-height: 56px;
-  padding: var(--space-1) var(--space-4);
-  border: 2px solid transparent;
+  padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-m);
   color: var(--text-muted);
-  font-size: 0.85rem;
-  font-weight: 900;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  font-size: 0.8rem;
+  font-weight: 600;
   text-decoration: none;
 }
 
-.nav a span {
-  font-size: 1.5rem;
-  line-height: 1.2;
+/* Every icon has the pill's box, so the active pill doesn't shift anything. */
+.icon {
+  width: 56px;
+  height: 30px;
+  padding: 2px 15px;
+  border-radius: 999px;
   transition: transform var(--duration) var(--bounce);
 }
 
-.nav a:hover span {
-  transform: translateY(-2px) scale(1.08);
+.nav a:hover .icon {
+  transform: translateY(-2px);
 }
 
-/* Active tab: a tinted, outlined "pressed" tile, like a selected item in a game menu. */
 .nav a.active {
-  color: var(--text);
-  background: var(--surface-2);
-  border-color: var(--primary);
-  box-shadow: 0 3px 0 var(--primary);
+  color: var(--primary);
+  font-weight: var(--weight-display);
 }
 
-@media (min-width: 768px) {
-  .app {
-    padding-bottom: 0;
-  }
+/* The active icon gets a soft tinted pill behind it. */
+.nav a.active .icon {
+  background: var(--primary-tint);
+  stroke-width: 2.4;
+}
 
+/* Wider screens: the tab bar floats as a pill at the bottom centre. */
+@media (min-width: 768px) {
   .header {
-    padding: var(--space-2) var(--space-4);
+    padding: var(--space-3) var(--space-2);
   }
 
   .nav {
-    position: static;
-    border-top: 0;
-    background: transparent;
-    padding-top: var(--space-4);
-  }
-
-  .nav a {
-    flex-direction: row;
-    gap: var(--space-2);
-    min-height: 48px;
-    font-size: 0.95rem;
-  }
-
-  .nav a span {
-    font-size: 1.2rem;
+    left: 50%;
+    right: auto;
+    bottom: var(--space-4);
+    padding: var(--space-1) var(--space-4);
+    border-radius: 999px;
+    transform: translateX(-50%);
+    box-shadow: var(--shadow-soft);
   }
 }

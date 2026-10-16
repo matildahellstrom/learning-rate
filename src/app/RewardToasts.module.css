@@ -17,7 +17,7 @@
   pointer-events: none;
 }
 
-/* Compact gold pills that pop up with a bounce. */
+/* Compact flat amber pills that pop up with a bounce. */
 .toast {
   /*
    * Several rewards share one compact toast, always one line: the most valuable comes first and
@@ -32,15 +32,11 @@
   padding: 2px var(--space-3);
   font-size: 0.95rem;
   line-height: 1.4;
-  border: 2px solid var(--gold-ledge);
   border-radius: 22px;
-  background-color: var(--gold-2);
-  background-image: linear-gradient(180deg, var(--gold), var(--gold-2));
+  background: var(--gold-2);
   color: var(--on-gold);
   font-weight: var(--weight-display);
-  box-shadow:
-    0 4px 0 var(--gold-ledge),
-    var(--shadow-soft);
+  box-shadow: var(--shadow-soft);
   animation: slide-in 360ms var(--bounce) both;
 }
 

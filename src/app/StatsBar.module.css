@@ -10,7 +10,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* HUD chips: pill-shaped, each with its own colour and a small 3D ledge. */
+/* HUD chips: flat pills that sit on the lavender header. */
 .level,
 .streak {
   display: inline-flex;
@@ -25,29 +25,28 @@
 .level {
   background: var(--btn);
   color: var(--on-btn);
-  box-shadow:
-    0 3px 0 var(--btn-ledge),
-    inset 0 2px 0 rgb(255 255 255 / 0.2);
 }
 
+/* The XP bar and number share a white pill, so they never sit straight on the lavender. */
 .xp {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
+  min-height: 32px;
+  padding: 2px var(--space-3) 2px var(--space-2);
+  border-radius: 999px;
+  background: var(--surface);
 }
 
-/* The bar is a real <progress> (accessible); the wrapper adds a glint over the filled part. */
 .barWrap {
-  position: relative;
   display: block;
   flex-shrink: 1;
   width: 64px;
   min-width: 36px;
-  height: 14px;
+  height: 10px;
   border-radius: 999px;
   background: var(--surface-2);
-  box-shadow: inset 0 2px 0 rgb(0 0 0 / 0.08);
   overflow: hidden;
 }
 
@@ -67,45 +66,14 @@
 }
 
 .bar::-webkit-progress-value {
-  background: linear-gradient(180deg, var(--gold), var(--gold-2));
+  background: var(--gold-2);
   border-radius: 999px;
-  box-shadow: inset 0 3px 0 rgb(255 255 255 / 0.45);
   transition: width 600ms var(--bounce);
 }
 
 .bar::-moz-progress-bar {
-  background: linear-gradient(180deg, var(--gold), var(--gold-2));
+  background: var(--gold-2);
   border-radius: 999px;
-}
-
-/* A white glint that sweeps across the filled part every few seconds (transform only). */
-.shine {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: calc(var(--fill) * 100%);
-  overflow: hidden;
-  border-radius: 999px;
-  pointer-events: none;
-}
-
-.shine::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  width: 18px;
-  background: linear-gradient(100deg, transparent, rgb(255 255 255 / 0.7), transparent);
-  transform: translateX(-30px);
-  animation: glint 3.2s ease-in-out infinite;
-}
-
-@keyframes glint {
-  0%,
-  55% {
-    transform: translateX(-30px);
-  }
-  100% {
-    transform: translateX(80px);
-  }
 }
 
 .xpText {
@@ -113,15 +81,13 @@
 }
 
 .streak {
-  background: var(--surface-2);
+  background: var(--surface);
   color: var(--text-muted);
-  box-shadow: 0 3px 0 var(--border);
 }
 
 .lit {
   background: var(--flame-bg);
   color: var(--on-flame-bg);
-  box-shadow: 0 3px 0 var(--flame);
 }
 
 .flame {
@@ -148,13 +114,12 @@
 }
 
 @media (max-width: 360px) {
-  .bar {
+  .barWrap {
     width: 44px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .shine::after,
   .lit .flame {
     animation: none;
   }

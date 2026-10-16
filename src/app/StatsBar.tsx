@@ -1,4 +1,3 @@
-import type { CSSProperties } from 'react'
 import { activeStreak } from '../game/streak'
 import { levelFromXp } from '../game/levels'
 import { t } from '../i18n'
@@ -12,13 +11,12 @@ export function StatsBar() {
   const today = useToday()
   const level = levelFromXp(state.xp)
   const streak = activeStreak(state.streak, today)
-  const fill = level.xpForNextLevel > 0 ? level.xpIntoLevel / level.xpForNextLevel : 0
 
   return (
     <div className={styles.stats}>
       <span className={styles.level}>{t('stats.level', { level: level.level })}</span>
       <span className={styles.xp}>
-        <span className={styles.barWrap} style={{ '--fill': fill } as CSSProperties}>
+        <span className={styles.barWrap}>
           <progress
             className={styles.bar}
             max={level.xpForNextLevel}
@@ -29,7 +27,6 @@ export function StatsBar() {
               next: level.level + 1,
             })}
           />
-          <span className={styles.shine} aria-hidden="true" />
         </span>
         <span className={styles.xpText}>{t('stats.xp', { xp: state.xp })}</span>
       </span>
