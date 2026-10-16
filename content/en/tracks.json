@@ -7,11 +7,6 @@
     "colour": "blue",
     "upcoming": [
       {
-        "id": "probability-bayes",
-        "title": "Probability & Bayes",
-        "order": 6
-      },
-      {
         "id": "cross-entropy",
         "title": "Entropy & cross-entropy",
         "order": 7

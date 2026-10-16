@@ -1,0 +1,269 @@
+---
+id: probability-bayes
+title: Probability & Bayes
+summary: How to put a number on uncertainty, and how to update it properly when new evidence arrives.
+track: maths
+order: 6
+prerequisites: [softmax]
+minutes: 11
+xp: 100
+volatility: evergreen
+sources:
+  - title: '3Blue1Brown: Bayes theorem, the geometry of changing beliefs'
+    url: https://www.3blue1brown.com/lessons/bayes-theorem/
+  - title: 'Goodfellow, Bengio & Courville: Deep Learning, ch. 3 Probability and Information Theory'
+    url: https://www.deeplearningbook.org/contents/prob.html
+  - title: 'scikit-learn: Naive Bayes (user guide)'
+    url: https://scikit-learn.org/stable/modules/naive_bayes.html
+  - title: 'Graham (2002): A Plan for Spam'
+    url: https://paulgraham.com/spam.html
+quiz:
+  - type: numeric
+    prompt: 'You roll a fair six-sided die and are told the result is 4 or more. What is the probability that it is even? (Give a decimal.)'
+    answer: 0.667
+    tolerance: 0.01
+    explanation: 'Zoom in on the rolls that fit the condition: 4, 5 and 6. Two of those three (4 and 6) are even, so the probability is 2/3 ≈ 0.667. Conditioning means throwing away the outcomes that did not happen.'
+  - type: choice
+    prompt: 'Almost every professional basketball player is tall. What does that tell you about the probability that a tall person is a professional basketball player?'
+    options:
+      - It is also almost certain
+      - It is exactly the same number
+      - Very little on its own; it is a different conditional probability, and it is small because tall people vastly outnumber pro players
+      - It must be at least 50%
+    answer: 2
+    explanation: "P(tall | pro player) is near 1, but P(pro player | tall) is tiny, because tall people vastly outnumber professional players. Swapping the two sides of the bar is the classic mistake; Bayes' rule is how you convert between them, and it needs the base rates."
+  - type: numeric
+    prompt: 'A condition affects 1 in 50 people. A test catches every true case, but also gives a positive result for 5% of people without it. You test positive. What is the probability you have the condition? (Give a decimal.)'
+    answer: 0.29
+    tolerance: 0.01
+    explanation: 'Picture 1,000 people: 20 have the condition and all 20 test positive. Of the 980 without it, 5% is 49 false positives. So 20 of the 69 positives are real: 20 ÷ 69 ≈ 0.29. A perfect catch rate still leaves you more likely healthy than not, because healthy people are so common.'
+  - type: choice
+    prompt: 'In the Steve example, which number is the prior?'
+    options:
+      - The 40% of librarians who fit the description
+      - The 1-in-21 chance that Steve is a librarian, before hearing the description
+      - The final answer of about 16.7%
+      - The 10% of farmers who fit the description
+    answer: 1
+    explanation: 'The prior is your belief before the evidence: 1 librarian for every 20 farmers, so 1 in 21. The 40% and 10% are likelihoods (how well the evidence fits each hypothesis), and 16.7% is the posterior.'
+  - type: choice
+    prompt: 'Why is a naive Bayes spam filter called "naive"?'
+    options:
+      - It assumes every email is spam until proven otherwise
+      - It only ever looks at one word per email
+      - It ignores how common spam is overall
+      - It assumes words are independent of each other once you know whether the email is spam
+    answer: 3
+    explanation: 'Real words are not independent ("free" and "offer" often appear together), but assuming they are lets the filter simply multiply one probability per word. The assumption is unrealistic, yet the classifier often works well anyway.'
+  - type: choice
+    prompt: 'Your prior odds that a hypothesis is true are 1 to 4. You see evidence that is 3 times as likely if the hypothesis is true as if it is false. Roughly what is the probability now?'
+    options:
+      - About 43%
+      - About 75%
+      - About 60%
+      - About 20%
+    answer: 0
+    explanation: 'Multiply the odds by the likelihood ratio: 1 to 4 becomes 3 to 4. That means 3 chances in 3 + 4 = 7, so about 43%. 75% misreads 3 to 4 as 3 out of 4; 20% is the prior (1 in 5), before the evidence.'
+---
+
+# Librarian or farmer? 📚
+
+Here's a puzzle from a study by the psychologists Daniel Kahneman and Amos Tversky, as retold by 3Blue1Brown.
+
+Steve is described as very shy and withdrawn, helpful but with little interest in people: "a meek and tidy soul", with "a need for order and structure, and a passion for detail".
+
+Is Steve more likely to be a **librarian** or a **farmer**?
+
+Most people say librarian. He sounds like one! But Kahneman and Tversky's point was that almost nobody stops to ask **how many** librarians and farmers there are. In their paper, they said that in the US there are about **20 farmers for every librarian**.
+
+This lesson covers what a probability is, **conditional probability**, and **Bayes' rule**: the recipe for combining what you knew before with what you just learned. It ends with a spam filter built on it.
+
+---
+
+## A number for uncertainty
+
+A **probability** is a number from 0 (impossible) to 1 (certain). A fair die lands on 6 with probability 1/6, and on an even number with probability 3/6 = 1/2.
+
+The Deep Learning book describes two ways to read that number:
+
+- **Frequentist:** how often something happens if you repeat it many times, like dice rolls.
+- **Bayesian:** a **degree of belief** about something that only happens once, like whether a particular patient has flu.
+
+The book's point is that both obey **exactly the same rules**, so you don't need separate maths for each.
+
+Two rules you'll use constantly:
+
+- The probabilities of all the possible outcomes add up to **1**. (Softmax produces exactly this kind of list.)
+- P(not A) = 1 − P(A).
+
+---
+
+## Zooming in: conditional probability
+
+Often you want a probability **given** that something else is true. That's a **conditional probability**, written P(A | B): "the probability of A, given B".
+
+The idea: **zoom in** on the cases where B happened, and ask what fraction of them also have A.
+
+🤔 Predict: you draw a card from a shuffled deck and are told it's a face card (jack, queen or king). What's the probability it's a king?
+
+There are 12 face cards and 4 of them are kings: **4/12 = 1/3**. Knowing it's a face card raised the chance from 4/52 to 1/3.
+
+Watch out: **P(A | B) and P(B | A) are different numbers.** Almost every Dalmatian has spots, but only a small fraction of spotted animals are Dalmatians.
+
+<Deeper title="Go deeper: the definition">
+The Deep Learning book defines it as
+
+$$
+P(A \mid B) = \frac{P(A \text{ and } B)}{P(B)}
+$$
+
+which only makes sense when $P(B) > 0$. The book also warns that conditioning is not the same as acting: the probability that someone is from Germany given that they speak German is high, but teaching a random person German doesn't change where they're from.
+
+</Deeper>
+
+---
+
+## Steve, by counting
+
+Let's settle Steve with a representative crowd. 3Blue1Brown suggests picturing **200 farmers and 10 librarians**: the 20-to-1 ratio.
+
+Now suppose your gut says **40%** of librarians fit Steve's description, but only **10%** of farmers do. (These are 3Blue1Brown's illustrative guesses, not measured numbers.)
+
+🤔 Predict: in that crowd, how many librarians fit the description, and how many farmers?
+
+- Librarians: 40% of 10 = **4**
+- Farmers: 10% of 200 = **20**
+
+Of the 24 people who fit, only 4 are librarians: **4/24 ≈ 16.7%**. Even though the description fits a librarian 4 times better, farmers still win, because there are so many more of them.
+
+3Blue1Brown's mantra: new evidence should not completely determine your beliefs; it should **update** what you believed before.
+
+---
+
+## Bayes' rule
+
+The counting has a formula. You have a **hypothesis** H (Steve is a librarian) and **evidence** E (the description).
+
+**P(H | E) = P(H) × P(E | H) ÷ P(E)**
+
+Each piece has a name:
+
+- **Prior**, P(H): your belief before the evidence. Here 1/21.
+- **Likelihood**, P(E | H): how well the evidence fits if H is true. Here 0.4.
+- **Posterior**, P(H | E): your belief after the evidence. The answer.
+
+P(E) is the total chance of seeing the evidence, from both sides: (1/21) × 0.4 + (20/21) × 0.1. Plug everything in and you get 0.4 ÷ (0.4 + 2) = **1/6 ≈ 16.7%**, the same as counting.
+
+The Deep Learning book notes the rule is named after the Reverend Thomas Bayes, who first discovered a special case of it; the general version was discovered independently by Pierre-Simon Laplace.
+
+<Deeper title="Go deeper: where it comes from">
+Write $P(H \text{ and } E)$ two ways using the definition of conditional probability:
+
+$$
+\begin{aligned}
+P(H \text{ and } E) &= P(H \mid E)\,P(E) \\
+&= P(E \mid H)\,P(H)
+\end{aligned}
+$$
+
+Divide both by $P(E)$ and you have Bayes' rule. The denominator splits into the two cases:
+
+$$
+\begin{aligned}
+P(E) &= P(E \mid H)\,P(H) \\
+&\quad + P(E \mid \neg H)\,P(\neg H)
+\end{aligned}
+$$
+
+</Deeper>
+
+---
+
+## The base-rate trap
+
+Here's a **made-up** medical example that shows why the prior matters so much.
+
+A condition affects **1 in 100** people. A test catches **90%** of people who have it, but also wrongly flags **10%** of people who don't. You test positive.
+
+🤔 Predict: roughly how likely is it that you have the condition: about 90%, about 50%, or under 10%?
+
+Count 1,000 people:
+
+- 10 have it; 90% of them, **9**, test positive.
+- 990 don't; 10% of them, **99**, test positive anyway.
+
+Only 9 of the 108 positives are real: **9/108 ≈ 8.3%**. Under 10%!
+
+The test is useful (it raised your chance from 1% to about 8%), but the condition is rare, so false alarms from the large healthy group outnumber the true cases. Ignoring the prior like this is called **base-rate neglect**.
+
+---
+
+## Updating again and again
+
+Today's posterior becomes tomorrow's prior. Say you take a **second**, independent test (in this made-up example, with the same error rates) and it's positive too.
+
+The quickest way is with **odds**. Before the second test, the odds were 9 real to 99 false, or **1 to 11**. A positive result is 0.9 ÷ 0.1 = **9 times** as likely if you have the condition. Multiply: 1 to 11 becomes **9 to 11**, which is 9/20 = **45%**.
+
+Two positives took you from 1% to 45%. Each piece of evidence **nudges** the belief; none of them replaces it.
+
+<Deeper title="Go deeper: the odds form">
+Dividing Bayes' rule for $H$ by Bayes' rule for $\neg H$ cancels $P(E)$:
+
+$$
+\begin{aligned}
+\frac{P(H \mid E)}{P(\neg H \mid E)}
+&= \frac{P(H)}{P(\neg H)} \\
+&\quad \times \frac{P(E \mid H)}{P(E \mid \neg H)}
+\end{aligned}
+$$
+
+Posterior odds = prior odds × **likelihood ratio**. The first test: 1 to 99, times 9, is 9 to 99. This only works test after test if the tests are independent given whether you have the condition; two tests that make the same mistakes don't count twice.
+
+</Deeper>
+
+---
+
+## A spam filter from Bayes
+
+Treat each word of an email as a piece of evidence. "Viagra" is much more likely in spam; "meeting" much more likely in real mail. Combine them with Bayes' rule and you have a **naive Bayes** classifier.
+
+The scikit-learn docs explain the "naive" part: it assumes the words (the **features**) are **independent of each other once you know the class**. That's clearly false ("free" and "offer" travel together), but it lets you multiply one simple probability per word. Despite the over-simplified assumption, the docs say these classifiers have worked well in practice, "famously document classification and spam filtering".
+
+In 2002, Paul Graham's essay "A Plan for Spam" described a filter using a Bayesian combination of the spam probabilities of the fifteen most telling words (tokens) in each email. He reported that it missed fewer than 5 in 1,000 spams, with **0 false positives** (good emails wrongly binned).
+
+Multiplying many word probabilities is exactly where the log trick from the softmax lesson helps: add log-probabilities instead, and nothing underflows.
+
+---
+
+## Common misconceptions
+
+- **"P(A | B) is the same as P(B | A)."** Spotted given Dalmatian is near 1; Dalmatian given spotted is small.
+- **"A 90% accurate test means a positive result is 90% likely to be right."** It depends on the **base rate**; for a rare condition it can be under 10%.
+- **"New evidence should replace what you believed."** It should **update** it. The prior still counts.
+- **"Bayesian probability is a different kind of maths."** It uses the **same rules**; only the interpretation (degree of belief) differs.
+- **"Naive Bayes is useless because its assumption is wrong."** It's often a decent classifier anyway, though scikit-learn warns its probability outputs are "not to be taken too seriously".
+
+---
+
+## Quiz time 🧠
+
+Six questions. When in doubt, picture a crowd of 1,000 people and count.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- A **probability** is a number from 0 to 1, read either as a frequency or a **degree of belief**, with the same rules.
+- **Conditional probability** P(A | B) zooms in on the cases where B is true, and **P(A | B) ≠ P(B | A)**.
+- **Bayes' rule**: posterior = prior × likelihood ÷ P(evidence). Counting a crowd gives the same answer.
+- **Base rates** matter: a positive result for a rare condition can still be unlikely to be real.
+- In **odds form**, each piece of evidence multiplies the odds by its likelihood ratio.
+- **Naive Bayes** combines words as independent evidence, and still filters spam well.
+
+**Coming up:** the entropy and cross-entropy lesson measures how surprised a model is by the right answer.
+
+**Related:** the softmax lesson's log trick keeps long products from underflowing; the hallucination and calibration lesson asks whether a model's stated confidence matches reality.
+
+Hit **Finish** to collect your XP! 🏁
