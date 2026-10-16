@@ -3,6 +3,30 @@
   overflow: visible;
 }
 
+.hill {
+  fill: var(--mascot-teal);
+}
+
+.body {
+  fill: var(--mascot-amber);
+}
+
+.eye,
+.mouth {
+  fill: var(--mascot-face);
+}
+
+.shine {
+  fill: var(--mascot-shine);
+}
+
+.ink {
+  fill: none;
+  stroke: var(--mascot-face);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+}
+
 /* A gentle hop with a squash on landing. Transform only, off under reduced motion. */
 .ball {
   transform-box: fill-box;

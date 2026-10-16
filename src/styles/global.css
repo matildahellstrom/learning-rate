@@ -12,7 +12,8 @@ html {
 
 body {
   margin: 0;
-  background: var(--bg);
+  /* The lavender backdrop; page content sits on white sheets on top of it. */
+  background: var(--backdrop);
   color: var(--text);
   font-family: var(--font);
   font-size: 1.0625rem;
@@ -20,21 +21,24 @@ body {
   font-optical-sizing: auto;
 }
 
-/*
- * Playful backdrop: a few soft colour blobs and a faint dot grid, fixed behind everything.
- * The alphas are low, so text on the page background keeps (almost exactly) its contrast.
- */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 8% 12%, var(--blob-1), transparent 38%),
-    radial-gradient(circle at 92% 30%, var(--blob-2), transparent 34%),
-    radial-gradient(circle at 20% 88%, var(--blob-3), transparent 36%),
-    radial-gradient(var(--dot) 1.5px, transparent 1.7px) 0 0 / 22px 22px;
+/* The white, generously rounded sheet that holds a page's content. */
+.sheet {
+  background: var(--bg);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-soft);
+}
+
+/* A standalone page (not found, loading) on its own sheet, with a small gutter on phones. */
+.sheet-page {
+  max-width: var(--content-width);
+  margin: var(--space-4) var(--space-2);
+  padding: var(--space-6) var(--space-4);
+}
+
+@media (min-width: 656px) {
+  .sheet-page {
+    margin: var(--space-6) auto;
+  }
 }
 
 h1,
@@ -82,69 +86,60 @@ svg {
   top: var(--space-2);
 }
 
-/*
- * Chunky game-style buttons: a solid "ledge" underneath (a box-shadow with no blur) that
- * squashes when pressed, plus a thin inner highlight on top so they look glossy and 3D.
- */
+/* Flat, solid buttons: purple with a white label, rounded but not pills. */
 .btn {
-  --ledge: var(--btn-ledge);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
   min-height: 50px;
   padding: var(--space-2) var(--space-5);
-  border: 2px solid var(--ledge);
-  border-radius: 16px;
+  border: 0;
+  border-radius: var(--radius-s);
   background: var(--btn);
   color: var(--on-btn);
   font: inherit;
-  font-weight: 900;
-  letter-spacing: 0.02em;
+  font-weight: var(--weight-display);
   text-decoration: none;
-  box-shadow:
-    0 5px 0 var(--ledge),
-    inset 0 3px 0 rgb(255 255 255 / 0.2);
   cursor: pointer;
   transition:
     transform var(--duration),
-    box-shadow var(--duration);
+    background-color var(--duration);
 }
 
 .btn:hover:not(:disabled, [aria-disabled='true']) {
-  transform: translateY(-1px);
-  box-shadow:
-    0 6px 0 var(--ledge),
-    inset 0 3px 0 rgb(255 255 255 / 0.2);
+  background: var(--btn-hover);
 }
 
 /* aria-disabled buttons (Step/Play at the end of a run) keep focus, so they look disabled too. */
 .btn:active:not(:disabled, [aria-disabled='true']) {
-  transform: translateY(4px);
-  box-shadow:
-    0 1px 0 var(--ledge),
-    inset 0 3px 0 rgb(255 255 255 / 0.2);
+  transform: translateY(1px) scale(0.99);
 }
 
-/* Disabled: flat and grey, like a game button you can't press yet. */
 .btn:disabled,
 .btn[aria-disabled='true'] {
-  --ledge: var(--border);
   background: var(--surface-2);
   color: var(--text-muted);
   cursor: not-allowed;
 }
 
+/* Secondary: a grey filled box, like the inputs. */
 .btn-secondary {
-  --ledge: var(--border);
-  background: var(--surface);
+  background: var(--surface-2);
   color: var(--text);
 }
 
+.btn-secondary:hover:not(:disabled, [aria-disabled='true']) {
+  background: var(--surface-3);
+}
+
 .btn-go {
-  --ledge: var(--go-ledge);
   background: var(--go);
-  color: #ffffff;
+  color: var(--on-btn);
+}
+
+.btn-go:hover:not(:disabled, [aria-disabled='true']) {
+  background: var(--go-hover);
 }
 
 .btn-small {
@@ -153,12 +148,11 @@ svg {
   font-size: 0.95rem;
 }
 
+/* Cards inside a white sheet: grey filled boxes, no borders. */
 .card {
-  background: var(--surface);
-  border: 2px solid var(--border);
+  background: var(--surface-2);
   border-radius: var(--radius-l);
   padding: var(--space-4);
-  box-shadow: 0 4px 0 var(--border);
 }
 
 /* KaTeX display maths can be wider than a phone: scroll it instead of the page. */

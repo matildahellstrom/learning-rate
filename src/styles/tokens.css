@@ -1,40 +1,50 @@
 /*
  * Design tokens: the single source of truth for colour, spacing, shape and motion.
  * Text/background pairs are chosen for WCAG AA contrast (4.5:1 for body text).
+ *
+ * The look: a soft lavender backdrop with white, generously rounded "sheets" on top, flat
+ * solid buttons, grey filled fields, and bright flat colours for cards and mascots.
  */
 :root {
   color-scheme: light dark;
 
-  --bg: #f5f3ff;
+  /* The lavender behind everything. Only --text (8.3:1) sits directly on it, never muted text. */
+  --backdrop: #c4a6e8;
+  /* The white sheet the page content lives on. */
+  --bg: #ffffff;
   --surface: #ffffff;
-  --surface-2: #ede9fe;
-  --border: #d9d2f5;
+  /* Grey filled fields: inputs, option rows, secondary buttons, cards inside the sheet. */
+  --surface-2: #f2f0f7;
+  --surface-3: #e7e3f0;
+  --border: #e2ddec;
   --text: #1c1530;
   --text-muted: #554d6b;
 
   --primary: #6d28d9;
   --primary-strong: #4c1d95;
+  --primary-tint: #efe6fc;
   --on-primary: #ffffff;
 
-  /* Buttons stay vivid in both themes: white text on violet (7.1:1 light, 5.7:1 dark). */
-  --btn: #6d28d9;
-  --btn-ledge: #4c1d95;
+  /* Solid purple buttons: white text on #7b3fd0 is 6.1:1. */
+  --btn: #7b3fd0;
+  --btn-hover: #6a2fc0;
   --on-btn: #ffffff;
-  /* "Go" buttons (Continue, Finish): white on green, 5:1. */
-  --go: #15803d;
-  --go-ledge: #14532d;
+  /* "Go" buttons (Continue, Finish) are the primary purple too. */
+  --go: var(--btn);
+  --go-hover: var(--btn-hover);
 
   --xp: #f59e0b;
   --xp-strong: #b45309;
   --on-xp: #2b1700;
   /* Gold coins and medals: dark brown text on light gold, 10:1. */
   --gold: #fcd34d;
-  --gold-2: #f59e0b;
+  --gold-2: #f5a623;
+  --gold-tint: #fff4dc;
   --gold-ledge: #b45309;
   --on-gold: #3b1d00;
 
   --flame: #ea580c;
-  --flame-bg: #ffedd5;
+  --flame-bg: #ffe8d9;
   --on-flame-bg: #7c2d12;
 
   --success: #166534;
@@ -44,42 +54,55 @@
   --danger: #b91c1c;
   --danger-bg: #fee2e2;
   --danger-ink: #7f1d1d;
-  --focus: #2563eb;
+  /* 6.7:1 on white, 3.2:1 on the lavender backdrop (focus rings need 3:1). */
+  --focus: #1d4ed8;
 
   /*
-   * Track identities: each track is a two-stop gradient (--track-x → --track-x-2).
-   * Both stops carry white text at ≥ 4.5:1, so headings and descriptions can sit on them.
+   * Track identities: each track is a bright two-stop gradient (--track-x → --track-x-2),
+   * like the habit cards in the inspiration. White text fails on colours this bright, so
+   * cards use dark ink (--on-track): ≥ 4.7:1 on every stop.
    */
-  --track-violet: #7c3aed;
-  --track-violet-2: #a21caf;
-  --track-blue: #2563eb;
-  --track-blue-2: #4338ca;
-  --track-green: #15803d;
-  --track-green-2: #047857;
-  --track-orange: #c2410c;
-  --track-orange-2: #9a3412;
-  --track-pink: #db2777;
-  --track-pink-2: #be123c;
-  --track-teal: #0f766e;
-  --track-teal-2: #0e7490;
-  --track-red: #dc2626;
-  --track-red-2: #be123c;
-  --on-track: #ffffff;
+  --track-violet: #9a6ee0;
+  --track-violet-2: #b993f0;
+  --track-blue: #6b8bd0;
+  --track-blue-2: #8aa4e0;
+  --track-green: #22b07d;
+  --track-green-2: #4cc796;
+  --track-orange: #f57c1f;
+  --track-orange-2: #fba53a;
+  --track-pink: #e85d9a;
+  --track-pink-2: #f18ab5;
+  --track-teal: #1fb3a5;
+  --track-teal-2: #3ccfc0;
+  --track-red: #ef5a5a;
+  --track-red-2: #f58a7a;
+  --on-track: #1c1530;
+  /* White chips on the cards (the round check indicator), in both themes. */
+  --track-chip: #ffffff;
   --locked: #9a93ad;
 
-  /* The "Up next" hero: violet → fuchsia → pink, white text ≥ 4.6:1 at every stop. */
-  --hero-gradient: linear-gradient(135deg, #5b21b6 0%, #a21caf 55%, #db2777 100%);
-  --hero-ledge: #4c1d95;
+  /* The purple encouragement card: white text ≥ 4.9:1 at every stop. */
+  --hero: #6c2fc8;
+  --hero-2: #8a4fdf;
+  --hero-gradient: linear-gradient(135deg, var(--hero) 0%, var(--hero-2) 100%);
+  --on-hero: #ffffff;
+  /* Inner edge of the double focus ring on the hero's white button. */
+  --hero-ring: #1c1530;
 
-  /* Soft colour blobs behind everything; low alpha so text contrast barely moves. */
-  --blob-1: rgb(124 58 237 / 0.1);
-  --blob-2: rgb(219 39 119 / 0.08);
-  --blob-3: rgb(37 99 235 / 0.08);
-  --dot: rgb(109 40 217 / 0.07);
+  /* Mascot palette: flat, bright, decorative only (no text on them). */
+  --mascot-coral: #f26b4b;
+  --mascot-blue: #6b8bd0;
+  --mascot-pink: #f2a3c0;
+  --mascot-teal: #3bbfb0;
+  --mascot-amber: #f5a623;
+  --mascot-purple: #9a6ee0;
+  --mascot-grey: #c9c4d6;
+  --mascot-face: #1c1530;
+  --mascot-shine: #ffffff;
 
-  --radius-s: 8px;
+  --radius-s: 10px;
   --radius-m: 14px;
-  --radius-l: 22px;
+  --radius-l: 20px;
   --radius-xl: 28px;
   --space-1: 4px;
   --space-2: 8px;
@@ -89,9 +112,9 @@
   --space-6: 32px;
 
   --font: 'Nunito Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --weight-display: 900;
-  --shadow-card: 0 2px 0 var(--border);
-  --shadow-soft: 0 8px 24px rgb(76 29 149 / 0.12);
+  --weight-display: 800;
+  --shadow-card: 0 1px 2px rgb(28 21 48 / 0.06);
+  --shadow-soft: 0 8px 24px rgb(76 29 149 / 0.14);
   --content-width: 640px;
   --duration: 200ms;
   --bounce: cubic-bezier(0.3, 1.6, 0.5, 1);
@@ -101,22 +124,26 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #120d1f;
+    --backdrop: #2b2147;
+    --bg: #17122a;
     --surface: #1d1631;
-    --surface-2: #2a2145;
+    --surface-2: #2a2245;
+    --surface-3: #352b55;
     --border: #3b3060;
     --text: #f3f0ff;
     --text-muted: #bcb4d6;
 
     --primary: #c4b5fd;
     --primary-strong: #7c3aed;
+    --primary-tint: #2f2452;
     --on-primary: #1c1530;
 
-    --btn: #7c3aed;
-    --btn-ledge: #4c1d95;
+    --btn: #7b3fd0;
+    --btn-hover: #8a4fdf;
 
     --xp: #fbbf24;
     --xp-strong: #b45309;
+    --gold-tint: #33270f;
 
     --flame-bg: #3b1a0a;
     --on-flame-bg: #fed7aa;
@@ -131,11 +158,10 @@
     --focus: #93c5fd;
 
     --locked: #5d5577;
+    --mascot-grey: #5d5577;
+    --mascot-shine: #f3f0ff;
 
-    --blob-1: rgb(124 58 237 / 0.18);
-    --blob-2: rgb(219 39 119 / 0.1);
-    --blob-3: rgb(37 99 235 / 0.12);
-    --dot: rgb(196 181 253 / 0.06);
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3);
     --shadow-soft: 0 8px 24px rgb(0 0 0 / 0.35);
   }
 }

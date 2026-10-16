@@ -1,0 +1,51 @@
+.mascot {
+  display: block;
+  overflow: visible;
+}
+
+/* The thick same-colour stroke rounds the corners of the pentagon and triangle. */
+.body {
+  fill: var(--body);
+  stroke: var(--body);
+  stroke-width: 8;
+  stroke-linejoin: round;
+}
+
+/* The flame's lighter heart. */
+.core {
+  fill: var(--mascot-amber);
+}
+
+.eye {
+  fill: var(--mascot-face);
+}
+
+.shine {
+  fill: var(--mascot-shine);
+}
+
+.ink {
+  fill: none;
+  stroke: var(--mascot-face);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+}
+
+/* A slow idle bob. Transform only, off under reduced motion. */
+.bob .figure {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: bob 3s ease-in-out infinite;
+}
+
+@keyframes bob {
+  50% {
+    transform: translateY(-4px) rotate(-2deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bob .figure {
+    animation: none;
+  }
+}
