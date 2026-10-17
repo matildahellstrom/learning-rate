@@ -17,8 +17,8 @@ sources:
     url: https://developers.google.com/machine-learning/crash-course/overfitting/overfitting
   - title: 'Srivastava et al. (2014): Dropout, A Simple Way to Prevent Neural Networks from Overfitting'
     url: https://jmlr.org/papers/v15/srivastava14a.html
-  - title: 'Kapoor & Narayanan (2023): Leakage and the Reproducibility Crisis in ML-based Science'
-    url: https://arxiv.org/abs/2207.07048
+  - title: 'Kapoor & Narayanan (2023): Leakage and the reproducibility crisis in machine-learning-based science'
+    url: https://pmc.ncbi.nlm.nih.gov/articles/PMC10499856/
   - title: 'Recht, Roelofs, Schmidt & Shankar (2019): Do ImageNet Classifiers Generalize to ImageNet?'
     url: https://arxiv.org/abs/1902.10811
   - title: 'Zhang et al. (2017): Understanding deep learning requires rethinking generalization'
@@ -139,7 +139,7 @@ $$
 \end{aligned}
 $$
 
-**Bias** is how far off the estimate is on average: a straight line can never bend to fit a curve. **Variance** is how much the estimate would change with a different training sample: the degree-4 curve would look completely different with new noise. The Deep Learning book notes that, when error is measured this way, increasing capacity tends to raise variance and lower bias, which is where the U shape comes from.
+**Bias** is how far off the estimate is on average: a straight line can never bend to fit a curve. **Variance** is how much the estimate would change with a different training sample: the degree-4 curve would look completely different with new noise. The Deep Learning book notes that, when error is measured this way, increasing capacity tends to raise variance and lower bias, which gives another view of the same U shape.
 
 </Deeper>
 
@@ -179,12 +179,12 @@ The price is k trainings instead of one, so it's most worth it when the dataset 
 
 Splitting the data isn't enough if information from the test set **leaks** into training anyway. Then the test score looks great for reasons that won't hold up in the real world.
 
-Kapoor and Narayanan (2023) surveyed the literature of research fields that adopted machine learning. They found **17 fields** where errors like these had been reported, affecting **329 papers**, in some cases with wildly over-optimistic conclusions. Their taxonomy has eight types. Four easy-to-picture ones:
+Kapoor and Narayanan (2023) surveyed the literature of research fields that adopted machine learning. They found **17 fields** where leakage had been reported, affecting **294 papers**, in some cases with wildly over-optimistic conclusions. Their taxonomy has eight types. Four easy-to-picture ones:
 
 - **Pre-processing on everything:** filling in missing values, or balancing classes, using the whole dataset before splitting.
 - **Duplicates:** the same example ends up in both training and test sets.
 - **Data from the future:** to predict future events, the test data should come after the training data, not before.
-- **Features that give the answer away:** one study they cite used whether a patient took blood-pressure drugs as a feature for predicting high blood pressure.
+- **Features that give the answer away:** one example they report (first spotted by Filho and colleagues) used whether a patient took blood-pressure drugs as a feature for predicting high blood pressure.
 
 In one field, civil war prediction, they re-ran published studies. Every paper claiming that complex models beat old-fashioned logistic regression failed to reproduce because of leakage, and once it was fixed the complex models did no substantively better.
 
@@ -196,7 +196,7 @@ The Deep Learning book defines **regularisation** as any change to a learning me
 
 - **More data.** The more real examples, the harder it is to memorise them all, and the noise averages out.
 - **A simpler model.** Lower capacity, like the line instead of the degree-4 curve.
-- **Weight decay.** Gently push every weight towards zero, so the model can't lean hard on any one quirk (the SGD, momentum & Adam lesson shows how).
+- **Weight decay.** Gently push every weight towards zero, which favours smaller weights and simpler, smoother functions (the SGD, momentum & Adam lesson shows how).
 - **Early stopping.** Watch the validation error during training, save a copy of the weights each time it improves, and when it stops improving, return the best copy. The book calls this "probably the most commonly used form of regularization in deep learning".
 - **Dropout.** In a neural network, randomly switch off units during training, so units can't co-adapt too much by relying on particular partners. Srivastava and colleagues (2014) found it significantly reduced overfitting and improved results on tasks in vision, speech recognition, document classification and computational biology. The textbook's typical settings keep each input unit with probability 0.8 and each hidden unit with probability 0.5.
 
@@ -209,9 +209,9 @@ Each training step with dropout uses a different random "thinned" network, a sub
 
 ## Can a whole field overfit a test set?
 
-Image benchmarks like CIFAR-10 and ImageNet have been the focus of intense research for about a decade, with everyone comparing scores on the **same** test sets. That's the "choose with the test set" mistake on a grand scale.
+By 2019, image benchmarks like CIFAR-10 and ImageNet had been the focus of intense research for almost a decade, with everyone comparing scores on the **same** test sets. That risks the "choose with the test set" mistake on a grand scale.
 
-Recht, Roelofs, Schmidt and Shankar (2019) tested this by building **new** test sets, carefully following the original collection process. Accuracy dropped by 3% to 15% on CIFAR-10 and 11% to 14% on ImageNet.
+Recht, Roelofs, Schmidt and Shankar (2019) tested this by building **new** test sets, carefully following the original collection process. Across a broad range of models, accuracy dropped by 3 to 15 percentage points on CIFAR-10 and 11 to 14 on ImageNet.
 
 But the twist is in the details. Models that did better on the old test sets also did better on the new ones; the gains carried over. Their results suggest the drops were **not** caused by re-using the test set, but by the models' inability to generalise to slightly "harder" images than the originals. A test score measures performance on one particular collection of data, and even a careful copy of the collection process can shift it.
 
