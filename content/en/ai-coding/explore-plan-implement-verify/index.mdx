@@ -1,0 +1,220 @@
+---
+id: explore-plan-implement-verify
+title: Explore, plan, implement, verify
+summary: A four-step workflow for coding with an agent, why each step catches a different kind of mistake, and when to skip the plan.
+track: ai-coding
+order: 3
+prerequisites: [prompting, context-management]
+minutes: 12
+xp: 100
+volatility: fast-moving
+lastVerified: 2026-10-17
+sources:
+  - title: 'Anthropic: Best practices for Claude Code'
+    url: https://code.claude.com/docs/en/best-practices
+  - title: 'Anthropic: How Claude Code works (Claude Code docs)'
+    url: https://code.claude.com/docs/en/how-claude-code-works
+  - title: 'Anthropic: Permission modes (Claude Code docs)'
+    url: https://code.claude.com/docs/en/permission-modes
+  - title: 'Young (2025): Effective harnesses for long-running agents (Anthropic engineering)'
+    url: https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents
+  - title: 'Huang et al. (2023): Large Language Models Cannot Self-Correct Reasoning Yet'
+    url: https://arxiv.org/abs/2310.01798
+quiz:
+  - type: choice
+    prompt: 'Which task most needs a separate planning step before any code is written?'
+    options:
+      - Fixing a typo in a button label
+      - Renaming one variable in one file
+      - Adding a log line to a function
+      - Adding sign-in with a new provider to an app you have not worked on before
+    answer: 3
+    explanation: "Anthropic's guide says planning is most useful when the approach is uncertain, the change touches several files, or the code is unfamiliar. The other three are diffs you could describe in one sentence, so planning would only add overhead."
+  - type: choice
+    prompt: 'What does plan mode in Claude Code do, as of October 2026?'
+    options:
+      - Claude researches and writes a plan, and edits to your source stay blocked until you approve it (with an exception for sessions that allow bypassing permissions)
+      - Claude writes the code first and explains it afterwards
+      - Claude only answers questions and cannot read files
+      - Claude picks a plan from a fixed template list
+    answer: 0
+    explanation: 'Plan mode lets Claude read files and run commands to explore, then propose a plan. You can approve it, edit it, or keep planning. Separating looking from changing is the point.'
+  - type: numeric
+    prompt: 'Toy numbers: an agent does a task in 5 steps, each right 90% of the time, independently, and nothing checks the steps. What is the chance, in percent, that all 5 are right?'
+    answer: 59
+    tolerance: 1
+    explanation: '0.9 × 0.9 × 0.9 × 0.9 × 0.9 = 0.9⁵ ≈ 0.59, so about 59%. Small error rates compound. A check after each step lets the agent catch a wrong step before the next one builds on it.'
+  - type: choice
+    prompt: 'Why is "run the test suite and fix any failures" better than "double-check your work"?'
+    options:
+      - Tests are always complete, so passing them proves the code is correct
+      - The test run gives a pass or fail signal from outside the model, and research suggests models struggle to self-correct without that kind of outside feedback
+      - Asking a model to double-check is against the rules
+      - Running tests uses fewer tokens than reading code
+    answer: 1
+    explanation: 'Huang and colleagues found that on reasoning tasks, models struggled to correct themselves without external feedback, and sometimes got worse. A test run is external feedback. It is not proof, though: tests only check what they test.'
+  - type: choice
+    prompt: "In Anthropic's long-running agent experiments, the agent wrote unit tests and tried the server with curl, yet still marked broken features as done. What helped most?"
+    options:
+      - Telling it to be more confident
+      - Removing all tests to save time
+      - Giving it browser automation and asking it to test end to end, as a human user would
+      - Running more sessions in parallel
+    answer: 2
+    explanation: 'The author reports that the agent often missed that a feature did not work end to end. Once prompted to use browser automation tools and test like a user, it found and fixed bugs that were not obvious from the code. Some gaps remained, such as browser alert pop-ups it could not see.'
+  - type: choice
+    prompt: 'You ask a fresh subagent to review a diff "for any problems" and it lists nine. What does Anthropic suggest?'
+    options:
+      - Fix all nine before doing anything else
+      - Ignore the review, since reviewers always complain
+      - Ask it again until it finds none
+      - Ask the reviewer to flag only gaps that affect correctness or the stated requirements, and treat the rest as optional
+    answer: 3
+    explanation: "A reviewer asked to find gaps will usually report some even when the work is sound. Chasing every one leads to over-engineering, so Anthropic's guide suggests scoping the review to correctness and requirements."
+---
+
+# Solving the wrong problem 🧭
+
+Imagine asking a coding agent: _"add Google sign-in"_. Twenty minutes later it proudly shows you a new login system, built from scratch, next to the one your app already had. The code is tidy. It even runs. It's just not what you needed. (A made-up story, but Anthropic's guide warns that letting Claude "jump straight to coding can produce code that solves the wrong problem".)
+
+The fix isn't a cleverer prompt. It's a workflow that puts the right checks in the right order: **explore**, **plan**, **implement**, **verify**.
+
+This lesson walks through each step, what kind of mistake each one catches, and when to skip the plan altogether.
+
+---
+
+## The loop under the hood
+
+Claude Code's docs describe its work as an **agentic loop** with three phases: "gather context, take action, and verify results". They add that the phases "blend together": a question about your code might only need the first, while "a bug fix cycles through all three phases repeatedly".
+
+The four-step workflow is a way of steering that loop on purpose. **Explore** and **plan** are gathering context. **Implement** is taking action. **Verify** closes the loop.
+
+A note on names: Anthropic's best-practices guide lists the steps as explore, plan, implement and **commit**, and puts "give Claude a way to verify its work" first among its tips. This lesson folds verification into the workflow, because it's the step that decides whether you can trust the rest.
+
+---
+
+## Explore: look before you touch
+
+In the first step the agent reads, searches and asks, but doesn't change anything.
+
+As of October 2026, Claude Code has a **plan mode** for this. Its docs say Claude "reads files, runs shell commands to explore, and writes a plan, but does not edit your source", and edits stay blocked until you approve the plan (except in sessions where you've allowed bypassing permissions). You enter it with `Shift+Tab`, by starting a prompt with `/plan`, or with `claude --permission-mode plan`.
+
+The guide's example of an exploring prompt:
+
+> _read /src/auth and understand how we handle sessions and login. also look at how we manage environment variables for secrets._
+
+Notice how scoped it is: one folder, two questions. The context management lesson showed why: an unscoped "investigate" can read hundreds of files. For bigger searches, a subagent can explore in its own window and return a summary.
+
+---
+
+## Plan: agree on the change before it exists
+
+Next, ask for a plan. The guide's example: _"I want to add Google OAuth. What files need to change? What's the session flow? Create a plan."_
+
+A plan is cheap to change. Moving a line in a plan takes seconds; unpicking the same mistake from a dozen edited files takes much longer. As of October 2026, Claude Code lets you open the plan in your editor with `Ctrl+G` and change it directly, and when it's ready you choose to approve it or keep planning.
+
+For a larger feature, the guide suggests going one step further: have Claude **interview you** about edge cases and trade-offs and write a spec file, then start a **fresh session** to build it. The new session gets clean context and a written spec. The guide says the most useful specs "name the files and interfaces involved, state what is out of scope, and end with an end-to-end verification step".
+
+---
+
+## When to skip the plan
+
+Planning isn't free. The guide says plan mode "also adds overhead".
+
+🤔 Predict: which of these deserve a plan? (a) fix a typo in an error message, (b) rename a variable, (c) move an app from one payment provider to another.
+
+Only (c). The guide's rule of thumb: "If you could describe the diff in one sentence, skip the plan." It says planning is most useful when:
+
+- you're **uncertain about the approach**,
+- the change **modifies several files**, or
+- you're **unfamiliar with the code**.
+
+For (a) and (b), just ask for the change. The guide is honest that its advice is a starting point: "Sometimes you should skip planning and let Claude figure it out because the task is exploratory."
+
+---
+
+## Implement: small steps, from the plan
+
+Now the agent writes code. The guide's example prompt ties it back to the plan and to a check:
+
+> _implement the OAuth flow from your plan. write tests for the callback handler, run the test suite and fix any failures._
+
+Size matters here too. In Anthropic's experiments with long-running agents, which built web apps over many sessions, the first of two failure patterns was that the agent tended to try "to do too much at once". Often its context ran out mid-feature, and the next session had to guess what had happened. Asking it to work on **one feature at a time** turned out to be, in the author's words, "critical". The agent was also asked to commit its progress to git with descriptive messages and to summarise it in a progress file, so a bad change could be reverted and the next session could see what was done.
+
+---
+
+## Verify: a check the agent can run
+
+Here's the step that's easiest to skip. Anthropic's guide explains why it matters: "Claude stops when the work looks done." Without a check, "looks done" is the only signal, and you become the one catching every mistake.
+
+A check is anything that returns a result the agent can read: a test suite, a build's exit code, a linter, a script comparing output to a known answer, or a screenshot compared with a design.
+
+🤔 Predict: why not just tell the model, "now double-check your work"?
+
+Because rereading its own answer gives it no new information. Huang and colleagues (2023) studied **intrinsic self-correction**, where a model tries to fix its answer "based solely on its inherent capabilities, without the crutch of external feedback". On reasoning tasks, they found models struggled to self-correct that way, and "at times, their performance even degrades". A failing test is different: it's **external feedback** the model didn't produce.
+
+The guide adds one more habit: have the agent **show evidence**, such as the test output or the command it ran and what came back, rather than just saying it's done.
+
+---
+
+## Test like a user
+
+Passing tests can still miss the point. In the long-running agent experiments, the agent would write unit tests or try the server with `curl`, yet "fail [to] recognize that the feature didn't work end-to-end".
+
+What helped: giving it browser automation tools and asking it to test "as a human user would". The author says this "dramatically improved performance", because the agent could find bugs that weren't obvious from the code. It wasn't perfect: the agent couldn't see the browser's own pop-up alerts, and features that used them tended to be buggier.
+
+A second check is a **fresh pair of eyes**. The guide suggests a review in a fresh context, such as a subagent that sees only the diff and your criteria, because then Claude "won't be biased toward code it just wrote". It also warns that a reviewer asked to find gaps "will usually report some, even when the work is sound", so tell it to flag only what affects correctness or the stated requirements.
+
+---
+
+## Your turn: split a request
+
+Here's a vague request:
+
+> _make the API stop people spamming it_
+
+Before reading on, sketch what you'd ask for at each step: explore, plan, implement, verify.
+
+One good version (yours can differ):
+
+1. **Explore** (plan mode): _"read src/middleware and tell me how requests are handled today, and whether we have any rate-limiting code already."_
+2. **Plan**: _"plan a per-user rate limiter: which files change, where the limits are stored, what users see when they hit the limit."_ Read the plan and edit it.
+3. **Implement**: _"implement the plan. add tests for a user under the limit, at the limit, and over it."_
+4. **Verify**: _"run the test suite and show me the output"_, then perhaps a fresh subagent reviewing the diff against the plan.
+
+Each step has its own job. Exploring finds the existing code, planning catches the wrong design, and the tests catch the wrong behaviour.
+
+---
+
+## Common misconceptions
+
+- **"Planning is always worth it."** It adds overhead. If the diff fits in one sentence, ask for it directly.
+- **"If the agent says it's done, it's done."** It stops when the work looks done. Ask for evidence from a check it ran.
+- **"Asking the model to double-check is verification."** Without outside feedback, self-correction is unreliable on reasoning tasks, and can make things worse.
+- **"Passing unit tests means the feature works."** Tests check only what they test. In Anthropic's experiments, end-to-end testing caught bugs the unit tests missed.
+- **"A reviewer's findings are all must-fixes."** A reviewer asked for gaps will usually find some. Scope it to correctness and requirements.
+
+---
+
+## Quiz time 🧠
+
+Six questions on choosing and running each step.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- Claude Code works in an **agentic loop**: gather context, take action, verify results.
+- **Explore** first: read and ask without editing, for example in **plan mode**.
+- **Plan** when the approach is uncertain, the change spans files, or the code is new to you; skip it for one-sentence diffs.
+- **Implement** in small steps from the plan, committing as you go.
+- **Verify** with a check the agent can run, because it stops when work _looks_ done and self-correction without feedback is unreliable.
+- Test **end to end** where you can, and use a **fresh reviewer** scoped to what matters.
+
+**Coming up:** the CLAUDE.md lesson covers the file that tells every session your project's commands and rules.
+
+**Related:** the context management lesson explains why scoped exploration and subagents keep the window clean, and the prompting lesson covers giving a coding agent a check it can run.
+
+Hit **Finish** to collect your XP! 🏁

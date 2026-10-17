@@ -39,11 +39,6 @@
     "colour": "green",
     "upcoming": [
       {
-        "id": "explore-plan-implement-verify",
-        "title": "Explore, plan, implement, verify",
-        "order": 3
-      },
-      {
         "id": "claude-md",
         "title": "CLAUDE.md",
         "order": 4
