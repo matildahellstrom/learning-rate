@@ -1,0 +1,232 @@
+---
+id: context-management
+title: Context management
+summary: Why a coding agent gets worse as its context window fills, and the habits that keep it lean, from clearing and compacting to subagents and notes on disk.
+track: ai-coding
+order: 2
+prerequisites: [context-windows, prompting]
+minutes: 12
+xp: 100
+volatility: fast-moving
+lastVerified: 2026-10-17
+sources:
+  - title: 'Anthropic: Best practices for Claude Code'
+    url: https://code.claude.com/docs/en/best-practices
+  - title: 'Anthropic: Explore the context window (Claude Code docs)'
+    url: https://code.claude.com/docs/en/context-window
+  - title: 'Anthropic: How Claude Code works (Claude Code docs)'
+    url: https://code.claude.com/docs/en/how-claude-code-works
+  - title: 'Anthropic: Commands (Claude Code docs)'
+    url: https://code.claude.com/docs/en/commands
+  - title: 'Anthropic Applied AI team (2025): Effective context engineering for AI agents'
+    url: https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents
+  - title: 'Young (2025): Effective harnesses for long-running agents (Anthropic engineering)'
+    url: https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents
+quiz:
+  - type: choice
+    prompt: 'You finish a bug fix and now want Claude Code to write a new, unrelated feature. What does Anthropic suggest doing first?'
+    options:
+      - Keep going in the same session so it remembers everything
+      - Run /clear so the old conversation stops crowding out what the new task needs
+      - Paste the whole bug-fix conversation into the new request
+      - Restart your computer
+    answer: 1
+    explanation: 'The old conversation is irrelevant to the new task, but it still sits in the window, costs tokens on every message and can distract the model. /clear starts a fresh context; you can still /resume the old session later.'
+  - type: numeric
+    prompt: 'In a transformer, every token can attend to every other token. If a session grows from 10,000 tokens to 30,000 tokens, how many times as many token pairs are there?'
+    answer: 9
+    tolerance: 0.1
+    explanation: 'Pairs grow with the square of the length. Three times as many tokens gives 3 × 3 = 9 times as many pairs. That stretching of attention is one reason Anthropic calls context a finite "attention budget".'
+  - type: choice
+    prompt: 'You have corrected Claude three times on the same mistake and it keeps coming back. What is the best next move?'
+    options:
+      - Correct it a fourth time, more firmly
+      - Ask it to compact and carry on
+      - Switch off the computer for an hour
+      - Run /clear and start again with a better first prompt that includes what you learned
+    answer: 3
+    explanation: "Anthropic's guide says that after repeated corrections the context is cluttered with failed approaches. A clean session with a sharper prompt usually beats a long one full of wrong turns. Compacting would still carry a summary of those failed attempts."
+  - type: choice
+    prompt: 'You want to know how a large unfamiliar module handles errors before changing it, but you do not want dozens of file reads in your main session. What fits best?'
+    options:
+      - Ask a subagent to investigate and report back a summary
+      - Paste every file of the module into the prompt
+      - Run /compact before asking
+      - Ask Claude to read faster
+    answer: 0
+    explanation: 'A subagent reads the files in its own, separate context window and returns only a short summary. The many file reads stay out of your main window.'
+  - type: choice
+    prompt: 'After a long session compacts, Claude no longer follows a rule you typed in chat an hour ago ("use pnpm, not npm"). Why, and what is the durable fix?'
+    options:
+      - Compaction deletes all rules, so nothing can be done
+      - The model became less capable after compaction
+      - The rule existed only in the conversation, which was summarised; put it in CLAUDE.md, which is re-read from disk after compaction
+      - pnpm is not supported by Claude Code
+    answer: 2
+    explanation: "A summary keeps what seems most important and can lose details from early in the chat. Claude Code's docs say the project-root CLAUDE.md is re-injected after compaction, so rules that must last belong there."
+  - type: choice
+    prompt: 'Why does a "just in time" approach (keeping file paths and loading files with tools when needed) help a coding agent?'
+    options:
+      - It makes every task faster than loading everything up front
+      - It keeps only what the current step needs in the window, at the cost of some extra time exploring
+      - It removes the need for a context window
+      - It guarantees the agent never misses a file
+    answer: 1
+    explanation: 'Loading files on demand keeps the window focused. Anthropic notes the trade-off: exploring at run time is slower than having data ready, and without good guidance an agent can waste context on dead ends.'
+---
+
+# The session that forgot 🧠
+
+You start the morning with a clear instruction to a coding agent: _"we use pnpm here, never npm"_. It fixes a bug. You ask it a quick unrelated question, then a second bug, then you paste a long error log. Three hours later it runs `npm install`.
+
+Nothing broke. The agent's **context window** simply filled up with the morning's work, and your early instruction got lost in the crowd. (This is a made-up story, but Anthropic's guide describes exactly this risk: as the window fills, Claude "may start 'forgetting' earlier instructions or making more mistakes".)
+
+This lesson covers what fills an agent's window, why fuller is worse, and the habits that keep it lean: clearing, compacting, loading things just in time, subagents and notes on disk.
+
+---
+
+## What fills the window
+
+The context windows lesson showed that a model can only see a limited number of tokens at once. For a coding agent like Claude Code, that window holds, in the words of Anthropic's guide, "your entire conversation, including every message, every file Claude reads, and every command output".
+
+Some of it loads before you type anything. As of October 2026, Claude Code's docs list the system prompt, any project instructions such as a CLAUDE.md file, notes it saved for itself in earlier sessions, the names of connected tools, and one-line descriptions of skills.
+
+🤔 Predict: in a typical session, what takes up the most room: your prompts, Claude's replies, or the files it reads?
+
+**The files.** Claude Code's interactive walkthrough of a session puts it plainly: "File reads dominate context usage." You see a one-line "Read auth.ts" in your terminal; the model sees every line of the file. The guide adds that a single debugging session or codebase exploration "might generate and consume tens of thousands of tokens".
+
+---
+
+## Why fuller is worse
+
+A bigger pile of text isn't just slower. Anthropic's guide calls the context window "the most important resource to manage", because "performance degrades as it fills".
+
+The context windows lesson called this **context rot**. Anthropic's engineering post on context offers a way to picture it: a model has an **attention budget**, and "every new token introduced depletes this budget by some amount". Part of the reason is how transformers work: every token can attend to every other token, so there are about n² pairs for n tokens, and a longer context stretches attention thinner.
+
+The post stresses that this is "a performance gradient rather than a hard cliff". Models still work well with long inputs; they just get less precise at finding and using details. So the goal isn't a tiny window, it's the post's rule of thumb: "the smallest possible set of high-signal tokens" that gets the job done.
+
+<Deeper title="Go deeper: how fast the pairs grow">
+With n tokens, each token can look at all n, so there are n² attention scores per layer and head:
+
+$$
+\begin{aligned}
+n = 1{,}000 &\Rightarrow 10^6 \text{ pairs} \\
+n = 100{,}000 &\Rightarrow 10^{10} \text{ pairs}
+\end{aligned}
+$$
+
+A hundred times more tokens means ten thousand times more pairs. Attention weights in each row still add up to 1 (softmax), so the more tokens compete, the smaller the average weight each one gets. The post also points out that models see fewer very long sequences in training, so they have less practice with dependencies that span the whole window.
+
+</Deeper>
+
+---
+
+## Clear between tasks
+
+The simplest habit is also the strongest. As of October 2026, Claude Code's `/clear` command starts "a new conversation with empty context". Your old session isn't deleted; you can return to it with `/resume`.
+
+Anthropic's guide names a failure pattern it calls **the kitchen sink session**: you start one task, ask something unrelated, then go back. The window is now full of things the current task doesn't need, and the docs add that old conversation "costs tokens on every message".
+
+🤔 Predict: Claude has made the same mistake twice, and you've corrected it twice. Should you keep correcting in the same session?
+
+The guide says no. After more than two corrections on one issue, "the context is cluttered with failed approaches". Its advice is to `/clear` and start fresh with a more specific prompt that includes what you learned, because "a clean session with a better prompt almost always outperforms a long session with accumulated corrections".
+
+The guide also keeps a fair exception: sometimes you should let context build up, because "you're deep in one complex problem and the history is valuable".
+
+---
+
+## Compacting: a summary instead of the transcript
+
+What if you need the history, just not all of it? **Compaction** replaces the conversation with a summary and carries on.
+
+As of October 2026, Claude Code does this automatically as you approach the limit. Its docs say it clears older tool outputs first, then summarises if needed. You can also run `/compact` yourself, with a focus such as `/compact Focus on the API changes`, so the summary keeps what you choose.
+
+Some things are reloaded rather than summarised. According to the docs, after compaction Claude Code re-reads the project-root CLAUDE.md from disk, re-injects a plan written in plan mode, and re-reads up to five of the files it had read or edited, most recently modified first.
+
+A summary always loses something. Anthropic's engineering post warns that overly aggressive compaction can drop "subtle but critical context whose importance only becomes apparent later", and the docs note that detailed instructions from early in a conversation may be lost. Their fix: put rules that must last in CLAUDE.md, not in chat. (A later lesson in this track covers CLAUDE.md.)
+
+---
+
+## Load it when you need it
+
+Another approach is to avoid loading things in the first place. Anthropic's post calls it **just in time** context: the agent keeps "lightweight identifiers (file paths, stored queries, web links, etc.)" and only pulls in what the current step needs.
+
+Claude Code works this way. The post describes it as a hybrid: CLAUDE.md is dropped into context up front, while tools like glob and grep let the agent find and read files when it needs them. For big data, it can use commands like `head` and `tail` to look at a slice "without ever loading the full data objects into context".
+
+There's a trade-off. The post notes that exploring at run time "is slower than retrieving pre-computed data", and an agent without good guidance can waste context chasing dead ends.
+
+That's why Anthropic's guide lists **the infinite exploration** as a failure pattern: you ask Claude to "investigate" without a scope and it "reads hundreds of files". The fix is to scope the question, for example by naming the folder and what you want to know, or to hand the exploration to a subagent.
+
+---
+
+## Subagents: read elsewhere, bring back a summary
+
+A **subagent** is a second instance of the agent with its own, separate context window. You give it a focused job; it does the reading; it reports back.
+
+Anthropic's post describes the economics: each subagent "might explore extensively, using tens of thousands of tokens or more, but returns only a condensed, distilled summary of its work (often 1,000-2,000 tokens)".
+
+Worked example (made-up numbers in that range): a subagent reads 40,000 tokens of code to answer "how does our auth refresh tokens?" and replies in 1,500 tokens. Your main window grows by 1,500, not 40,000: under 4% of what reading it yourself would cost.
+
+Anthropic's guide suggests prompts like _"Use subagents to investigate how our authentication system handles token refresh, and whether we have any existing OAuth utilities I should reuse."_ The trade-off is that you see the summary, not the evidence, so ask for file paths you can check. (Subagents get their own lesson later in this track.)
+
+---
+
+## Notes outside the window
+
+Some work is too long for any one window. Anthropic's post describes **structured note-taking**: the agent writes notes to a file outside the context window, such as a to-do list or a `NOTES.md`, and reads them back later.
+
+Anthropic's post on long-running agents pushes this further. Its author compares the problem to engineers working in shifts, where "each new session begins with no memory of what came before". In their experiments, which built web apps, each coding session was prompted to read a progress file and the git log to get its bearings, work on one feature, then commit with a descriptive message and update the progress file.
+
+Two smaller tools help day to day, as of October 2026:
+
+- **`/btw`** asks a side question without adding it to the conversation; the guide says "the answer never enters conversation history".
+- **`/context`** shows what is using space right now, so you can see whether file reads, tools or instructions are filling your window.
+
+---
+
+## Your turn: pick the move
+
+For each situation, choose one: **/clear**, **/compact with a focus**, **a subagent**, or **a note on disk**.
+
+1. You've just merged a feature and want to start on an unrelated bug.
+2. You're two hours into a tricky refactor, the window is nearly full, and the decisions so far still matter.
+3. Before changing the payment code, you want to know every place that calls it, across a large repository.
+4. A migration will take several sessions over two days, and each new session needs to know what's done.
+
+Answers: (1) **/clear**: nothing from the feature helps the bug. (2) **/compact with a focus**, such as the refactor's decisions and the files changed, because the history is valuable but the raw transcript isn't. (3) **A subagent**: the search reads many files, and you only need the list. (4) **A note on disk**, like a progress file plus git commits, because it survives any number of new sessions.
+
+---
+
+## Common misconceptions
+
+- **"A bigger context window means I don't need to manage it."** Anthropic's post expects that, for the foreseeable future, windows "of all sizes" will still face context pollution. More room doesn't make irrelevant tokens helpful.
+- **"Compaction keeps everything important."** It keeps what the summary judges important. Early instructions can be lost, which is why lasting rules go in CLAUDE.md.
+- **"/clear throws my work away."** It clears the context, not your files, and the old conversation can be resumed.
+- **"Subagents are free."** They still spend tokens; they just spend them in a separate window. And you see their summary, not everything they read.
+- **"Always clear as often as possible."** Anthropic's guide says these are starting points, not rules: deep in one complex problem, the history can be worth keeping.
+
+---
+
+## Quiz time 🧠
+
+Six questions about keeping an agent's window useful.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- An agent's **context window** holds the whole conversation, and **file reads** usually take the most room.
+- Performance **degrades gradually** as the window fills: context is a finite **attention budget**.
+- **/clear** between unrelated tasks, and after repeated corrections start fresh with a better prompt.
+- **Compaction** swaps the transcript for a summary; lasting rules belong in **CLAUDE.md**.
+- Load files **just in time** and scope investigations.
+- **Subagents** read in their own window and return a short summary.
+- **Notes on disk** (a progress file, git commits) carry work across sessions.
+
+**Coming up:** the explore, plan, implement, verify lesson turns these habits into a workflow, and the CLAUDE.md lesson covers the file that survives every reset.
+
+**Related:** the context windows lesson explains context rot and the KV cache, and the prompting lesson covers scoping a request to a coding agent.
+
+Hit **Finish** to collect your XP! 🏁

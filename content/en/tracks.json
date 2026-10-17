@@ -39,11 +39,6 @@
     "colour": "green",
     "upcoming": [
       {
-        "id": "context-management",
-        "title": "Context management",
-        "order": 2
-      },
-      {
         "id": "explore-plan-implement-verify",
         "title": "Explore, plan, implement, verify",
         "order": 3
