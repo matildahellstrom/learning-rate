@@ -1,0 +1,246 @@
+---
+id: prompting
+title: Prompting
+summary: How to ask a model for what you actually want, from clear instructions and examples to giving a coding agent a way to check its own work.
+track: ai-coding
+order: 1
+prerequisites: [next-token-prediction, context-windows]
+minutes: 13
+xp: 100
+volatility: fast-moving
+lastVerified: 2026-10-17
+sources:
+  - title: 'Anthropic: Prompting best practices (Claude API docs)'
+    url: https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices
+  - title: 'Anthropic: Prompt engineering overview (Claude API docs)'
+    url: https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/overview
+  - title: 'Anthropic: Best practices for Claude Code'
+    url: https://code.claude.com/docs/en/best-practices
+  - title: 'Brown et al. (2020): Language Models are Few-Shot Learners'
+    url: https://arxiv.org/abs/2005.14165
+  - title: 'Wei et al. (2022): Chain-of-Thought Prompting Elicits Reasoning in Large Language Models'
+    url: https://arxiv.org/abs/2201.11903
+  - title: 'Kojima et al. (2022): Large Language Models are Zero-Shot Reasoners'
+    url: https://arxiv.org/abs/2205.11916
+  - title: "Sclar, Choi, Tsvetkov & Suhr (2023): Quantifying Language Models' Sensitivity to Spurious Features in Prompt Design"
+    url: https://arxiv.org/abs/2310.11324
+quiz:
+  - type: choice
+    prompt: 'You want a model to summarise a long report. Which prompt best follows the "brilliant new employee" advice?'
+    options:
+      - Summarise this.
+      - SUMMARISE THIS NOW. IT IS CRITICAL.
+      - Summarise this in five bullet points for a manager deciding whether to fund the project next quarter, and flag any risks.
+      - You are a genius. Summarise this.
+    answer: 2
+    explanation: 'A new employee has the skills but not the context. The third prompt says who the summary is for, what decision it supports, the format and what to look out for. Shouting adds urgency, not information.'
+  - type: choice
+    prompt: 'You ask a coding assistant "Can you suggest some changes to improve this function?" and it only lists ideas. Which rewrite is most likely to get the changes made?'
+    options:
+      - Change this function to improve its performance.
+      - Can you maybe suggest some more changes?
+      - What do you think of this function?
+      - Please be helpful with this function.
+    answer: 0
+    explanation: 'Anthropic''s docs note that a request phrased as "can you suggest" can get suggestions rather than edits. Asking directly for the action you want is clearer.'
+  - type: choice
+    prompt: 'Instead of only writing "never use ellipses", you add "because a text-to-speech engine will read this aloud". Why does the reason help?'
+    options:
+      - Longer prompts always score better
+      - The model ignores instructions without a reason
+      - It makes the prompt sound more polite
+      - The model can apply the reason to cases you didn't list, like other symbols that read badly aloud
+    answer: 3
+    explanation: "The rule covers one case; the reason covers the goal. Anthropic's docs say Claude can generalise from the explanation, so it can avoid other things that would trip up a speech engine."
+  - type: numeric
+    prompt: 'Kojima and colleagues added "Let''s think step by step" and accuracy on the MultiArith benchmark went from 17.7% to 78.7%. By how many percentage points did it rise?'
+    answer: 61
+    tolerance: 0.1
+    explanation: '78.7 − 17.7 = 61.0 percentage points. (That is more than four times the starting accuracy, but "percentage points" counts the plain difference.)'
+  - type: choice
+    prompt: 'Sclar and colleagues found that tiny formatting changes, like a different separator, could swing accuracy by up to 76 points. What is the most useful lesson for your own prompts?'
+    options:
+      - Always use colons as separators
+      - Test a prompt on real examples before trusting it, and re-test when you change it or the model
+      - Formatting only matters for small models, so ignore it
+      - Never change a prompt once it works
+    answer: 1
+    explanation: "The paper's point is that one format's score doesn't tell you much: the best format varied and correlated only weakly between models. So measure on your own task rather than trusting a single try."
+  - type: choice
+    prompt: 'You ask a coding agent to "implement a function that validates email addresses" and walk away. What single addition most helps it finish correctly on its own?'
+    options:
+      - Asking it to be extra careful
+      - A longer description of what an email address is
+      - Some example cases and an instruction to run the tests after implementing
+      - Telling it the task is urgent
+    answer: 2
+    explanation: 'Without a check it can run, the agent stops when the work looks done. Example cases plus a test run give it a pass or fail signal, so it can find and fix its own mistakes.'
+---
+
+# Two requests, one assistant 🗣️
+
+Picture two people asking a coding assistant for help.
+
+The first types: _"add tests for foo.py"_.
+
+The second types: _"write a test for foo.py covering the edge case where the user is logged out. avoid mocks."_
+
+Same assistant, same file. The second person is much more likely to get what they wanted on the first try, because the assistant can't read minds. Both examples come from Anthropic's own guide to Claude Code.
+
+What you type to a model is called a **prompt**, and writing good ones is **prompting**. This lesson covers why wording matters, the core techniques (clear instructions, reasons, examples, structure, room to think), prompting a coding agent, and why you should test prompts rather than trust them.
+
+---
+
+## Why the words matter so much
+
+Recall from the next-token prediction lesson: a language model continues text. For your request, the prompt is almost everything it has to go on, apart from what it learned in training.
+
+The 2020 GPT-3 paper by Brown and colleagues showed how far that goes. Their model did translation, question answering and even 3-digit arithmetic "without any gradient updates or fine-tuning": the task and a few examples were given **purely as text**. No retraining, just a different prompt.
+
+That's the power and the catch. Change the prompt and you change the task the model thinks it's doing. A vague prompt leaves it to guess, and its guess may not be yours.
+
+---
+
+## Be clear and direct
+
+Anthropic's prompting guide suggests a picture: think of the model as "a brilliant but new employee who lacks context on your norms and workflows". Smart, eager, and with no idea what you discussed in last week's meeting.
+
+So spell it out:
+
+- **What** you want, and the **format** (a table, five bullet points, a single word).
+- **Constraints** (length, things to avoid, who will read it).
+- **Steps** in a numbered list when order matters.
+
+The guide's **golden rule**: show your prompt to a colleague with little context on the task. If they'd be confused, the model will be too.
+
+🤔 Predict: you ask a coding assistant _"Can you suggest some changes to improve this function?"_ What might you get?
+
+**Suggestions**, not edits. Anthropic's guide warns that Claude will sometimes do exactly this, even if you meant "make the changes". If you want action, ask for the action: _"Change this function to improve its performance."_ The same goes for effort: if you want an ambitious result, say so instead of hoping the model infers it.
+
+---
+
+## Say why, and say what to do
+
+Rules on their own are brittle. A **reason** lets the model handle cases you didn't think of.
+
+Anthropic's guide gives this example: rather than just _"never use ellipses"_, write _"Your response will be read aloud by a text-to-speech engine, so never use ellipses since the text-to-speech engine will not know how to pronounce them."_ The guide says Claude is smart enough to generalise from the explanation.
+
+A second habit: say what **to** do, not only what **not** to do. Instead of _"Do not use markdown"_, the guide suggests _"Your response should be composed of smoothly flowing prose paragraphs."_ A positive target is easier to hit than a list of things to dodge.
+
+---
+
+## Show, don't just tell
+
+Sometimes the fastest way to explain a format or a tone is to **show** it. Putting a few worked examples in the prompt is called **few-shot** (or multishot) prompting. With no examples, it's **zero-shot**.
+
+The GPT-3 paper found that bigger models got much better at learning from a handful of examples in the prompt. Today, Anthropic's guide calls examples "one of the most reliable ways" to steer format, tone and structure, and suggests 3 to 5 of them that are:
+
+- **Relevant:** close to your real task.
+- **Diverse:** covering edge cases, so the model doesn't copy patterns you didn't intend.
+- **Clearly marked:** for example inside `<example>` tags, so they aren't mistaken for instructions.
+
+🤔 Predict: you give three examples of product reviews being classified, and all three are short and positive. What could go wrong?
+
+The model may pick up "short" or "positive" as part of the pattern. That's why the guide asks for **diverse** examples, including the awkward ones.
+
+---
+
+## Give the prompt some structure
+
+A real prompt often mixes several things: instructions, background, examples and the actual input. Anthropic's guide recommends wrapping each kind in its own **XML-style tag**, like `<instructions>`, `<context>` and `<input>`, so the model can tell them apart, and to keep tag names consistent and descriptive.
+
+For long inputs, **position** matters too (the context windows lesson showed that models don't use every part of a long input equally well). For prompts with long documents, around 20,000 tokens or more, the guide's advice is:
+
+- Put the **long documents at the top**, and your **question at the end**. In Anthropic's tests, putting the query at the end can improve response quality by up to 30%, especially with several complex documents.
+- Ask the model to **quote** the relevant parts first, then answer from those quotes.
+
+A short **role** in the system prompt, such as _"You are a helpful coding assistant specializing in Python."_, also focuses tone and behaviour; the guide says even one sentence makes a difference.
+
+---
+
+## Room to think
+
+Some problems need several steps of reasoning. In 2022, Wei and colleagues found that showing a large model examples that included the **intermediate reasoning steps**, not just the answers, made it much better at maths word problems and other reasoning tasks. They called it **chain-of-thought prompting**: with just eight such examples, a 540-billion-parameter model set a new best score at the time on the GSM8K maths benchmark.
+
+The same year, Kojima and colleagues found you didn't even need examples. Adding _"Let's think step by step"_ before the answer raised the accuracy of one OpenAI model (text-davinci-002) on the MultiArith benchmark from 17.7% to 78.7%.
+
+Today, many models do this on their own: they **think** before answering (the reasoning models lesson covers how they're trained). As of October 2026, Anthropic's guide says thinking is always on for some of its newest models, such as Claude Opus 5.5, that a general nudge like _"think thoroughly"_ often beats a hand-written step-by-step plan, and that on some models a prompt demanding the reasoning be written out in tags may be declined. Prompting advice ages fast, because the models it describes keep changing.
+
+---
+
+## Prompting a coding agent
+
+A coding agent like Claude Code doesn't just answer. It reads files, runs commands and edits code. That changes what a good prompt looks like.
+
+Anthropic's Claude Code guide says: "Claude can infer intent, but it can't read your mind." Its advice:
+
+- **Scope the task:** which file, which scenario, any testing preferences.
+- **Point to sources and patterns:** "look at how existing widgets are implemented", rather than hoping it finds them.
+- **Describe the symptom:** what's wrong, where it probably lives, and what "fixed" looks like.
+
+Most important of all: **give it a check it can run**, such as tests, a build or a screenshot to compare. The guide explains why: "Claude stops when the work looks done." Without a check, you are the only one catching mistakes. With one, the agent can find and fix its own.
+
+The guide also warns that the agent's context window "fills up fast, and performance degrades as it fills", which is why the next lesson is about managing context.
+
+---
+
+## Test prompts, don't trust them
+
+How much can wording matter? Sclar, Choi, Tsvetkov and Suhr (2023) changed only **meaning-preserving formatting** in few-shot prompts, such as the separator after a label, spacing or capitalisation. With one open model, LLaMA-2-13B, accuracy differed by up to **76 points**. Bigger models, more examples and instruction tuning didn't make the sensitivity go away, and how well a format worked for one model was only weakly correlated with how well it worked for another.
+
+Today's models may be less fragile than the ones they tested, but the lesson holds. Anthropic's own overview starts not with tricks but with a **clear definition of success** and **a way to test** against it. Its prompting guide also says advice measured on one model should be re-checked on your own tests before you rely on it for another.
+
+Habits change too. Prompts written to stop older models from under-using a tool often shouted (_"CRITICAL: You MUST use this tool when…"_). Anthropic's guide warns that newer models may now **over**-use the tool instead, and its fix is to dial back to plain _"Use this tool when…"_.
+
+---
+
+## Your turn: rewrite a prompt
+
+Here's a vague request to a coding agent:
+
+> _fix the login bug_
+
+Rewrite it using what you've learned: the symptom, where to look, and a check the agent can run. Take a moment before reading on.
+
+Here's the version from Anthropic's Claude Code guide:
+
+> _users report that login fails after session timeout. check the auth flow in src/auth/, especially token refresh. write a failing test that reproduces the issue, then fix it_
+
+It names the **symptom** (fails after timeout), the **likely location** (the auth flow, token refresh) and a **check** (a test that fails first, then passes). Your version doesn't need to match word for word; it needs those ingredients.
+
+Vague prompts aren't always wrong, by the way. The guide notes they can be useful when you're exploring, like _"what would you improve in this file?"_, as long as you can afford to steer afterwards.
+
+---
+
+## Common misconceptions
+
+- **"There's a magic phrase that unlocks the model."** Most of the gains come from information: the goal, the context, the format, a check. Phrases that worked on one model may not carry over.
+- **"Longer prompts are always better."** Detail helps when it's relevant. Everything you add also fills the context window, and Anthropic's Claude Code guide notes that if you emphasise many lines, none of them stands out.
+- **"If the model got it wrong, it isn't capable."** Often the prompt was ambiguous. Ask what a smart newcomer would have needed to know.
+- **"Prompting tips are timeless."** Prefilling the start of the model's answer used to be a common trick; as of October 2026, Anthropic's guide says it returns an error on Claude models from the 4.6 generation onwards. Check current docs and test.
+
+---
+
+## Quiz time 🧠
+
+Six questions about choosing and fixing prompts.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- A **prompt** is most of what a model knows about your task, so wording can change the task.
+- Be **clear and direct**, like briefing a brilliant **new employee**; give **reasons**, and say what **to** do.
+- **Few-shot examples** steer format and tone; make them relevant, diverse and clearly marked.
+- **Structure** mixed prompts with tags; put long documents first and the question last.
+- **Chain-of-thought** helped older models reason; many newer ones **think** on their own.
+- For a **coding agent**, scope the task and give it a **check it can run**.
+- Prompts are **fragile**: define success and **test**, and re-test when the model changes.
+
+**Coming up:** the context management lesson covers keeping an agent's context window lean as work grows.
+
+**Related:** the context windows lesson explains what fills the window, and the reasoning models lesson shows how models learned to think before answering.
+
+Hit **Finish** to collect your XP! 🏁

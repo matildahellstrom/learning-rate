@@ -39,11 +39,6 @@
     "colour": "green",
     "upcoming": [
       {
-        "id": "prompting",
-        "title": "Prompting",
-        "order": 1
-      },
-      {
         "id": "context-management",
         "title": "Context management",
         "order": 2
