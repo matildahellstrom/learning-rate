@@ -451,3 +451,25 @@ to show how much the high-degree curve jumps around (variance).
 3. `polyEval([1, 2, 3], 2)` is 17.
 4. `kFoldSplits(1000, 5)` returns 5 splits, each with 200 test and 800 train indices, and the
    test folds together cover 0…999 exactly once.
+
+## llm/context-windows: KV cache memory calculator
+
+**Idea:** sliders for layers, query heads, key-value heads, head size, bytes per number, context
+length and number of requests, with presets for the lesson's OPT-13B and Llama 3 8B examples. A
+stacked bar fills a "GPU memory" box live, and a toggle switches between multi-head, grouped-query
+and multi-query attention so the learner sees the cache shrink by the head ratio.
+
+**Pure functions:**
+
+- `kvBytesPerToken(layers: number, kvHeads: number, headDim: number, bytes: number): number`:
+  `2 × layers × kvHeads × headDim × bytes`.
+- `kvCacheBytes(perToken: number, tokens: number, requests: number): number`: the product.
+- `turnsThatFit(window: number, used: number, perTurn: number): number`:
+  `floor((window − used) / perTurn)`, and 0 when `used ≥ window`.
+
+**Acceptance tests:**
+
+1. `kvBytesPerToken(40, 40, 128, 2)` is 819,200 (OPT-13B: 40 heads × 128 = 5,120), i.e. 800 KiB.
+2. `kvBytesPerToken(32, 8, 128, 2)` is 131,072, and with 32 key-value heads it is 4 times that.
+3. `kvCacheBytes(819200, 2048, 1)` ≈ 1.68e9 bytes (the paper's "1.6 GB").
+4. `turnsThatFit(200000, 50000, 3000)` is 50, and `turnsThatFit(1000, 2000, 10)` is 0.

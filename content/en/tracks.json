@@ -21,13 +21,7 @@
     "description": "Tokens, embeddings and attention: what's inside a chatbot.",
     "icon": "💬",
     "colour": "pink",
-    "upcoming": [
-      {
-        "id": "context-windows",
-        "title": "Context windows & KV cache",
-        "order": 6
-      }
-    ]
+    "upcoming": []
   },
   {
     "id": "vision",
