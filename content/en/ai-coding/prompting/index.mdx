@@ -58,7 +58,7 @@ quiz:
     tolerance: 0.1
     explanation: '78.7 − 17.7 = 61.0 percentage points. (That is more than four times the starting accuracy, but "percentage points" counts the plain difference.)'
   - type: choice
-    prompt: 'Sclar and colleagues found that tiny formatting changes, like a different separator, could swing accuracy by up to 76 points. What is the most useful lesson for your own prompts?'
+    prompt: "Sclar and colleagues found that tiny formatting changes, like a different separator, could swing one open model's (LLaMA-2-13B) accuracy by up to 76 points. What is the most useful lesson for your own prompts?"
     options:
       - Always use colons as separators
       - Test a prompt on real examples before trusting it, and re-test when you change it or the model
@@ -178,7 +178,7 @@ Anthropic's Claude Code guide says: "Claude can infer intent, but it can't read 
 - **Point to sources and patterns:** "look at how existing widgets are implemented", rather than hoping it finds them.
 - **Describe the symptom:** what's wrong, where it probably lives, and what "fixed" looks like.
 
-Most important of all: **give it a check it can run**, such as tests, a build or a screenshot to compare. The guide explains why: "Claude stops when the work looks done." Without a check, you are the only one catching mistakes. With one, the agent can find and fix its own.
+A key habit: **give it a check it can run**, such as tests, a build or a screenshot to compare. The guide explains why: "Claude stops when the work looks done." Without a check, you are the only one catching mistakes. With one, the agent can find and fix its own.
 
 The guide also warns that the agent's context window "fills up fast, and performance degrades as it fills", which is why the next lesson is about managing context.
 
@@ -188,9 +188,9 @@ The guide also warns that the agent's context window "fills up fast, and perform
 
 How much can wording matter? Sclar, Choi, Tsvetkov and Suhr (2023) changed only **meaning-preserving formatting** in few-shot prompts, such as the separator after a label, spacing or capitalisation. With one open model, LLaMA-2-13B, accuracy differed by up to **76 points**. Bigger models, more examples and instruction tuning didn't make the sensitivity go away, and how well a format worked for one model was only weakly correlated with how well it worked for another.
 
-Today's models may be less fragile than the ones they tested, but the lesson holds. Anthropic's own overview starts not with tricks but with a **clear definition of success** and **a way to test** against it. Its prompting guide also says advice measured on one model should be re-checked on your own tests before you rely on it for another.
+Anthropic's own overview starts not with tricks but with a **clear definition of success** and **a way to test** against it. Its prompting guide also says advice measured on one model should be re-checked on your own tests before you rely on it for another.
 
-Habits change too. Prompts written to stop older models from under-using a tool often shouted (_"CRITICAL: You MUST use this tool when…"_). Anthropic's guide warns that newer models may now **over**-use the tool instead, and its fix is to dial back to plain _"Use this tool when…"_.
+Habits change too. Prompts written to stop older models from under-using a tool sometimes shouted (_"CRITICAL: You MUST use this tool when…"_). As of October 2026, Anthropic's guide warns that some newer models (it names Claude Opus 4.5 and 4.6) may now **over**-use the tool instead, and its fix is to dial back to plain _"Use this tool when…"_.
 
 ---
 
@@ -214,8 +214,8 @@ Vague prompts aren't always wrong, by the way. The guide notes they can be usefu
 
 ## Common misconceptions
 
-- **"There's a magic phrase that unlocks the model."** Most of the gains come from information: the goal, the context, the format, a check. Phrases that worked on one model may not carry over.
-- **"Longer prompts are always better."** Detail helps when it's relevant. Everything you add also fills the context window, and Anthropic's Claude Code guide notes that if you emphasise many lines, none of them stands out.
+- **"There's a magic phrase that unlocks the model."** Usually the gains come from information: the goal, the context, the format, a check. Phrases that worked on one model may not carry over.
+- **"Longer prompts are always better."** Detail helps when it's relevant. Everything you add also fills the context window, and Anthropic's Claude Code guide notes, about its CLAUDE.md instruction files, that if you emphasise many lines, none of them stands out.
 - **"If the model got it wrong, it isn't capable."** Often the prompt was ambiguous. Ask what a smart newcomer would have needed to know.
 - **"Prompting tips are timeless."** Prefilling the start of the model's answer used to be a common trick; as of October 2026, Anthropic's guide says it returns an error on Claude models from the 4.6 generation onwards. Check current docs and test.
 
