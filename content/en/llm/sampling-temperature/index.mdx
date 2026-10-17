@@ -22,6 +22,8 @@ sources:
     url: https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/
   - title: 'Anthropic: Messages API reference (temperature, top_k, top_p)'
     url: https://platform.claude.com/docs/en/api/messages
+  - title: 'Anthropic: Migrating to Claude Opus 5.5 (sampling parameters)'
+    url: https://platform.claude.com/docs/en/models/opus-5-5/migration-guide
 quiz:
   - type: numeric
     prompt: 'The next-token probabilities are 0.5, 0.3 and 0.2. With top-k sampling and k = 2, what probability does the top token get after renormalising?'
@@ -54,7 +56,7 @@ quiz:
       - A different answer every time
       - The most creative text possible
     answer: 0
-    explanation: 'Holtzman and colleagues found that maximising probability with beam search leads to text that is "bland, incoherent, or gets stuck in repetitive loops". Greedy choice is also deterministic, so the same prompt gives the same text.'
+    explanation: 'Holtzman and colleagues found that maximising probability with beam search leads to text that is "bland, incoherent, or gets stuck in repetitive loops". Greedy choice is also deterministic in principle, so the same prompt gives the same text.'
   - type: choice
     prompt: 'Pure random sampling picks each token by its probability. Why can it still produce odd sentences when the likely tokens are all sensible?'
     options:
@@ -72,7 +74,7 @@ quiz:
       - Tiny numerical differences, for example from how many requests the server processed together, tipped a near-tie the other way
       - The server ignores temperature completely
     answer: 2
-    explanation: 'He and Thinking Machines traced this to the server: results can depend on the batch size, so rounding differs slightly between runs. When two tokens are almost tied, that is enough to flip the choice, and the texts differ from there on.'
+    explanation: 'He and Thinking Machines traced this to the server: results can depend on the batch size, so rounding differs slightly between runs. Differences that small can only matter when two tokens are almost tied, but one flipped token is enough for the texts to differ from there on.'
 ---
 
 # Same question, different answers 🎲
@@ -108,9 +110,9 @@ The simplest rule is **greedy decoding**: always pick the most likely token. Her
 
 🤔 Predict: over a long story, what goes wrong if you always pick the safest word?
 
-The text becomes **generic** and often **repetitive**. Greedy decoding is also **deterministic**: the same prompt always gives exactly the same text.
+The text becomes **generic** and often **repetitive**. In principle, greedy decoding is also **deterministic**: the same prompt gives exactly the same text. (There's a catch in practice, covered near the end.)
 
-Holtzman and colleagues (2020) showed how bad this gets. They found that decoding methods which aim for the most likely text, such as **beam search** (which keeps several of the most likely continuations at each step), lead to output that is "bland, incoherent, or gets stuck in repetitive loops". In one of their examples with GPT-2 Large, the model repeats the name of a university again and again.
+Holtzman and colleagues (2020) showed how bad this gets. They found that decoding methods which aim for the most likely text, such as **beam search** (which keeps several of the most likely continuations at each step), lead to output that is "bland, incoherent, or gets stuck in repetitive loops". In one of their examples, beam search with GPT-2 Large repeats the name of a university again and again.
 
 Their explanation: language models do give high scores to well-formed text, but the very highest-scoring long texts are "often generic, repetitive, and awkward", and look quite different from what people actually write.
 
@@ -206,7 +208,7 @@ In a 2025 experiment, Horace He and colleagues at Thinking Machines asked an ope
 
 🤔 Predict: if the maths is fixed, where could the difference come from?
 
-From the server. A busy server processes many users' requests together, and the size of that batch changes from moment to moment. Their finding was that the standard calculations aren't "batch-invariant": the batch size changes the rounding very slightly. Usually that doesn't matter, but when two tokens are almost tied it can flip the pick, and everything after it changes. With calculations redesigned to give the same result for any batch size, all 1,000 answers matched.
+From the server. A busy server processes many users' requests together, and the size of that batch changes from moment to moment. Their finding was that the standard calculations aren't "batch-invariant": the batch size changes the rounding very slightly. Differences that tiny can only change the pick when two tokens are almost tied, but once one token differs, everything after it can change too. With calculations redesigned to give the same result for any batch size, all 1,000 answers matched.
 
 ---
 
@@ -214,9 +216,11 @@ From the server. A busy server processes many users' requests together, and the 
 
 Jurafsky and Martin call temperature, top-k and top-p the three standard sampling methods. But the provider of a model decides which ones you can change.
 
-As of October 2026, Anthropic's API reference describes temperature as running from 0.0 to 1.0, with a default of 1.0. It also marks all three settings as **deprecated**: models released after Claude Opus 4.6 don't let you change them. A temperature of 1.0 and a top_p of 0.99 or more are allowed for backwards compatibility; other values, and any top_k, are rejected with an error.
+As of October 2026, Anthropic's API reference describes temperature as running from 0.0 to 1.0, with a default of 1.0, but marks all three settings as **deprecated** for models released after Claude Opus 4.6.
 
-So on those models, sampling is fixed by the provider, and you steer the answers with the prompt instead (the prompting lesson covers how). The same is worth checking for any model you use, since these details change.
+Its migration guide for Claude Opus 5.5 is blunter: on Claude Opus 4.7 and later, setting temperature, top_p or top_k "to any non-default value" returns an error, and the Python SDK no longer offers them at all. The guide's advice is to leave them out and guide the model with the prompt instead (the prompting lesson covers how).
+
+The exact rules differ between models and change over time, so check the documentation for any model you use.
 
 ---
 
@@ -244,7 +248,7 @@ Six questions, two that need a quick sum.
 - **Temperature** divides the logits: below 1 sharpens, above 1 flattens, and the ranking never changes.
 - **Top-k** keeps the k best tokens; **top-p** keeps the smallest set covering probability p, so its size adapts.
 - The best setting **depends on the task**, and even **temperature 0** can vary because of how servers batch requests.
-- As of October 2026, newer Claude models **fix these settings** at their defaults.
+- As of October 2026, newer Claude models **don't let you change these settings**.
 
 **Coming up:** the context windows lesson covers how much text a model can see at once, and the KV cache that makes generation fast.
 
