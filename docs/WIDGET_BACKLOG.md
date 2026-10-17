@@ -424,3 +424,30 @@ the truncation methods side by side.
 2. `topK([0.5, 0.3, 0.2], 2)` is `[0.625, 0.375, 0]`, and `topK(p, 1)` is one-hot at the argmax.
 3. `topP([0.5, 0.25, 0.15, 0.1], 0.8)` keeps exactly three entries, and `topP(p, 1)` returns p.
 4. `sample([0.5, 0.3, 0.2], 0.6)` is 1, and `sample(p, 0)` is the first nonzero index.
+
+## ml/overfitting: polynomial degree explorer
+
+**Idea:** a scatter of noisy training points (blue) and held-out test points (orange) drawn from a
+hidden line or curve, with a slider for the polynomial degree (0 to 9). The fitted curve redraws
+live, and a small chart below plots training and test MSE against degree, so the learner watches
+training error fall to zero while test error traces a U. A "new noise" button resamples the data
+to show how much the high-degree curve jumps around (variance).
+
+**Pure functions:**
+
+- `polyFit(xs: number[], ys: number[], degree: number): number[]`: least-squares coefficients
+  (lowest power first), solving the normal equations; exact interpolation when
+  `degree === xs.length - 1`.
+- `polyEval(coeffs: number[], x: number): number`: Horner's rule.
+- `mse(coeffs: number[], xs: number[], ys: number[]): number`: mean squared error of the fit.
+- `kFoldSplits(n: number, k: number): { train: number[]; test: number[] }[]`: index splits for
+  k-fold cross-validation, every index in exactly one test fold.
+
+**Acceptance tests:**
+
+1. On the lesson's data (x = 0…4, y = 1.2, 2.8, 5.3, 6.9, 9.1), `polyFit(…, 1)` ≈ `[1.08, 1.99]`
+   with `mse` ≈ 0.0342.
+2. `polyFit(…, 4)` gives `mse` < 1e-9 on the same data, and `polyEval` at x = 5 ≈ 16.70.
+3. `polyEval([1, 2, 3], 2)` is 17.
+4. `kFoldSplits(1000, 5)` returns 5 splits, each with 200 test and 800 train indices, and the
+   test folds together cover 0…999 exactly once.

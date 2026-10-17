@@ -13,13 +13,7 @@
     "description": "How machines learn from data, one small step downhill at a time.",
     "icon": "🧠",
     "colour": "violet",
-    "upcoming": [
-      {
-        "id": "overfitting",
-        "title": "Overfitting & evaluation",
-        "order": 7
-      }
-    ]
+    "upcoming": []
   },
   {
     "id": "llm",

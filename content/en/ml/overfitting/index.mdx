@@ -1,0 +1,260 @@
+---
+id: overfitting
+title: Overfitting & evaluation
+summary: Why a model that aces its training data can still fail on new data, and how to measure what it has really learned.
+track: ml
+order: 7
+prerequisites: [regression, loss-functions, neural-networks]
+minutes: 13
+xp: 100
+volatility: evergreen
+sources:
+  - title: 'Goodfellow, Bengio & Courville (2016): Deep Learning, chapter 5 (Machine Learning Basics)'
+    url: https://www.deeplearningbook.org/contents/ml.html
+  - title: 'Goodfellow, Bengio & Courville (2016): Deep Learning, chapter 7 (Regularization for Deep Learning)'
+    url: https://www.deeplearningbook.org/contents/regularization.html
+  - title: 'Google: Machine Learning Crash Course, Overfitting'
+    url: https://developers.google.com/machine-learning/crash-course/overfitting/overfitting
+  - title: 'Srivastava et al. (2014): Dropout, A Simple Way to Prevent Neural Networks from Overfitting'
+    url: https://jmlr.org/papers/v15/srivastava14a.html
+  - title: 'Kapoor & Narayanan (2023): Leakage and the Reproducibility Crisis in ML-based Science'
+    url: https://arxiv.org/abs/2207.07048
+  - title: 'Recht, Roelofs, Schmidt & Shankar (2019): Do ImageNet Classifiers Generalize to ImageNet?'
+    url: https://arxiv.org/abs/1902.10811
+  - title: 'Zhang et al. (2017): Understanding deep learning requires rethinking generalization'
+    url: https://arxiv.org/abs/1611.03530
+  - title: 'Belkin, Hsu, Ma & Mandal (2019): Reconciling modern machine learning practice and the bias-variance trade-off'
+    url: https://arxiv.org/abs/1812.11118
+  - title: 'Nakkiran et al. (2019): Deep Double Descent, Where Bigger Models and More Data Hurt'
+    url: https://arxiv.org/abs/1912.02292
+quiz:
+  - type: choice
+    prompt: 'A model gets 2% error on its training data and 25% error on held-out test data. What is the most likely diagnosis?'
+    options:
+      - Underfitting, because 25% is a high error
+      - The test set must be broken
+      - Overfitting, because the gap between training and test error is large
+      - It is fine, because training error is what matters
+    answer: 2
+    explanation: 'Underfitting would show up as high error on the training data too. Here training error is tiny and test error is much higher: that big gap is the signature of overfitting.'
+  - type: choice
+    prompt: 'You try 50 hyperparameter settings, score each one on the test set, and report the best test score. How trustworthy is that number?'
+    options:
+      - Too optimistic, because the test set helped choose the model
+      - Exactly right, because the test set was never used for training
+      - Too pessimistic, because you tried so many settings
+      - Exactly right, as long as the test set is large
+    answer: 0
+    explanation: "Picking the best of 50 on the test set is a choice made with the test set, so the winner's score is partly luck that fits that particular set. Choose on a validation set and touch the test set once at the end."
+  - type: numeric
+    prompt: 'You run 5-fold cross-validation on 1,000 examples. How many examples does each of the five models train on?'
+    answer: 800
+    tolerance: 0
+    explanation: 'The data is split into 5 folds of 200. Each round holds one fold out for testing and trains on the other 4 × 200 = 800.'
+  - type: choice
+    prompt: 'Before splitting a medical dataset, someone fills in missing values using averages computed over all the patients. What has gone wrong?'
+    options:
+      - Nothing, because averages are harmless
+      - The model will underfit
+      - The test set is now too small
+      - Leakage, because information from the test patients shaped the training data
+    answer: 3
+    explanation: 'Any pre-processing fitted on the whole dataset lets test-set information sneak into training. Kapoor & Narayanan list this as one of their leakage types. Fit the averages on the training split only, then apply them to the test split.'
+  - type: numeric
+    prompt: 'You have 8 training points, all with different x values. What is the lowest polynomial degree that can always pass exactly through all of them?'
+    answer: 7
+    tolerance: 0
+    explanation: 'A polynomial of degree n − 1 has n coefficients, enough to hit n points exactly: a line (degree 1) through 2 points, a parabola through 3, so degree 7 through 8. Zero training error, but it is fitting the noise too.'
+  - type: choice
+    prompt: 'With early stopping, which weights do you keep at the end?'
+    options:
+      - The weights from the very last training step
+      - The weights from the step with the lowest validation error
+      - The weights from the step with the lowest training error
+      - The starting weights, before any training
+    answer: 1
+    explanation: 'Training error usually keeps falling, so it cannot tell you when to stop. Early stopping saves a copy whenever validation error improves and returns that best copy, not the latest one.'
+---
+
+# The student who memorised the answers 📚
+
+Imagine a student who gets hold of last year's exam and memorises every answer. On practice papers made from that exam, they score 100%. On the real exam, with new questions, they're lost.
+
+They didn't learn the subject. They learned **the paper**.
+
+Machine learning models can do exactly the same thing. This lesson covers **overfitting** and **underfitting**, why you keep a **test set** locked away, **validation** and **cross-validation**, the sneaky problem of **leakage**, tools that fight overfitting, and a modern twist that surprised the experts.
+
+---
+
+## Two errors, not one
+
+Every model you train has two scores that matter:
+
+- **Training error:** how wrong it is on the examples it learned from.
+- **Test error:** how wrong it is on new examples it has never seen.
+
+What you actually care about is the second one, called **generalisation**: doing well on data the model will meet in the real world.
+
+The Deep Learning textbook by Goodfellow, Bengio and Courville puts the goal in two parts: make the training error small, and make the **gap** between training and test error small. Failing each part has a name:
+
+- **Underfitting:** the model can't even get a low error on its training data. It's too simple for the pattern.
+- **Overfitting:** training error is low, but the gap to test error is too large. The model has **memorised** its training data, including the noise, instead of the pattern. Google's Machine Learning Crash Course compares an overfit model to "an invention that performs well in the lab but is worthless in the real world".
+
+---
+
+## Five points and a wiggly curve
+
+Here's a made-up example. The true rule is **y = 2x + 1**, but each measurement has a little noise:
+
+**(x, y) = (0, 1.2), (1, 2.8), (2, 5.3), (3, 6.9), (4, 9.1)**
+
+The best straight line (least squares, from the regression lesson) is about **y = 1.99x + 1.08**. Its training MSE is about 0.03: small, but not zero.
+
+Now fit a **degree-4 polynomial**, the kind of curve the regression lesson built from x, x², x³ and x⁴. A degree-4 polynomial has five coefficients, enough to pass **exactly** through all five points. Training error: **zero**.
+
+🤔 Predict: a new point arrives at x = 5. The true value is 11. Which model gets closer?
+
+The line predicts about **11.0**. The wiggly curve predicts about **16.7**. It bent itself to hit every bit of noise, and between and beyond the points those bends throw it off. The perfect training score was the warning sign, not the achievement.
+
+---
+
+## Capacity and the U-shaped curve
+
+A model's **capacity** is how wide a variety of functions it can fit. A line has low capacity; a degree-9 polynomial or a big neural network has a lot.
+
+As you raise capacity:
+
+- **Training error** generally falls, since a more flexible model can fit the training data more closely.
+- **Test error** first falls (the model can now capture the real pattern), then rises again (it starts fitting noise).
+
+So test error traces a **U shape**, and the sweet spot is at the bottom. The Deep Learning book shows this with a linear, a quadratic and a degree-9 model fitted to data whose true shape is quadratic: the line underfits, the degree-9 curve passes through every training point but overfits, and the quadratic generalises well.
+
+<Deeper title="Go deeper: bias and variance">
+For an estimate $\hat\theta$ of a true value $\theta$, the mean squared error splits into two parts:
+
+$$
+\begin{aligned}
+\text{MSE} &= \mathbb{E}\big[(\hat\theta - \theta)^2\big] \\
+&= \text{Bias}(\hat\theta)^2 + \text{Var}(\hat\theta)
+\end{aligned}
+$$
+
+**Bias** is how far off the estimate is on average: a straight line can never bend to fit a curve. **Variance** is how much the estimate would change with a different training sample: the degree-4 curve would look completely different with new noise. The Deep Learning book notes that, when error is measured this way, increasing capacity tends to raise variance and lower bias, which is where the U shape comes from.
+
+</Deeper>
+
+---
+
+## Lock the test set away
+
+If test error is what matters, why not just try lots of models and keep the one with the best test score?
+
+🤔 Predict: you try 50 settings and pick the winner by its test score. Is that score an honest estimate of how it will do on new data?
+
+**No.** The test set has now helped **choose** the model. Some of the winner's score is luck that happens to suit those particular examples, so the number is **too optimistic**.
+
+The fix is a three-way split:
+
+- **Training set:** the model learns from it.
+- **Validation set:** you use it to compare settings (like polynomial degree or learning rate, the **hyperparameters**) and pick the best.
+- **Test set:** used **once**, at the very end, for the final score.
+
+The Deep Learning book is firm that test examples must not be used "in any way to make choices about the model, including its hyperparameters", so the validation set is carved out of the training data. It suggests about 80% for training and 20% for validation as a typical split. Even the validation score ends up a bit optimistic, since you used it to choose, though usually by less than the training score.
+
+---
+
+## Cross-validation: when data is scarce
+
+With only a few hundred examples, a single small test set gives a noisy score: get a lucky or unlucky handful and the number swings.
+
+**k-fold cross-validation** reuses the data. Split it into k equal chunks, called **folds**. Train k times; each time, hold out a different fold for testing and train on the rest. Average the k test scores.
+
+With 1,000 examples and k = 5, each fold has 200 examples, so each of the five models trains on 800 and is tested on 200. Every example gets tested exactly once.
+
+The price is k trainings instead of one, so it's most worth it when the dataset is too small for a single reliable split.
+
+---
+
+## Leakage: when the test answers sneak in
+
+Splitting the data isn't enough if information from the test set **leaks** into training anyway. Then the test score looks great for reasons that won't hold up in the real world.
+
+Kapoor and Narayanan (2023) surveyed the literature of research fields that adopted machine learning. They found **17 fields** where errors like these had been reported, affecting **329 papers**, in some cases with wildly over-optimistic conclusions. Their taxonomy has eight types. Four easy-to-picture ones:
+
+- **Pre-processing on everything:** filling in missing values, or balancing classes, using the whole dataset before splitting.
+- **Duplicates:** the same example ends up in both training and test sets.
+- **Data from the future:** to predict future events, the test data should come after the training data, not before.
+- **Features that give the answer away:** one study they cite used whether a patient took blood-pressure drugs as a feature for predicting high blood pressure.
+
+In one field, civil war prediction, they re-ran published studies. Every paper claiming that complex models beat old-fashioned logistic regression failed to reproduce because of leakage, and once it was fixed the complex models did no substantively better.
+
+---
+
+## Fighting overfitting
+
+The Deep Learning book defines **regularisation** as any change to a learning method that is meant to reduce its test error but not its training error. Some popular kinds:
+
+- **More data.** The more real examples, the harder it is to memorise them all, and the noise averages out.
+- **A simpler model.** Lower capacity, like the line instead of the degree-4 curve.
+- **Weight decay.** Gently push every weight towards zero, so the model can't lean hard on any one quirk (the SGD, momentum & Adam lesson shows how).
+- **Early stopping.** Watch the validation error during training, save a copy of the weights each time it improves, and when it stops improving, return the best copy. The book calls this "probably the most commonly used form of regularization in deep learning".
+- **Dropout.** In a neural network, randomly switch off units during training, so units can't co-adapt too much by relying on particular partners. Srivastava and colleagues (2014) found it significantly reduced overfitting and improved results on tasks in vision, speech recognition, document classification and computational biology. The textbook's typical settings keep each input unit with probability 0.8 and each hidden unit with probability 0.5.
+
+<Deeper title="Go deeper: why dropout works like a crowd">
+Each training step with dropout uses a different random "thinned" network, a subnetwork with some units removed. The Deep Learning book describes dropout as a cheap approximation to training and averaging a huge ensemble of these subnetworks. At test time there's no randomness: you use the whole network with its weights scaled down to match, which approximates averaging all the thinned networks' predictions.
+
+</Deeper>
+
+---
+
+## Can a whole field overfit a test set?
+
+Image benchmarks like CIFAR-10 and ImageNet have been the focus of intense research for about a decade, with everyone comparing scores on the **same** test sets. That's the "choose with the test set" mistake on a grand scale.
+
+Recht, Roelofs, Schmidt and Shankar (2019) tested this by building **new** test sets, carefully following the original collection process. Accuracy dropped by 3% to 15% on CIFAR-10 and 11% to 14% on ImageNet.
+
+But the twist is in the details. Models that did better on the old test sets also did better on the new ones; the gains carried over. Their results suggest the drops were **not** caused by re-using the test set, but by the models' inability to generalise to slightly "harder" images than the originals. A test score measures performance on one particular collection of data, and even a careful copy of the collection process can shift it.
+
+---
+
+## The modern twist
+
+The U-shaped curve says huge models should overfit badly. Yet neural networks usually have more weights than training examples, and still often generalise well.
+
+Zhang and colleagues (2017) sharpened the puzzle. They showed that state-of-the-art image networks easily **fit random labels**: shuffle the answers so there's no pattern at all, and the network still memorises the training set. It even works when the images are replaced by pure random noise. Yet on real labels, networks like these generalise well. So "it has enough capacity to memorise" can't by itself explain when a model overfits.
+
+One piece of the answer is **double descent**. Belkin, Hsu, Ma and Mandal (2019) showed that if you keep increasing capacity past the point where the model fits the training data exactly, test error can **fall again**, giving a second descent after the U. Nakkiran and colleagues (2019) found the same shape in deep networks, as model size grows and as training goes on longer, and even found settings where adding more training data made test performance worse.
+
+This is still an active research area. The practical advice hasn't changed: judge a model on data it has never seen.
+
+---
+
+## Common misconceptions
+
+- **"Zero training error means a great model."** It can mean the model has memorised noise. Only held-out data tells you.
+- **"Overfitting just means the model is too big."** Size is one factor, but huge networks can generalise well and double descent shows test error can improve past the point of perfect fit.
+- **"Regularisation helps the model fit its training data better."** It's meant to lower test error, not training error; a regularised model may fit its training data slightly less closely.
+- **"A high test score proves the model works in the real world."** It shows it works on data like the test set. If real data differs, as with Recht and colleagues' new test sets, performance can drop.
+
+---
+
+## Quiz time 🧠
+
+Six questions. Keep the wiggly curve in mind.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- **Generalisation** is what counts: low **training error** and a small gap to **test error**.
+- **Underfitting** means too simple; **overfitting** means memorising noise. Test error vs **capacity** is often **U-shaped**.
+- Keep **training, validation and test** sets separate; use the test set **once**. **Cross-validation** helps when data is scarce.
+- **Leakage** lets test information sneak into training and inflates scores.
+- **Regularisation** (more data, simpler models, weight decay, early stopping, dropout) fights overfitting.
+- Big networks can fit **random labels** yet generalise, and **double descent** shows the classic U isn't the whole story.
+
+**Related:** the SGD, momentum & Adam lesson covers weight decay, and the fine-tuning & RLHF lesson shows a cousin of overfitting: optimising so hard against a reward model that real quality falls.
+
+Hit **Finish** to collect your XP! 🏁
