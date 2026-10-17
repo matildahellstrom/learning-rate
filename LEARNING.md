@@ -269,3 +269,18 @@ You asked to be told when the first version was ready, so these phases were buil
 
 1. Count the weights in one transformer block with d = 512 and a feed-forward width of 2,048. What share is attention?
 2. With the logits 1.2, 0.9, 0.1, −0.5, find the temperature at which "all" has probability 0.5.
+
+## Overfitting, context windows and prompting (2026-10-17)
+
+**Built:** Lessons for Overfitting & evaluation, Context windows & KV cache, and Prompting, written with the `write-lesson` skill. Prompting is the first published lesson in the Coding with AI track. A polynomial degree explorer and a KV cache memory calculator went into the widget backlog.
+
+**Concepts:**
+
+- **Take the worked example from the paper when it has one.** The PagedAttention paper spells out OPT-13B's KV cache (2 × 5,120 × 40 × 2 bytes ≈ 800 KB per token), so the lesson uses its numbers, then reuses the same formula on Llama 3 8B's published configuration to show what grouped-query attention saves.
+- **Read the conclusion, not just the headline number.** Recht et al.'s new ImageNet test sets cost models 11–14% accuracy, but the authors attribute the drop to slightly harder images, not to a field overfitting a re-used test set. The lesson reports both.
+- **The project's own renderer is part of the format.** A Markdown table in the overfitting draft passed every check but this MDX set-up has no GFM tables, so the data went into a line of text instead.
+
+**Explore:**
+
+1. Fit polynomials of degree 1 to 4 to the lesson's five points and plot each one at x = 5. Where does the error start to grow?
+2. Work out the KV cache per token for Llama 3 70B (80 layers, 8 key-value heads, 128 numbers per head, 2 bytes). How many tokens fit in 40 GB?
