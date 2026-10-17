@@ -72,7 +72,7 @@ quiz:
       - When it is the very last document
       - Position makes no difference to a long-context model
     answer: 1
-    explanation: 'Liu and colleagues found a U-shaped curve: models did best when the relevant passage was at the start or end, and worst in the middle, even models built for long contexts.'
+    explanation: 'Liu and colleagues found a U-shaped curve: models usually did best when the relevant passage was at the start or end, and worst in the middle, even models built for long contexts.'
 ---
 
 # The goldfish and the library 📜
@@ -135,7 +135,7 @@ The KV cache splits generation into two phases, as Kwon and colleagues describe 
 - **The prompt phase** (often called **prefill**): the whole prompt is known up front, so the model processes all of its tokens in parallel, filling the cache. GPUs are good at this.
 - **The generation phase** (often called **decode**): new tokens come one at a time, each reading the whole cache and adding its own keys and values. Each step depends on the last, so this part can't be parallelised the same way.
 
-That's one reason a long prompt can add a pause before the first word appears, and then the rest streams out word by word.
+That's one reason a long prompt can add a pause before the first word appears. After that the rest streams out word by word, and for most requests this one-at-a-time phase takes most of the time.
 
 <Deeper title="Go deeper: what the cache saves">
 Without a cache, writing token $t$ means rerunning the network on all $t$ tokens so far. With a cache, the new token is the only one pushed through the layers, and its attention reads $t - 1$ stored keys and values.
@@ -173,7 +173,7 @@ $$
 \end{aligned}
 $$
 
-For OPT-13B, $h_{kv} \cdot d_h = 5{,}120$ (the full vector width), $L = 40$ and $b = 2$, giving 819,200 bytes. The paper calls that 800 KB, counting 1 KB as 1,024 bytes. Storing the cache in fewer bits shrinks $b$ (the quantisation lesson covers that).
+For OPT-13B, $h_{kv} \cdot d_h = 5{,}120$ (the full vector width), $L = 40$ and $b = 2$, giving 819,200 bytes. The paper rounds that to 800 KB, which is exact if 1 KB means 1,024 bytes. Storing the cache in fewer bits shrinks $b$ (the quantisation lesson covers that).
 
 </Deeper>
 
@@ -197,7 +197,7 @@ Meta's Llama 3 uses GQA "to reduce the size of key-value caches during decoding"
 
 ## Wasted memory
 
-There's another catch. Before a model starts writing, nobody knows how long the answer will be. Kwon and colleagues found that serving systems of the time reserved one block of memory per request, sized for the longest possible sequence. In their measurements, only **20.4% to 38.2%** of the KV cache memory actually held token data; the rest sat in reserved slots or was lost to fragmentation.
+There's another catch. Before a model starts writing, nobody knows how long the answer will be. Kwon and colleagues found that serving systems of the time reserved memory for each request in advance, often sized for the longest possible sequence. In their tests of three versions of one such system (Orca, which they rebuilt themselves), only **20.4% to 38.2%** of the KV cache memory actually held token data, even in a version told each answer's length in advance; the rest sat in reserved slots or was lost to fragmentation.
 
 Their fix, **PagedAttention**, borrows an old idea from operating systems: **virtual memory paging**. Instead of one big reserved block per request, the cache is stored in small fixed-size blocks handed out as needed, which don't have to sit next to each other. Their serving system, vLLM, got close to zero waste and, in their tests, improved throughput 2 to 4 times over systems such as FasterTransformer and Orca, at the same latency.
 
@@ -207,9 +207,9 @@ Their fix, **PagedAttention**, borrows an old idea from operating systems: **vir
 
 Fitting text in the window doesn't mean the model uses all of it equally well.
 
-Liu and colleagues (2023) gave models several documents and a question whose answer was in just one of them, then moved that document around. Performance traced a **U shape**: best when the relevant document came first or last, worst in the middle, even for models built for long contexts. In one case, GPT-3.5-Turbo with the answer in the middle did **worse** than with no documents at all (56.1%).
+Liu and colleagues (2023) gave models several documents and a question whose answer was in just one of them, then moved that document around. Performance often traced a **U shape**: best when the relevant document came first or last, worst in the middle, even for models built for long contexts. In one case, GPT-3.5-Turbo with the answer in the middle did **worse** than with no documents at all (56.1%).
 
-A 2025 report from Chroma tested 18 models on deliberately simple tasks, changing only the length of the input. Performance grew less reliable as inputs got longer, often in uneven and surprising ways. Anthropic's docs call this **context rot**, and draw the practical lesson: curating what's in context matters as much as how much space there is.
+A 2025 report from Chroma, by Hong, Troynikov and Huber, tested 18 models on deliberately simple tasks, changing only the length of the input. Performance grew less reliable as inputs got longer, often in uneven and surprising ways. The report calls this **context rot**; Anthropic's docs use the same term and draw the practical lesson: curating what's in context matters as much as how much space there is.
 
 ---
 
