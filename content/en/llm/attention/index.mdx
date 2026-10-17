@@ -17,7 +17,7 @@ sources:
     url: https://arxiv.org/abs/1409.0473
 quiz:
   - type: choice
-    prompt: 'In "The keys to the cabinet ___ on the table", the model must choose between "is" and "are". Which earlier word should the blank pay most attention to?'
+    prompt: 'In "The keys to the cabinet ___ on the table", the model must choose between "is" and "are". Which word should the blank pay most attention to?'
     options:
       - cabinet, because it is the nearest noun
       - keys, because it is the subject and decides singular or plural
@@ -97,11 +97,11 @@ Here's the core idea, in Jurafsky and Martin's words: attention "is really just 
 
 For each token, the model:
 
-1. **Scores** every earlier token: how relevant is it to me? The score is a **dot product**, which is big when two vectors point the same way (the dot product lesson covers this).
+1. **Scores** every token up to and including itself: how relevant is it to me? The score is a **dot product**, which is big when two vectors point the same way (the dot product lesson covers this).
 2. Turns the scores into **weights** with **softmax**, so they're positive and add up to 1.
 3. Takes the **weighted average** of those tokens' vectors.
 
-Let's try it at the word _it_, with made-up 2-number vectors. Say the scores against _chicken_, _road_ and _because_ come out as 2, 2 and 0.
+Let's try it at the word _it_, with made-up 2-number vectors. Say the scores against _chicken_, _road_ and _because_ come out as 2, 2 and 0 (to keep it simple, we leave out the other words and _it_'s score for itself).
 
 🤔 Predict: roughly what weights does softmax give?
 
@@ -119,7 +119,7 @@ Real attention gives each token **three roles**, each with its own learned vecto
 
 Think of a library search. Your **query** is matched against the **keys** (titles and labels), and what you take home is the **value** (the book itself).
 
-Each vector comes from the token's embedding times a learned matrix: one for queries, one for keys, one for values. The score between two tokens is **query · key**, and the output is the weighted sum of the **values**.
+Each vector comes from the token's current vector (its embedding, in the first layer) times a learned matrix: one for queries, one for keys, one for values. The score between two tokens is **query · key**, and the output is the weighted sum of the **values**.
 
 Back to _it_. If the value for _chicken_ is [1, 0] and for _road_ is [0, 1] (and _because_ is [0, 0]), the output is
 
@@ -128,7 +128,7 @@ Back to _it_. If the value for _chicken_ is [1, 0] and for _road_ is [0, 1] (and
 a blend of both candidates. This new vector is what the next layer works with.
 
 <Deeper title="Go deeper: the attention formula">
-For one token $i$ with embedding $x_i$, and every token $j$ up to and including it:
+For one token $i$ with current vector $x_i$, and every token $j$ up to and including it:
 
 $$
 \begin{gathered}
@@ -138,7 +138,7 @@ a_i = \sum_{j \le i} \alpha_{ij}\, v_j
 \end{gathered}
 $$
 
-Packing all the queries, keys and values into matrices $Q$, $K$ and $V$ gives the whole layer in one line, the formula from the 2017 transformer paper:
+Packing all the queries, keys and values into matrices $Q$, $K$ and $V$ gives one attention head in one line, the formula from the 2017 transformer paper (a language model also applies the causal mask before the softmax):
 
 $$
 \mathrm{Attention}(Q, K, V) = \mathrm{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right) V
@@ -152,9 +152,9 @@ The $\sqrt{d_k}$ is explained in the next step.
 
 ## Why divide by √d?
 
-The 2017 paper calls its version **scaled dot-product attention**: every score is divided by **√d_k**, the square root of the length of the query and key vectors.
+The 2017 paper calls its version **scaled dot-product attention**: every score is divided by **√d_k**, the square root of how many numbers the query and key vectors have.
 
-Why? A dot product adds up one product per dimension. With more dimensions, the totals tend to get bigger. The paper's authors suspected that big scores push softmax into a place where it gives almost all the weight to one token and its gradients become "extremely small", so learning stalls.
+Why? A dot product adds up one product per dimension. With more dimensions, the totals tend to get bigger in size (further from zero, either way). The paper's authors suspected that big scores push softmax into regions where its gradients become "extremely small", so learning stalls. (In those regions, softmax puts almost all the weight on one token.)
 
 For example, with 64-number vectors, √64 = 8. A raw score of 16 becomes **2**.
 
@@ -187,7 +187,7 @@ This mask is what lets every position in a training text serve as a practice que
 
 ## Many heads at once
 
-One set of queries, keys and values can only look for one kind of thing at a time. But a word might need its subject, its verb and the topic of the paragraph.
+One set of queries, keys and values tends to blend everything it looks for into a single average. But a word might need its subject, its verb and the topic of the paragraph.
 
 So transformers run several attention **heads** side by side, each with its own query, key and value matrices. Their outputs are joined together and mixed by one more matrix. This is **multi-head attention**.
 
@@ -228,7 +228,7 @@ In 2017, eight researchers working at Google published **"Attention Is All You N
 
 Why did that matter? A recurrent network has to read token 1 before token 2 before token 3. Attention handles every position **in parallel**, so the paper's models needed "significantly less time to train".
 
-The results were striking for translation: a new best score on English-to-German, and a state-of-the-art English-to-French model after **3.5 days on eight GPUs**, "a small fraction" of earlier models' training costs.
+The results were striking for translation: a new best score on English-to-German, and a new best score for a single model on English-to-French after **3.5 days on eight GPUs**, "a small fraction" of earlier models' training costs.
 
 The original was an encoder–decoder built for translation. Language models later kept just the decoder half, with its causal mask, giving **decoder-only** transformers, the standard design for large language models.
 
@@ -241,7 +241,7 @@ There's one cost. Every token is scored against every earlier token, so the work
 - **"A transformer is mostly attention."** With the common choice of a feed-forward layer 4 times wider than the token vectors, the feed-forward network holds about twice as many weights as attention in each block.
 - **"Each token only looks at its neighbours."** Attention can reach any earlier token in the context, near or far.
 - **"Attention weights are hand-written rules."** The query, key and value matrices are learned, like every other weight.
-- **"Transformers are only for text."** The same blocks work on image patches too; the vision transformers lesson shows how.
+- **"Transformers are only for text."** Jurafsky and Martin note the same technology is applied to vision, speech and genetics; the vision transformers lesson shows how it works on images.
 
 ---
 
