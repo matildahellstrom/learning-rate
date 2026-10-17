@@ -66,3 +66,9 @@ an earlier lesson; the example in brackets is the real case.
 - [ ] The lesson is removed from `upcoming` in `tracks.json`.
 - [ ] `npm run check`, `npm run build` and the lesson's Playwright run pass, with exit codes
       checked directly.
+
+## Before it goes live
+
+- [ ] An independent fact-check (`references/fact-check.md`) found nothing that is still open.
+- [ ] `main` holds the lesson and is pushed; the site was rebuilt from `main` and deployed to
+      `gh-pages`, and the live URL serves the new build.

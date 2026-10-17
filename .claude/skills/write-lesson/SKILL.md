@@ -1,6 +1,6 @@
 ---
 name: write-lesson
-description: Write, revise or re-verify a lesson for this learning app (content/en/<track>/<id>/index.mdx). Use whenever the task is to publish an upcoming lesson from tracks.json, write a lesson on a new topic, rework a lesson's text or quiz, re-verify a stale fast-moving lesson, or review a lesson draft, even if the request only names a topic ("do the tokenisation lesson", "the prompt caching one is out of date").
+description: Write, revise or re-verify a lesson for this learning app (content/en/<track>/<id>/index.mdx). Use whenever the task is to publish an upcoming lesson from tracks.json, write a lesson on a new topic, rework a lesson's text or quiz, re-verify a stale fast-moving lesson, review a lesson draft, or fact-check lessons and update the live site, even if the request only names a topic ("do the tokenisation lesson", "the prompt caching one is out of date").
 ---
 
 # Writing a lesson
@@ -16,7 +16,11 @@ more reliable than following a description of it:
 Hard rules live in code: `src/content/schema.ts` (frontmatter) and `src/content/content.test.ts`
 (ids, prerequisites, freshness). `assets/template.mdx` is a skeleton to start from.
 `references/checklist.md` is the review list; it is built from the mistakes reviewers actually
-caught in earlier lessons.
+caught in earlier lessons. `references/fact-check.md` is the brief for the independent fact-check.
+
+The job is not done when the lesson is committed. Every lesson goes through the whole pipeline:
+write (sections 1–5), finish and commit (6), an independent fact-check (7), then the live site is
+updated (8).
 
 ## 1. Orient
 
@@ -109,7 +113,7 @@ authors' own caveats (artificial set-up, harmless backdoor, model was told about
 and label hypothetical scenarios as hypothetical. Aim for calm accuracy: neither "evil AI"
 drama nor dismissal.
 
-## 6. Publish
+## 6. Finish and commit
 
 - Remove the lesson's entry from `upcoming` in `content/en/tracks.json` (a published lesson
   can't also be upcoming).
@@ -126,11 +130,54 @@ drama nor dismissal.
   - `npx playwright test lessons -g "<id>:"`, which walks every step on phone and desktop with
     axe. Playwright reuses whatever server is on port 4173, so in a worktree first make sure
     no other checkout is serving there (`lsof -i :4173`).
-- Commit as `feat(content): add the <Title> lesson`; review fixes are `fix(content): …`.
+- Commit as `feat(content): add the <Title> lesson`, one commit per lesson; review fixes are
+  `fix(content): …`.
+
+## 7. Fact-check, independently
+
+You wrote the lesson from your claim sheet, so you will read your own drift as correct. Have a
+reviewer who hasn't seen your sheet check the finished text against the sources.
+
+- Start one fact-checker per lesson as a subagent (general-purpose, so it can fetch pages and
+  run scripts), with the brief in `references/fact-check.md` filled in. Give it only the lesson
+  path and a scratch directory; don't pass your claim sheet or your conclusions. Lessons in a
+  batch can be checked in parallel. If subagents aren't available, do the brief yourself in a
+  fresh pass, re-opening every source rather than working from your sheet.
+- The checker reports; it doesn't edit. For every finding, either fix the text (narrow the
+  claim, add the source's condition, correct the number) or, if you are sure the claim holds,
+  find the passage that shows it. A claim nobody can find in a source gets cut or rewritten so
+  it rests on one.
+- Rerun the three checks from section 6 and commit the fixes as
+  `fix(content): tighten claims in the <Title> lesson`.
+- Only move on when no finding is open. If something can't be settled (a source that blocks
+  fetching, a question of judgement), stop and ask the user instead of deploying.
+
+## 8. Update the live site
+
+The site is served by GitHub Pages from the `gh-pages` branch, built from `main`. Deploy from
+`main` so the site always has every published lesson, not just the ones on your branch.
+
+1. Bring `main` up to date. If you worked on a branch, `git switch main` and
+   `git merge --ff-only <branch>`; if that refuses, the branches have diverged, so stop and ask.
+   Then `git push origin main`.
+2. Check for personal information before anything leaves the machine: grep the commits since
+   `origin/main` and the built files for the author's name, email domains and `/Users/` paths.
+   Commits must use the repo-local no-reply identity.
+3. From `main`, run `npm run build` and check its exit code.
+4. Clone `gh-pages` into the scratchpad (never into the repo):
+   `git clone --branch gh-pages --single-branch <origin url> <scratch>/ghp`. In the clone,
+   delete everything except `.git`, copy in the contents of `dist/`, add an empty `.nojekyll`,
+   and set the no-reply identity with `git config` in that clone.
+5. Commit as `deploy: Learning Rate site build (<short sha of main>)`, then run exactly
+   `git push origin gh-pages` from the clone (the allowed permission matches that command).
+   If the push is blocked, tell the user what is ready and ask them to approve it.
+6. Verify: after a minute or two, fetch the site URL (see the repository's Pages settings or
+   `gh api repos/{owner}/{repo}/pages`) and check it returns 200 and its `index.html` references
+   the new asset file names from `dist/index.html`. Report the URL and which lessons went live.
 
 ## Revising or re-verifying a lesson
 
 Keep the id, order and step structure unless asked to change them; progress is stored by id.
 To re-verify, rebuild the claim sheet from the current text, re-open every source, and look for
 newer developments that change a claim. Only then bump `lastVerified`. Report what changed and
-what you couldn't confirm.
+what you couldn't confirm. Revisions go through the fact-check (7) and the site update (8) too.
