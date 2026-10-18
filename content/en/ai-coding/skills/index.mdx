@@ -1,0 +1,264 @@
+---
+id: skills
+title: Skills
+summary: How Claude Code skills package a procedure or reference into a folder that loads only when it's needed, and how to write one Claude actually picks up.
+track: ai-coding
+order: 5
+prerequisites: [claude-md, context-management]
+minutes: 13
+xp: 100
+volatility: fast-moving
+lastVerified: 2026-10-18
+sources:
+  - title: 'Anthropic: Extend Claude with skills (Claude Code docs)'
+    url: https://code.claude.com/docs/en/skills
+  - title: 'Anthropic: Extend Claude Code (Claude Code docs)'
+    url: https://code.claude.com/docs/en/features-overview
+  - title: 'Zhang, Lazuka & Murag (2025): Equipping agents for the real world with Agent Skills (Anthropic engineering)'
+    url: https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills
+  - title: 'Anthropic: Agent Skills overview (Claude Platform docs)'
+    url: https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview
+  - title: 'Anthropic: Skill authoring best practices (Claude Platform docs)'
+    url: https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
+  - title: 'Li et al. (2026): SkillsBench: Benchmarking How Well Agent Skills Work Across Diverse Tasks'
+    url: https://arxiv.org/abs/2602.12670
+quiz:
+  - type: choice
+    prompt: 'Which skill description gives Claude the best chance of loading the skill at the right moment?'
+    options:
+      - Helper for documents
+      - I can help you with PDFs.
+      - 'Extracts text and tables from PDF files and fills in forms. Use when the user mentions PDFs, forms or document extraction.'
+      - PDF
+    answer: 2
+    explanation: 'Claude matches your request against descriptions, so a good one says what the skill does and when to use it, with words a user would actually type. "Helper for documents" is vague, and Anthropic advises writing descriptions in the third person rather than "I can help you".'
+  - type: choice
+    prompt: 'You write a /deploy skill that pushes the app to production. What should its frontmatter include?'
+    options:
+      - 'disable-model-invocation: true, so only you can start it'
+      - 'user-invocable: false, so only Claude can start it'
+      - Nothing extra; Claude will know when the code is ready
+      - 'A description in capital letters so Claude takes it seriously'
+    answer: 0
+    explanation: "Claude Code's docs suggest disable-model-invocation for workflows with side effects, such as deploying: you don't want Claude deciding to deploy because your code looks ready. It also keeps the description out of context until you type /deploy."
+  - type: numeric
+    prompt: "Anthropic's platform docs put a skill's always-loaded metadata at roughly 100 tokens. Using that figure, about how many tokens do 40 installed skills cost at startup, before any of them is used?"
+    answer: 4000
+    tolerance: 100
+    explanation: '40 × 100 = 4,000 tokens. Only names and descriptions load up front; each body loads when the skill is used, and bundled files only when Claude reads them. That is progressive disclosure.'
+  - type: choice
+    prompt: "Your skill tells Claude to run the linter. Claude does it in its first reply but not after later edits in the same task. What do Claude Code's docs suggest?"
+    options:
+      - Run /clear so the skill reloads
+      - Copy the whole skill into CLAUDE.md
+      - Make the skill longer so the step stands out
+      - 'Word it for the whole task ("Run the linter after every edit"), or use a hook if it must happen every time'
+    answer: 3
+    explanation: "Claude Code doesn't re-read a skill file on later turns, so guidance should be written as standing instructions. And if a rule must hold every time, the docs say to move it into a hook, which runs whether or not Claude is following the skill."
+  - type: choice
+    prompt: 'Based on the SkillsBench findings, which skill would you expect to help an agent most?'
+    options:
+      - A comprehensive 2,000-line manual covering every edge case
+      - A short, focused procedure for a fiddly file format, written and checked by a person
+      - A skill the agent wrote for itself just before starting the task
+      - Ten overlapping skills on the same topic
+    answer: 1
+    explanation: 'In SkillsBench, compact and standard-length curated skills gained the most, comprehensive documentation gained almost nothing (+0.7 points), and four or more skills per task helped less than one to three. Skills the agent wrote for itself scored below having no skills at all in the three set-ups tested.'
+  - type: numeric
+    prompt: 'In SkillsBench, curated skills raised the average pass rate from 33.9% to 50.5%. By roughly what percentage did the pass rate grow relative to where it started? (Round to the nearest whole number.)'
+    answer: 49
+    tolerance: 1.5
+    explanation: 'The gain is 50.5 − 33.9 = 16.6 percentage points. Relative to the 33.9% start, that is 16.6 ÷ 33.9 ≈ 0.49, so about 49%. Percentage points and per cent are different things, so check which one a claim uses.'
+---
+
+# The checklist you keep pasting 📋
+
+Every Friday you release the app, and every Friday you paste the same twelve-step checklist into Claude Code: bump the version, run the full test suite, update the changelog, tag the commit, and so on.
+
+You could put it in CLAUDE.md. But then all twelve steps sit in the context window of every session, including the four days a week you aren't releasing. The CLAUDE.md lesson showed what a crowded instruction file costs.
+
+**Skills** sit in between. As of October 2026, Claude Code's docs say to create one "when you keep pasting the same instructions, checklist, or multi-step procedure into chat, or when a section of CLAUDE.md has grown into a procedure rather than a fact." This lesson covers what a skill is, how it loads, how Claude decides to use one, and what the evidence says about whether they help.
+
+---
+
+## A folder with a SKILL.md
+
+A skill is a folder containing a file called `SKILL.md`. As of October 2026, Claude Code's docs say it has two parts: YAML **frontmatter** between `---` markers "that tells Claude when to use the skill", and Markdown with the instructions Claude follows.
+
+```markdown
+---
+description: Summarizes uncommitted changes and flags anything risky. Use when the user asks what changed, wants a commit message, or asks to review their diff.
+---
+
+Summarize the changes in two or three bullet points, then list any risks you notice, such as missing error handling or tests that need updating.
+```
+
+The folder's name becomes a command. Save that file as `.claude/skills/summarize-changes/SKILL.md` and you can type `/summarize-changes`, or Claude can load it by itself when your request matches the description.
+
+Where you save it decides where it works:
+
+- **`~/.claude/skills/<name>/`**: personal, for all your projects on this machine.
+- **`.claude/skills/<name>/`** in a repository: for that project. Commit it and your team gets it too.
+
+As of October 2026, the docs also say custom commands "have been merged into skills": an older file in `.claude/commands/` still works the same way. Skills follow **Agent Skills**, a format Anthropic published as an open standard in December 2025 "for cross-platform portability", so the same folders can work in other AI tools.
+
+---
+
+## Progressive disclosure
+
+🤔 Predict: you have 30 skills installed and start a session. Does Claude Code load all 30 instruction files into the context window?
+
+**No.** Anthropic's engineering post introducing skills calls the answer **progressive disclosure**: "the core design principle that makes Agent Skills flexible and scalable". There are three levels:
+
+1. **Name and description.** These load up front, so Claude knows what's available. As of October 2026, Anthropic's platform docs put this at roughly 100 tokens per skill.
+2. **The body of SKILL.md.** It loads only when the skill is used.
+3. **Bundled files.** A skill folder can hold extra reference files and scripts, which Claude opens only when it needs them.
+
+The post compares it to "a well-organized manual that starts with a table of contents, then specific chapters, and finally a detailed appendix." Because an agent with a filesystem and code execution doesn't need to read the whole skill, the post says the amount of context a skill can bundle is "effectively unbounded".
+
+Scripts are a special case. The platform docs say that when Claude runs a bundled script, "only their output enters context", not the code. The post's example is a PDF skill whose script pulls out a form's fields, which Claude "can run ... without loading either the script or the PDF into context".
+
+---
+
+## The description does the matching
+
+Claude chooses skills by their descriptions. As of October 2026, the docs say "Claude matches your task against skill descriptions to decide which are relevant. If descriptions are vague or overlap, Claude may load the wrong skill or miss one that would help."
+
+So the description is the part worth working on. From Anthropic's guidance:
+
+- Say **what the skill does and when to use it**. The platform docs' example: _"Extract text and tables from PDF files, fill forms, merge documents. Use when working with PDF files or when the user mentions PDFs, forms, or document extraction."_
+- Use the **keywords people would naturally say**. That's the docs' first check when a skill doesn't trigger.
+- Write in the **third person** ("Processes Excel files…"), not "I can help you…". The platform guide says the description is injected into the system prompt, and a mixed point of view "can cause discovery problems".
+- **Put the key use first.** As of October 2026, Claude Code cuts each skill's listing text at 1,536 characters, and with many skills it may drop some descriptions to fit a budget.
+
+If a skill fires when you don't want it, the docs suggest the reverse: make the description more specific.
+
+---
+
+## Who gets to press the button?
+
+By default, both you and Claude can start a skill: you by typing `/name`, Claude by matching the description. As of October 2026, two frontmatter fields change that:
+
+- **`disable-model-invocation: true`**: only you can start it.
+- **`user-invocable: false`**: only Claude can start it. It's hidden from the `/` menu.
+
+🤔 Predict: which setting suits a `/deploy` skill that pushes your app to production, and which suits a skill that explains how an old internal system works?
+
+The deploy skill should be **yours only**. The docs recommend it for workflows "with side effects or that you want to control timing", adding: "You don't want Claude deciding to deploy because your code looks ready." The old-system explainer is the docs' own example of **Claude only**: Claude should know it when relevant, but typing `/legacy-system-context` "isn't a meaningful action for users to take".
+
+There's a context bonus too. A skill marked `disable-model-invocation: true` keeps even its description out of the window until you invoke it.
+
+---
+
+## Once loaded, it stays
+
+As of October 2026, Claude Code's docs say that when a skill is used, its content "enters the conversation as a single message and stays there across later turns". Claude Code "does not re-read the skill file on later turns".
+
+Two consequences follow:
+
+- **Every line is a recurring cost** once it's loaded, so the docs ask you to keep the body concise. Their tip is to keep `SKILL.md` under 500 lines and move detailed reference material into separate files.
+- **Write standing instructions, not one-off steps.** The docs' example is "Run the tests after every edit" rather than "Run the tests", so the rule still reads correctly ten turns later.
+
+The compaction the context management lesson covered matters here too. As of October 2026, after compaction Claude Code re-attaches the skills you used, keeping "the first 5,000 tokens of each" within a shared budget, so older ones can drop out entirely. The docs say to "put the most important instructions near the top of SKILL.md".
+
+<Deeper title="Go deeper: live context and tool permissions">
+A skill can pull live information in before Claude reads it. A line like `` !`git diff HEAD` `` makes Claude Code run the command and paste its output into the skill, so Claude sees your actual diff rather than guessing.
+
+The `allowed-tools` field lets the listed tools run without asking you, during the turn that invokes the skill. As of October 2026, the docs warn that "a skill can grant itself broad tool access", so review that field in skills checked into a repository before running Claude Code there.
+
+A skill can also run in its own subagent with `context: fork`; the subagents lesson covers what that means.
+
+</Deeper>
+
+---
+
+## Skill, CLAUDE.md or hook?
+
+All three hold instructions, but they behave differently. As of October 2026, Claude Code's docs draw the lines like this:
+
+- **CLAUDE.md** loads every session. Use it for what Claude "should always know": build commands, conventions, "never do X" rules.
+- **A skill** loads on demand. Use it for "reference material Claude needs sometimes" or a workflow you start by typing its name.
+- **A hook** is a command Claude Code runs at a fixed moment, such as after every edit. Its docs say it "fires on its event without Claude deciding", while with a skill "Claude interprets the instructions; outcome can vary".
+
+That last point matters. If Claude skips a skill rule "that must hold every time", the docs' advice is to move it into a hook.
+
+The docs also give a trigger for when to write a skill: "You paste the same playbook or multi-step procedure into chat for the third time."
+
+---
+
+## Do skills actually help?
+
+Anthropic's own advice is to measure. Its post says to "start with evaluation": run the agent on representative tasks, see where it struggles, and build skills to fill those gaps.
+
+A 2026 benchmark, **SkillsBench**, did this at scale: 87 tasks across 8 domains, each paired with curated skills and an automatic checker. In its latest version, Li and colleagues ran 18 combinations of model and agent tool, including Claude Code, with and without the skills.
+
+- Curated skills raised the average pass rate **from 33.9% to 50.5%**. Every one of the 18 set-ups improved, but by very different amounts (from 4.1 to 25.7 points).
+- **Focused beat exhaustive.** Compact and standard-length skills gained about 19 to 22 points; "comprehensive" documentation gained 0.7. Tasks with one to three skills gained more than tasks with four or more.
+- **Skills the agent wrote for itself didn't help.** In three set-ups where the agent first wrote its own skills, results fell below having no skills at all. The authors note this mixes the content's quality with other effects, such as whether the agent found its skills, and interference between writing them and solving the task.
+
+Skills weren't universally good either: 13 of the 87 tasks got worse with them. The authors found gains were biggest for concrete procedures and fiddly formats, and smaller or negative "when models already have strong priors or the Skill adds overhead".
+
+---
+
+## A skill is code you're trusting
+
+A skill is instructions plus, often, scripts that run on your machine. Anthropic's post is plain about the risk: "malicious skills may introduce vulnerabilities in the environment where they're used or direct Claude to exfiltrate data and take unintended actions."
+
+Its advice:
+
+- Install skills **only from trusted sources**.
+- For anything less trusted, **read every file first**, paying attention to scripts, dependencies and bundled resources.
+- Watch for instructions or code that tell Claude to **connect to untrusted network sources**.
+
+The same goes for a skill that arrives inside a repository you've cloned: it's part of the code you're about to run, so review it like the rest.
+
+---
+
+## Your turn: where does it go?
+
+A made-up team has six pieces of know-how. Decide for each: **CLAUDE.md**, **a skill only you start**, **a skill Claude can load by itself**, or **a hook**.
+
+1. _We use pnpm, not npm._
+2. _The 12-step release checklist._
+3. _Our 300-line guide to the billing API's error codes._
+4. _Run the formatter after every file edit, no exceptions._
+5. _How to write a database migration in this repo (needed a few times a month)._
+6. _Post a summary to the team channel and deploy to staging._
+
+Answers: (1) **CLAUDE.md**: short and needed every session. (2) and (6) **Skills only you start**: they have side effects, so you choose when. (3) and (5) **Skills Claude can load by itself**: reference and procedure needed sometimes, matched by a good description. (4) **A hook**: "no exceptions" needs something that runs every time.
+
+---
+
+## Common misconceptions
+
+- **"Installing lots of skills fills the context window."** Only names and descriptions load up front; bodies and files load when used.
+- **"A skill guarantees the steps happen."** Claude interprets a skill and the outcome can vary; use a hook for must-happen rules.
+- **"The skill's body tells Claude when to use it."** The description does. A vague description can mean a skill that doesn't fire, or fires at the wrong time.
+- **"More detail makes a better skill."** In SkillsBench, comprehensive documentation helped far less than focused procedures.
+- **"Let the agent write its own skills and you're done."** In SkillsBench, self-written skills scored below no skills at all; test a skill before trusting it.
+
+---
+
+## Quiz time 🧠
+
+Six questions on writing skills that load at the right time.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- A **skill** is a folder with a `SKILL.md`: frontmatter that says **when** to use it, and instructions for **how**.
+- **Progressive disclosure**: descriptions load up front, the body when used, extra files only when read.
+- The **description** does the matching, so say what it does and when, with words people actually use.
+- Use **`disable-model-invocation`** for anything with side effects, so only you can start it.
+- A used skill **stays in context** and isn't re-read: keep it short and write standing instructions.
+- In **SkillsBench**, curated, focused skills helped on average; exhaustive ones barely did, and self-written ones scored below none at all.
+- Skills can run code, so **trust them like code**.
+
+**Coming up:** the subagents lesson covers handing a task to a worker with its own context window, and the hooks lesson covers rules that run every time.
+
+**Related:** the CLAUDE.md lesson covers the always-loaded file skills take pressure off, and the context management lesson explains why on-demand loading matters.
+
+Hit **Finish** to collect your XP! 🏁
