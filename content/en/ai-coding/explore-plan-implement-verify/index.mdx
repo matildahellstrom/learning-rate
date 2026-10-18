@@ -33,7 +33,7 @@ quiz:
   - type: choice
     prompt: 'What does plan mode in Claude Code do, as of October 2026?'
     options:
-      - Claude researches and writes a plan, and edits to your source stay blocked until you approve it (with an exception for sessions that allow bypassing permissions)
+      - Claude researches and writes a plan, and edits to your source stay blocked until you approve it (with an exception for interactive terminal sessions where bypassing permissions is available)
       - Claude writes the code first and explains it afterwards
       - Claude only answers questions and cannot read files
       - Claude picks a plan from a fixed template list
@@ -97,7 +97,7 @@ A note on names: Anthropic's best-practices guide lists the steps as explore, pl
 
 In the first step the agent reads, searches and asks, but doesn't change anything.
 
-As of October 2026, Claude Code has a **plan mode** for this. Its docs say Claude "reads files, runs shell commands to explore, and writes a plan, but does not edit your source", and edits stay blocked until you approve the plan (except in sessions where you've allowed bypassing permissions). You enter it with `Shift+Tab`, by starting a prompt with `/plan`, or with `claude --permission-mode plan`.
+As of October 2026, Claude Code has a **plan mode** for this. Its docs say Claude "reads files, runs shell commands to explore, and writes a plan, but does not edit your source", and edits stay blocked until you approve the plan (except in interactive terminal sessions where bypassing permissions is available). You enter it with `Shift+Tab`, by starting a prompt with `/plan`, or with `claude --permission-mode plan`.
 
 The guide's example of an exploring prompt:
 
@@ -139,7 +139,7 @@ Now the agent writes code. The guide's example prompt ties it back to the plan a
 
 > _implement the OAuth flow from your plan. write tests for the callback handler, run the test suite and fix any failures._
 
-Size matters here too. In Anthropic's experiments with long-running agents, which built web apps over many sessions, the first of two failure patterns was that the agent tended to try "to do too much at once". Often its context ran out mid-feature, and the next session had to guess what had happened. Asking it to work on **one feature at a time** turned out to be, in the author's words, "critical". The agent was also asked to commit its progress to git with descriptive messages and to summarise it in a progress file, so a bad change could be reverted and the next session could see what was done.
+Size matters here too. In Anthropic's experiments with long-running agents, in which an agent built a clone of the claude.ai web app over many sessions, the first of two failure patterns was that the agent tended to try "to do too much at once". Often its context ran out mid-feature, and the next session had to guess what had happened. Asking it to work on **one feature at a time** turned out to be, in the author's words, "critical". The agent was also asked to commit its progress to git with descriptive messages and to summarise it in a progress file, so a bad change could be reverted and the next session could see what was done.
 
 ---
 
@@ -151,7 +151,7 @@ A check is anything that returns a result the agent can read: a test suite, a bu
 
 🤔 Predict: why not just tell the model, "now double-check your work"?
 
-Because rereading its own answer gives it no new information. Huang and colleagues (2023) studied **intrinsic self-correction**, where a model tries to fix its answer "based solely on its inherent capabilities, without the crutch of external feedback". On reasoning tasks, they found models struggled to self-correct that way, and "at times, their performance even degrades". A failing test is different: it's **external feedback** the model didn't produce.
+Because rereading its own answer gives it no outside information. Huang and colleagues (2023) studied **intrinsic self-correction**, where a model tries to fix its answer "based solely on its inherent capabilities, without the crutch of external feedback". On reasoning tasks, they found models struggled to self-correct that way, and "at times, their performance even degrades". A failing test is different: it's **external feedback** the model didn't produce.
 
 The guide adds one more habit: have the agent **show evidence**, such as the test output or the command it ran and what came back, rather than just saying it's done.
 
@@ -163,7 +163,7 @@ Passing tests can still miss the point. In the long-running agent experiments, t
 
 What helped: giving it browser automation tools and asking it to test "as a human user would". The author says this "dramatically improved performance", because the agent could find bugs that weren't obvious from the code. It wasn't perfect: the agent couldn't see the browser's own pop-up alerts, and features that used them tended to be buggier.
 
-A second check is a **fresh pair of eyes**. The guide suggests a review in a fresh context, such as a subagent that sees only the diff and your criteria, because then Claude "won't be biased toward code it just wrote". It also warns that a reviewer asked to find gaps "will usually report some, even when the work is sound", so tell it to flag only what affects correctness or the stated requirements.
+A second check is a **fresh pair of eyes**. The guide suggests a review in a fresh context, such as a subagent that sees only the diff and your criteria. It notes that in a fresh context Claude "won't be biased toward code it just wrote". It also warns that a reviewer asked to find gaps "will usually report some, even when the work is sound", so tell it to flag only what affects correctness or the stated requirements.
 
 ---
 
@@ -191,7 +191,7 @@ Each step has its own job. Exploring finds the existing code, planning catches t
 - **"Planning is always worth it."** It adds overhead. If the diff fits in one sentence, ask for it directly.
 - **"If the agent says it's done, it's done."** It stops when the work looks done. Ask for evidence from a check it ran.
 - **"Asking the model to double-check is verification."** Without outside feedback, self-correction is unreliable on reasoning tasks, and can make things worse.
-- **"Passing unit tests means the feature works."** Tests check only what they test. In Anthropic's experiments, end-to-end testing caught bugs the unit tests missed.
+- **"Passing unit tests means the feature works."** Tests check only what they test. In Anthropic's experiments, end-to-end testing in a browser caught broken features that the agent's unit tests and curl checks had missed.
 - **"A reviewer's findings are all must-fixes."** A reviewer asked for gaps will usually find some. Scope it to correctness and requirements.
 
 ---
