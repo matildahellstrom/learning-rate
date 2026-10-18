@@ -47,11 +47,6 @@
     "colour": "orange",
     "upcoming": [
       {
-        "id": "evals",
-        "title": "Evals",
-        "order": 4
-      },
-      {
         "id": "prompt-caching",
         "title": "Prompt caching",
         "order": 5

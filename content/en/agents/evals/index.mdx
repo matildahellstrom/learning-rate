@@ -1,0 +1,266 @@
+---
+id: evals
+title: Evals
+summary: How to test an AI system the way you test code, from writing success criteria and choosing graders to reading a score's error bars.
+track: agents
+order: 4
+prerequisites: [agent-loops, sampling-temperature]
+minutes: 13
+xp: 100
+volatility: fast-moving
+lastVerified: 2026-10-18
+sources:
+  - title: 'Anthropic (2026): Demystifying evals for AI agents'
+    url: https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents
+  - title: 'Anthropic: Define success criteria and build evaluations (Claude API docs)'
+    url: https://platform.claude.com/docs/en/test-and-evaluate/develop-tests
+  - title: 'Zheng et al. (2023): Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena'
+    url: https://arxiv.org/abs/2306.05685
+  - title: 'Miller (2024): Adding Error Bars to Evals, A Statistical Approach to Language Model Evaluations'
+    url: https://arxiv.org/abs/2411.00640
+quiz:
+  - type: numeric
+    prompt: 'An agent succeeds on a task in 90% of trials, and trials are independent. What is pass^3, the chance that all three of three trials succeed? Give a decimal between 0 and 1.'
+    answer: 0.729
+    tolerance: 0.005
+    explanation: 'pass^k asks for every trial to succeed, so multiply: 0.9 × 0.9 × 0.9 = 0.729. Demanding consistency lowers the score as k grows, the opposite of pass@k, which asks for at least one success.'
+  - type: choice
+    prompt: 'Your model judge compares two answers and keeps picking whichever one is shown first. Which fix did Zheng and colleagues suggest?'
+    options:
+      - Always put the longer answer first
+      - Use a smaller judge model
+      - Ask the judge to be fair
+      - Judge each pair twice with the order swapped, and only count a win if the same answer wins both times
+    answer: 3
+    explanation: 'This is position bias. Swapping the order and calling inconsistent results a tie cancels out a preference for one slot. Putting the longer answer first would leave the position preference in place, and judges can also favour longer answers.'
+  - type: choice
+    prompt: 'A flight-booking agent ends its run with "Your flight has been booked", but no reservation exists in the booking database. How should the trial be graded?'
+    options:
+      - As a failure, because the outcome in the environment is what counts
+      - As a pass, because the agent said the right thing
+      - As a pass, because it used the booking tool
+      - It cannot be graded at all
+    answer: 0
+    explanation: 'Anthropic separates the transcript (what the agent said and did) from the outcome (the final state of the environment). Here the outcome is whether a reservation exists, and it does not.'
+  - type: numeric
+    prompt: 'A model scores 80% on an eval of 400 independent pass-or-fail questions. Using the standard error formula from the lesson, what is the standard error, in percentage points?'
+    answer: 2
+    tolerance: 0.1
+    explanation: 'SE = √(0.8 × 0.2 ÷ 400) = √0.0004 = 0.02, or 2 percentage points. A 95% interval is about 80 ± 3.9, so a rival scoring 82% on the same eval is not clearly better on this evidence alone.'
+  - type: choice
+    prompt: 'A frontier model scores 0% on one task across 100 trials. According to Anthropic, what does that most often signal?'
+    options:
+      - The model cannot do this kind of task
+      - The task or its grader is probably broken
+      - 100 trials is too few
+      - The eval is saturated
+    answer: 1
+    explanation: 'Anthropic says that with frontier models, 0% pass@100 is "most often a signal of a broken task, not an incapable agent". Check the task description and the grader, and write a reference solution that passes.'
+  - type: choice
+    prompt: 'Which eval would you expect to pass at close to 100%?'
+    options:
+      - A capability eval for a feature you are still building
+      - A brand-new eval of tasks the agent struggles with
+      - A regression eval of tasks the agent already handles
+      - Any eval, if the agent is good enough
+    answer: 2
+    explanation: 'Regression evals check that the agent still does what it used to, so they should sit near 100% and a drop means something broke. Capability evals should start low and give you a hill to climb.'
+---
+
+# It felt better 📋
+
+You tweak your assistant's prompt. You try it on three questions, and the answers look better. You ship it.
+
+A week later, users complain that it has got worse at something you didn't try.
+
+That's the trap of testing by feel. Anthropic's engineering post on evals describes teams "flying blind": users report that the agent feels worse, and nobody can tell a real regression from noise.
+
+An **eval** is the fix. In Anthropic's words, it's "a test for an AI system: give an AI an input, then apply grading logic to its output to measure success." This lesson covers how to decide what success means, the three kinds of grader, model judges and their biases, why the same agent passes and fails the same task, how much a score can be trusted, and how to build a first eval suite.
+
+---
+
+## The parts of an eval
+
+Anthropic's January 2026 post on agent evals uses a small vocabulary:
+
+- A **task** is one test, with inputs and success criteria.
+- Each attempt at a task is a **trial**. Outputs vary between runs, so you run several.
+- A **grader** scores some part of the result. A task can have several.
+- The **transcript** is the full record of a trial: outputs, tool calls, reasoning and results.
+- The **outcome** is the final state of the environment at the end.
+
+🤔 Predict: a flight-booking agent finishes with "Your flight has been booked". Has it passed?
+
+**Not necessarily.** The post's example: the agent might say that, but "the outcome is whether a reservation exists in the environment's SQL database." What the agent says and what it did can differ, so the grader should check the world, not just the words.
+
+One more point from the post: "When we evaluate 'an agent,' we're evaluating the harness and the model working together." The agent loops lesson called that surrounding software the **agentic harness**. So a score belongs to the model and harness together, not to the model alone.
+
+---
+
+## Decide what success means
+
+You can't grade without a target. As of October 2026, Anthropic's docs list four qualities of good success criteria:
+
+- **Specific**: not "good performance" but "accurate sentiment classification".
+- **Measurable**: numbers, or well-defined qualitative scales.
+- **Achievable**: based on benchmarks, past experiments or expert knowledge.
+- **Relevant**: tied to what the application and its users need.
+
+Their example turns "The model should classify sentiments well" into a target: an F1 score (a standard accuracy measure for classifiers) of at least 0.85 "on a held-out test set of 10,000 diverse Twitter posts". **Held-out** means examples kept aside, not used while you tuned the prompt, so the score isn't flattered by examples you've already fitted.
+
+The docs add that most use cases need several criteria at once, such as accuracy, consistency, tone, privacy, response time and cost. And they say evals should "mirror your real-world task distribution", including edge cases: irrelevant or missing input, overly long input, or cases where even humans would struggle to agree.
+
+---
+
+## Three kinds of grader
+
+Who decides whether an output passed? Anthropic's post describes three kinds of grader:
+
+- **Code-based**: exact or pattern matches, unit tests, checks on the final state. The post calls them fast, cheap, objective and reproducible, but "brittle to valid variations" that don't match the expected pattern.
+- **Model-based**: another language model grades the output, for example against a rubric or by comparing two answers. Flexible and able to handle open-ended output, but non-deterministic, more expensive than code, and in need of "calibration with human graders".
+- **Human**: experts or crowd raters. The post calls this "gold standard quality", but expensive and slow.
+
+As of October 2026, the docs give a blunt order of preference. Code-based grading is "Fastest and most reliable"; human grading is "Most flexible and high quality, but slow and expensive. Avoid if possible."; model grading is "suitable for complex judgment" but you should "Test to ensure reliability first then scale."
+
+They also put quantity first: "More questions with slightly lower signal automated grading is better than fewer questions with high-quality human hand-graded evals." The post calls deterministic graders "natural for coding agents": does the code run, and do the tests pass? For conversational agents, where quality of interaction matters, it says teams typically use model-based graders.
+
+---
+
+## Models as judges
+
+Using a strong model to grade another model's answers is called **LLM-as-a-judge**. Does it agree with people?
+
+Zheng and colleagues tested this in 2023 on MT-bench, a set of multi-turn questions whose answers experts compared in pairs. Leaving out ties, GPT-4 as a judge agreed with the human experts 85% of the time, while the experts agreed with each other 81% of the time.
+
+🤔 Predict: the judge sees answer A, then answer B. Could the order alone change its verdict?
+
+**Yes.** They gave judges pairs of very similar answers, then swapped the order. Most judges favoured the first position, and in their words "Only GPT-4 outputs consistent results in more than 60% of cases" (65% for GPT-4 with their default prompt). That's **position bias**.
+
+They also tested **verbosity bias**. They took 23 answers containing a numbered list and padded each with a reworded copy of the list, adding no new information. Two judges, Claude-v1 and GPT-3.5, preferred the padded version 91.3% of the time; GPT-4 did so 8.7% of the time. A third suspect, judges favouring their own answers, came out inconclusive: the authors say their study "cannot determine" whether that bias exists.
+
+Their fix for position bias is simple: judge each pair twice with the order swapped, count a win only when the same answer wins both times, and call any inconsistency a tie.
+
+---
+
+## Making a judge you can trust
+
+As of October 2026, Anthropic's docs and post give practical advice for model graders:
+
+- **Clear rubrics.** The docs' example: "The answer should always mention 'Acme Inc.' in the first sentence." Vague rubrics, the post warns, "produce inconsistent judgments".
+- **Constrained output.** Ask for "only 'correct' or 'incorrect'", or a score from 1 to 5, not an essay.
+- **Reasoning first.** The docs suggest a grader "with thinking on", so it reasons before it scores.
+- **A way out.** "To avoid hallucinations", the post suggests letting the judge answer "Unknown" when it lacks the information.
+- **One judge per dimension.** The post says it can help to grade each part of the rubric with a separate judge, rather than one judge for everything.
+- **A different model.** A comment in the docs' code examples calls it "Generally best practice to use a different model to evaluate than the model used to generate the evaluated output".
+
+Above all, check the judge against people. The post says LLM judges "should be closely calibrated with human experts", and once that's done, occasional human review is enough.
+
+---
+
+## Same task, different results
+
+The sampling lesson showed that a model picks each token at random from a distribution, so two runs can differ. Agent runs vary too, and the post puts it plainly: "a task that passed on one eval run might fail on the next."
+
+So you run several trials, and there are two ways to summarise them:
+
+- **pass@k**: the chance of **at least one** success in $k$ trials. It rises with $k$. Fine for a tool where one good answer is enough.
+- **pass^k**: the chance that **all** $k$ trials succeed. It falls with $k$. This matters for customer-facing agents, where people expect it to work every time.
+
+🤔 Predict: an agent succeeds 75% of the time on a task. Over 3 trials, what's pass^3?
+
+**About 42%**: the post's own example, $0.75^3 \approx 0.42$. At $k = 1$ the two measures are the same. The post adds that by $k = 10$ they "tell opposite stories": pass@k nears 100% while pass^k falls towards 0%.
+
+<Deeper title="Go deeper: the two formulas">
+If each trial succeeds independently with probability $p$ (a simplifying assumption; real trials can share causes of failure):
+
+$$
+\begin{aligned}
+P(\text{at least one}) &= 1 - (1 - p)^{k} \\
+P(\text{all } k) &= p^{\,k}
+\end{aligned}
+$$
+
+The first is pass@k, the second pass^k. With $p = 0.75$ and $k = 10$, pass@10 is $1 - 0.25^{10} \approx 0.999999$, while pass^10 is $0.75^{10} \approx 0.056$.
+
+</Deeper>
+
+---
+
+## How sure is a score?
+
+Your new prompt scores 82% and the old one scored 80%. Is it better?
+
+An eval is a sample of the questions you could have asked. Evan Miller's 2024 paper argues that evals are experiments and should report error bars. For pass-or-fail questions, the **standard error** of a score $\bar{s}$ over $n$ questions is
+
+$$
+\text{SE} = \sqrt{\bar{s}\,(1 - \bar{s}) / n}
+$$
+
+and a 95% confidence interval is roughly the score plus or minus $1.96 \times \text{SE}$.
+
+Worked example: 80% on 100 questions gives $\text{SE} = \sqrt{0.8 \times 0.2 / 100} = 0.04$, so the interval is about 80 ± 7.8 points. A 2-point gain is well inside the noise. Quadruple the questions to 400 and the standard error halves.
+
+The paper adds two refinements:
+
+- **Related questions count less.** When questions come in groups, such as several about one passage, the paper's real-world examples found the corrected standard error could be over three times larger than the naive one.
+- **Compare question by question.** When two models run on the same questions, analysing the per-question differences reduces the noise, as long as the models tend to find the same questions easy or hard.
+
+---
+
+## Build your first suite
+
+Anthropic's post has practical advice for starting:
+
+- **Start small and early.** "20-50 simple tasks drawn from real failures is a great start." Early on, changes tend to have big effects, which small samples can detect; mature agents may need more and harder tasks.
+- **Make tasks unambiguous.** "A good task is one where two domain experts would independently reach the same pass/fail verdict." Write a **reference solution** that passes, to prove the task can be solved.
+- **Test both directions.** For web search in Claude.ai, Anthropic tested queries that should trigger a search (the weather) and ones that shouldn't ("who founded Apple?"). The post warns that testing only one side can leave you with an agent that searches for almost everything.
+- **Isolate trials.** Start each from a clean environment. In some internal evals, Claude gained "an unfair advantage" by reading the git history left by earlier trials.
+- **Grade what was produced, not the path.** Checking for an exact sequence of tool calls proved too rigid, because agents find valid approaches nobody anticipated. Give partial credit where a task has several parts.
+
+---
+
+## Keep the eval honest
+
+Evals come in two kinds. **Capability** evals ask what the agent can do; they "should start at a low pass rate", giving a hill to climb. **Regression** evals ask whether it still does what it used to; they "should have a nearly 100% pass rate", so a drop means something broke. When a capability eval passes reliably, it can "graduate" into the regression suite.
+
+The eval itself can be wrong. In the post's example, Claude Opus 4.5 first scored 42% on a benchmark called CORE-Bench. An Anthropic researcher found rigid grading (it rejected "96.12" when expecting "96.124991…"), ambiguous tasks and tasks that couldn't be reproduced exactly. After the bugs were fixed and a less constrained harness was used, the score was 95%.
+
+Hence the post's rule of thumb: "Read the transcripts!" Anthropic says it does not take scores "at face value until someone digs into the details of the eval and reads some transcripts." And watch for **saturation**: "An eval at 100% tracks regressions but provides no signal for improvement."
+
+Evals aren't the only check, either. The post likens it to the Swiss cheese model from safety engineering: automated evals, production monitoring, A/B tests, user feedback and human review each catch failures the others miss.
+
+---
+
+## Common misconceptions
+
+- **"If it looks good on a few examples, it's better."** Small samples are noisy: 80% on 100 questions has a 95% interval of about ±8 points.
+- **"Model judges are unbiased."** In Zheng and colleagues' tests, most judges favoured the first answer shown, and two of the three judges tested usually preferred padded answers. Swap the order and calibrate against people.
+- **"One run per task is enough."** Agents vary between runs. pass@k and pass^k summarise several trials in different ways.
+- **"Check that the agent followed the right steps."** Anthropic found that too rigid; grade the outcome, and read transcripts to see how it got there.
+- **"A low score means a weak model."** It can mean a broken task or grader: CORE-Bench went from 42% to 95% once its grading bugs were fixed.
+
+---
+
+## Quiz time 🧠
+
+Six questions. Grade yourself honestly.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- An **eval** gives a system an input and grades the output. Agent evals have **tasks**, **trials**, **graders**, **transcripts** and **outcomes**.
+- Start from **specific, measurable** success criteria and a **held-out** test set.
+- Prefer **code-based** graders, use **model** judges where judgement is needed, and use **humans** to calibrate.
+- Model judges show **position** and **verbosity** biases; swapping the order helps.
+- **pass@k** asks for one success in k trials; **pass^k** asks for all k.
+- Report **error bars**: $\sqrt{p(1-p)/n}$ for pass-or-fail scores.
+- Start with **20–50 real tasks**, keep trials isolated, and **read the transcripts**.
+
+**Coming up:** the prompt caching lesson covers cutting the cost of the long, repeated prompts that agents and eval runs send, and the guardrails and prompt injection lesson covers keeping tool-using systems safe.
+
+**Related:** the agent loops lesson covers the harness being tested, the sampling & temperature lesson explains why runs vary, the RAG lesson covers a system whose retrieval and answers you can measure separately, and the overfitting lesson explains why test data must be held out.
+
+Hit **Finish** to collect your XP! 🏁
