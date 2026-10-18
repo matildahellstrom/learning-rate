@@ -158,9 +158,9 @@ Remember the context window: the model can only use what's in it. Tool definitio
 
 In 2023, Timo Schick and seven co-authors described the problem this way: language models solve new tasks from a few examples, yet "struggle with basic functionality, such as arithmetic or factual lookup, where much simpler and smaller models excel."
 
-Their model, **Toolformer**, learned to call a calculator, a question-answering system, two search engines, a translator and a calendar. It was trained "to decide which APIs to call, when to call them, what arguments to pass, and how to best incorporate the results". A call sat inside ordinary text, like this example from the paper: `Calculator(735 / 499) → 1.47`.
+Their model, **Toolformer**, learned to call a calculator, a question-answering system, a Wikipedia search engine, a translator and a calendar. It was trained "to decide which APIs to call, when to call them, what arguments to pass, and how to best incorporate the results". A call sat inside ordinary text, like this example from the paper: `Calculator(735 / 499) → 1.47`.
 
-The clever part was how the training data was made. The model itself proposed possible calls, the calls were run, and a call was kept only if its result made the following words **easier to predict**. That needed only "a handful of demonstrations for each API". Built on a 6.7-billion-parameter model, Toolformer was "often competitive with much larger models" across the tasks they tested.
+The clever part was how the training data was made. The model itself proposed possible calls, the calls were run, and a call was kept only if its result made the following words **easier to predict**. That needed only "a handful of demonstrations for each API". Built on a 6.7-billion-parameter model, Toolformer was, in zero-shot tests, "often competitive with much larger models".
 
 The authors also listed what it couldn't do. It couldn't **chain** tools (feed one tool's output into another), and it couldn't use a tool interactively, such as refining a search.
 
@@ -208,9 +208,9 @@ Whichever kind, the model's side of the deal is the same: choose a tool, fill in
 
 The model picks a tool by reading its name and description, so those words do a lot of work. As of October 2026, Anthropic's guide calls detailed descriptions "by far the most important factor in tool performance" and suggests "at least 3–4 sentences" per tool: what it does, when to use it (and when not), what each parameter means, and its limits.
 
-Anthropic's engineers found the same in their own agents. When they launched Claude's web search tool, Claude was "needlessly appending 2025" to its search queries, which skewed the results; a better tool description fixed it.
+Anthropic's engineers found the same in their own agents. When they launched Claude's web search tool, Claude was "needlessly appending 2025" to its search queries, which skewed the results; improving the tool description steered Claude in the right direction.
 
-🤔 Predict: while building a coding agent, Anthropic saw the model make mistakes with file paths like `src/app.ts` after it had moved out of the project's root folder. Would you fix the prompt, or the tool?
+🤔 Predict: while building a coding agent, Anthropic saw the model make mistakes with relative file paths (such as `src/app.ts`) after it had moved out of the project's root folder. Would you fix the prompt, or the tool?
 
 **The tool.** They changed it "to always require absolute filepaths" (paths that start from the top of the file system), "and we found that the model used this method flawlessly." For that agent, they report spending more time optimising the tools than the overall prompt. Their advice is to **poka-yoke** your tools: "Change the arguments so that it is harder to make mistakes."
 
