@@ -299,3 +299,18 @@ You asked to be told when the first version was ready, so these phases were buil
 
 1. Run `/context` in this repo and see how many tokens CLAUDE.md costs at startup.
 2. Apply the pruning question ("Would removing this cause Claude to make mistakes?") to this repo's CLAUDE.md. Which lines would you cut?
+
+## Skills, subagents and hooks (2026-10-18)
+
+**Built:** Three more Coding with AI lessons with the `write-lesson` skill: Skills, Subagents and Hooks. MCP is the last upcoming lesson in the track.
+
+**Concepts:**
+
+- **Recover the numbers the page-to-text step drops.** SkillsBench renders some results as maths, so a plain-text dump showed "land below the no-Skills baseline ( to pp)". Reading the raw HTML's `alttext` gave −8.1 to −11.5 points.
+- **Keep the authors' caveat with a striking result.** Self-written skills scored below no skills at all, but the paper says that deficit mixes content quality with discovery and creator/solver interference, so the lesson says so too.
+- **Defaults beat intuition in hooks.** Exit 1 is the Unix failure code, yet in Claude Code only exit 2 blocks; a matcher names tools, so a Bash `sed` slips past an `Edit|Write` hook.
+
+**Explore:**
+
+1. Write a `PreToolUse` hook for this repo that blocks edits under `dist/`, then test it by piping sample JSON into the script and checking the exit code.
+2. Check the `write-lesson` skill's description against Anthropic's advice (what it does, when to use it, words people actually type). What would you change?
