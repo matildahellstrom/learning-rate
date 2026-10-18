@@ -1,0 +1,257 @@
+---
+id: claude-md
+title: CLAUDE.md
+summary: The instruction file Claude Code reads at the start of every session, what belongs in it, and why a short one usually beats a long one.
+track: ai-coding
+order: 4
+prerequisites: [context-management, prompting]
+minutes: 13
+xp: 100
+volatility: fast-moving
+lastVerified: 2026-10-18
+sources:
+  - title: 'Anthropic: How Claude remembers your project (Claude Code docs)'
+    url: https://code.claude.com/docs/en/memory
+  - title: 'Anthropic: Best practices for Claude Code'
+    url: https://code.claude.com/docs/en/best-practices
+  - title: 'Anthropic: Explore the context window (Claude Code docs)'
+    url: https://code.claude.com/docs/en/context-window
+  - title: 'Anthropic Applied AI team (2025): Effective context engineering for AI agents'
+    url: https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents
+  - title: 'Jaroslawicz, Whiting, Shah & Maamari (2025): How Many Instructions Can LLMs Follow at Once?'
+    url: https://arxiv.org/abs/2507.11538
+  - title: 'Gloaguen, Mündler-Sasahara, Müller, Raychev & Vechev (2026): Evaluating AGENTS.md: Are Repository-Level Context Files Helpful for Coding Agents?'
+    url: https://arxiv.org/abs/2602.11988
+quiz:
+  - type: choice
+    prompt: 'Which line most deserves a place in a project CLAUDE.md?'
+    options:
+      - Write clean, readable code.
+      - 'Run tests with `pnpm test:unit`; the plain `test` script also starts the slow browser suite.'
+      - A file-by-file description of the src folder
+      - The full documentation of a third-party API
+    answer: 1
+    explanation: 'Anthropic''s guide says to include commands Claude can''t guess and gotchas that aren''t self-evident. "Write clean code" is self-evident, Claude can find files by reading the code, and long API docs are better linked than pasted.'
+  - type: choice
+    prompt: 'You start Claude Code in a folder app/web. There is a CLAUDE.md in app/ and another in app/web/. What does Claude get?'
+    options:
+      - Only app/web/CLAUDE.md, because the closest file overrides the others
+      - Only app/CLAUDE.md, because the top-level file wins
+      - Both, joined together, with app/web/CLAUDE.md read last
+      - Neither, unless you import them by hand
+    answer: 2
+    explanation: 'Claude Code loads CLAUDE.md files from the working directory and every directory above it, and joins them rather than letting one override another. The one closest to where you launched is read last.'
+  - type: choice
+    prompt: 'Claude keeps ignoring a rule that is clearly written in your 450-line CLAUDE.md. What is the most likely cause, according to Anthropic?'
+    options:
+      - The file is too long, so the rule gets lost among the others
+      - CLAUDE.md files are only read once a week
+      - Rules must be written in capital letters to count
+      - Claude ignores any rule about testing
+    answer: 0
+    explanation: "Anthropic's guide says that if Claude keeps doing something despite a rule against it, the file is probably too long and the rule is getting lost. Its docs suggest a target of under 200 lines per file."
+  - type: numeric
+    prompt: 'Gloaguen and colleagues found context files raised inference cost by over 20% on average. Suppose a task normally uses 50,000 tokens and a context file raises that by exactly 20%. How many tokens does it use now?'
+    answer: 60000
+    tolerance: 100
+    explanation: '50,000 × 1.2 = 60,000 tokens. The file loads at the start of every session, so even a file that does not raise the success rate is paid for every time.'
+  - type: choice
+    prompt: 'You need the formatter to run after every single file edit, with no exceptions. Where should that go?'
+    options:
+      - A line in CLAUDE.md marked IMPORTANT
+      - A note in the README
+      - The first line of each prompt
+      - A hook, which runs a command at a fixed point whatever Claude decides
+    answer: 3
+    explanation: 'CLAUDE.md is context: Claude reads it and tries to follow it, but there is no guarantee. Anthropic calls hooks deterministic, so anything that must happen every time belongs in one.'
+  - type: choice
+    prompt: 'In the IFScale benchmark, what happened as the number of instructions in one prompt went up to 500?'
+    options:
+      - Every model followed all of them
+      - Accuracy fell, and even the best models followed only about 68% at 500
+      - Accuracy rose, because more instructions mean more guidance
+      - Only small models were affected
+    answer: 1
+    explanation: 'Jaroslawicz and colleagues gave models up to 500 simple keyword instructions. Performance degraded as instructions piled up, and even the best frontier models reached 68% at the maximum. Their task was artificial, but the direction is a reason to keep instruction files lean.'
+---
+
+# Groundhog Day for your agent 🔁
+
+Every morning you open a new session and explain the same things: _"we use pnpm"_, _"tests live in `tests/`, run them with `pnpm test:unit`"_, _"never touch the generated files"_. Every morning the agent nods along. Tomorrow it will have forgotten.
+
+It isn't being rude. Claude Code's docs put it simply: "Each Claude Code session begins with a fresh context window." Nothing from yesterday's chat is in it.
+
+**CLAUDE.md** is the fix: a plain Markdown file that Claude Code reads at the start of every session. This lesson covers how it loads, what to put in it, what to leave out, and why shorter usually works better.
+
+---
+
+## A note Claude reads first
+
+A CLAUDE.md is just text. As of October 2026, Anthropic's docs say there's "no required format", but to "keep it short and human-readable". A tiny example from Anthropic's guide:
+
+```markdown
+# Code style
+
+- Use ES modules (import/export) syntax, not CommonJS (require)
+
+# Workflow
+
+- Be sure to typecheck when you're done making a series of code changes
+```
+
+Claude Code puts the file's contents into the context window as a message after its system prompt, at the start of every conversation. The context management lesson showed that the project-root CLAUDE.md is also re-read from disk after compaction, which is why rules that must last belong there rather than in chat.
+
+You don't have to start from a blank page. The `/init` command looks at your project and writes a starter file; if one exists already, the docs say it suggests improvements rather than overwriting it. To check the file actually loaded, run `/context` and look under **Memory files**.
+
+---
+
+## Where the files live
+
+There can be more than one. As of October 2026, the docs list these places, from broadest to narrowest:
+
+- **Organisation**: a managed file set up by IT, for company-wide rules.
+- **You, everywhere**: `~/.claude/CLAUDE.md`, your personal preferences for every project.
+- **The project**: `./CLAUDE.md` (or `./.claude/CLAUDE.md`), checked into git and shared with the team.
+- **You, this project**: `./CLAUDE.local.md`, personal notes you add to `.gitignore`.
+
+🤔 Predict: you start Claude Code in `foo/bar/`, and both `foo/CLAUDE.md` and `foo/bar/CLAUDE.md` exist. Does the closer one replace the other?
+
+**No.** Claude Code loads the files in your working directory and every directory above it, and they are "concatenated into context rather than overriding each other". The order runs from the top down, so `foo/bar/CLAUDE.md` is read last. Files in subfolders below where you started load later, once Claude works with a file in that folder.
+
+---
+
+## What belongs in it
+
+The docs suggest a simple test for when to add something: Claude made the same mistake a second time, a code review caught something Claude should have known, you typed the same correction as last session, or a new teammate would need the same context.
+
+Anthropic's guide lists what to **include**:
+
+- **Commands Claude can't guess** (the right test script, a build flag).
+- **Style rules that differ from defaults**, not ones every project uses.
+- **Testing instructions** and preferred test runners.
+- **Repository etiquette**, like branch naming and pull request conventions.
+- **Project-specific architecture decisions** and **environment quirks** (required environment variables).
+- **Gotchas**: behaviour that isn't self-evident.
+
+The thread running through them: things Claude can't work out by reading the code. The guide calls it "persistent context it can't infer from code alone".
+
+---
+
+## What to leave out
+
+The same guide lists what to **exclude**: anything Claude can figure out by reading the code, standard language conventions, detailed API documentation (link to it instead), information that changes often, long tutorials, file-by-file descriptions of the codebase, and self-evident advice like "write clean code".
+
+🤔 Predict: a popular tip is to start a context file with an overview of the repository. Does that help a coding agent finish its tasks?
+
+A 2026 study by Gloaguen and colleagues tested this on real tasks, with both model-written context files and ones developers had committed to their own repositories. In its latest version, the paper reports that "providing context files does not generally improve task success rates", while raising inference cost by "over 20% on average". Agents did follow the instructions in the files well, but **repository overviews were not helpful**.
+
+The authors don't conclude that context files are useless. They say they are useful "for specifying non-standard coding practices", and that any attempt to improve performance with them "should be rigorously evaluated". That fits Anthropic's include list: the unusual things, not the obvious ones.
+
+---
+
+## Why short wins
+
+Every line of the project CLAUDE.md is in the window for every session, and the context management lesson showed that a fuller window tends to make the model less reliable. As of October 2026, the docs add that each subagent loads its own copy of CLAUDE.md too (the built-in Explore and Plan agents skip it), so a long file takes up room in each of those windows too.
+
+As of October 2026, Anthropic's docs suggest a target of "under 200 lines per CLAUDE.md file", because "longer files consume more context and reduce adherence". The guide is blunter: "Bloated CLAUDE.md files cause Claude to ignore your actual instructions!"
+
+Research points the same way. In a 2025 benchmark called **IFScale**, Jaroslawicz and colleagues asked models to write a business report while following up to 500 simple instructions, each one a keyword to include. Performance fell as instructions piled up: "even the best frontier models only achieve 68% accuracy" at 500, and models showed a bias towards earlier instructions. It's an artificial task, but the direction is clear.
+
+Two more things to watch, from Anthropic's docs:
+
+- **Emphasis wears out.** Mark one line "IMPORTANT" if Claude keeps skipping it, but "if you emphasize many lines, none of them stands out".
+- **Contradictions get resolved at random.** "If two instructions contradict each other, Claude may pick one arbitrarily."
+
+Splitting the file with `@path` imports keeps it tidy, but the docs note that imported files "also load at launch", so the cost stays the same.
+
+---
+
+## Write rules you could check
+
+Vague rules leave the model to guess. The docs suggest instructions "concrete enough to verify", with three pairs:
+
+- _"Use 2-space indentation"_ instead of _"Format code properly"_.
+- _"Run `npm test` before committing"_ instead of _"Test your changes"_.
+- _"API handlers live in `src/api/handlers/`"_ instead of _"Keep files organized"_.
+
+Each good version is something you could look at and say yes or no. It's the same advice as the prompting lesson's "be clear and direct", applied to a note that every session reads. That's also how you debug the file: if Claude asks you a question the file already answers, the guide says "the phrasing might be ambiguous".
+
+Anthropic's engineering post on context describes the same balance for any instructions: the "right altitude" sits between brittle, over-detailed rules and vague guidance that "falsely assumes shared context". And it adds that "minimal does not necessarily mean short": include what's needed, nothing more.
+
+---
+
+## Advice, not a guarantee
+
+The docs are careful about what CLAUDE.md is: "context, not enforced configuration". It arrives as a message after the system prompt, and "there's no guarantee of strict compliance, especially for vague or conflicting instructions".
+
+So for things that must happen every time, use a different tool:
+
+- **Hooks** run a command at a fixed point, like after every edit or before Claude finishes. Anthropic's guide calls them "deterministic"; CLAUDE.md instructions are "advisory". (Hooks get their own lesson later in this track.)
+- **Skills** hold procedures only needed sometimes, and load on demand "without bloating every conversation".
+- **Path-scoped rules** in `.claude/rules/` load only when Claude works with matching files.
+
+<Deeper title="Go deeper: AGENTS.md and auto memory">
+Other coding tools use a file called `AGENTS.md` for the same job. As of October 2026, Claude Code's docs say it reads `AGENTS.md` when there's no CLAUDE.md in the working directory or above it (from version 2.1.277), and a CLAUDE.md can also import an `AGENTS.md` so both tools share one file.
+
+Claude Code also has **auto memory**: notes Claude writes for itself about your preferences and corrections. You write CLAUDE.md; Claude writes auto memory. As of October 2026, only the first 200 lines or 25KB of its index file load at the start of each session.
+
+</Deeper>
+
+---
+
+## Treat it like code
+
+Anthropic's guide says to "treat CLAUDE.md like code: review it when things go wrong, prune it regularly, and test changes by observing whether Claude's behavior actually shifts". Check it into git so the team can improve it together. As of October 2026, the guide also says that for a checked-in CLAUDE.md, the `/doctor` command has Claude propose cuts for content it can work out from the codebase.
+
+The guide's pruning question is worth memorising. For each line, ask: _"Would removing this cause Claude to make mistakes?"_ If not, cut it. And if Claude already does something right without the instruction, the guide suggests deleting it or turning it into a hook.
+
+---
+
+## Your turn: prune a draft
+
+Here's a draft CLAUDE.md for a made-up web app. For each line, decide: **keep**, **cut**, or **move** (to a hook or a skill).
+
+1. _Write good, clean code._
+2. _Run unit tests with `pnpm test:unit`; `pnpm test` also starts the slow browser suite._
+3. _The src folder contains components, pages and utils._
+4. _Always run the formatter after every edit, no exceptions._
+5. _Never edit files in `src/generated/`; they are rebuilt from the schema._
+6. _Step-by-step guide for our quarterly database migration (40 lines)._
+
+Answers: **keep** 2 and 5: Claude can't guess either from the code, and getting them wrong costs time. **Cut** 1 (self-evident) and 3 (Claude can see the folders). **Move** 4 to a hook, because "no exceptions" needs a guarantee, and 6 to a skill, because it's a long procedure needed a few times a year.
+
+---
+
+## Common misconceptions
+
+- **"CLAUDE.md is a config file Claude must obey."** It's context. Claude tries to follow it, but for guarantees use hooks.
+- **"More detail always helps."** Longer files reduce adherence, and one study found repository overviews didn't improve task success.
+- **"Splitting it into imports makes it cheaper."** Imported files load at launch too; path-scoped rules and skills are what load on demand.
+- **"The closest CLAUDE.md replaces the others."** They are joined together, with the closest one read last.
+- **"Write it once and forget it."** Review and prune it like code, and check that changes actually shift Claude's behaviour.
+
+---
+
+## Quiz time 🧠
+
+Six questions about writing a CLAUDE.md that works.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- Every session starts with a **fresh context window**; **CLAUDE.md** is read at the start of each one.
+- Files from your working directory and every folder above it are **joined**, closest last.
+- Include what Claude **can't infer from the code**: commands, unusual conventions, gotchas.
+- Leave out the **self-evident** and the **discoverable**; repository overviews didn't help in one study.
+- Keep it **short** (Anthropic suggests under 200 lines), with **concrete, checkable** rules.
+- It's **advice**, not enforcement: use **hooks** for must-happen actions and **skills** for occasional procedures.
+- **Prune and test** it like code.
+
+**Coming up:** the skills lesson covers packaging procedures that load only when needed, and the hooks lesson covers rules that run every time.
+
+**Related:** the context management lesson explains why every line in the window has a cost, the prompting lesson covers writing clear, direct instructions, and the explore, plan, implement, verify lesson shows the workflow your CLAUDE.md commands support.
+
+Hit **Finish** to collect your XP! 🏁

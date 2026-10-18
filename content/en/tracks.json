@@ -39,11 +39,6 @@
     "colour": "green",
     "upcoming": [
       {
-        "id": "claude-md",
-        "title": "CLAUDE.md",
-        "order": 4
-      },
-      {
         "id": "skills",
         "title": "Skills",
         "order": 5
