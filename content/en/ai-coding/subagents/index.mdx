@@ -12,8 +12,6 @@ lastVerified: 2026-10-18
 sources:
   - title: 'Anthropic: Create custom subagents (Claude Code docs)'
     url: https://code.claude.com/docs/en/sub-agents
-  - title: 'Anthropic: Extend Claude Code (Claude Code docs)'
-    url: https://code.claude.com/docs/en/features-overview
   - title: 'Anthropic: Best practices for Claude Code'
     url: https://code.claude.com/docs/en/best-practices
   - title: 'Anthropic: Extend Claude with skills (Claude Code docs)'
@@ -40,7 +38,7 @@ quiz:
       - It deletes the bug report
       - It has no editing tools, so it can only find the bug and report back
     answer: 3
-    explanation: "The tools field is an allowlist: the subagent gets those tools and nothing else. Claude Code's docs give a read-only code reviewer as an example; it reports what it found, and the main conversation (or another agent) makes the fix."
+    explanation: "The tools field is an allowlist: the subagent can use only tools from that list. Claude Code's docs give a read-only code reviewer as an example: it reviews code without modifying it, so any fix happens elsewhere, for example back in the main conversation."
   - type: numeric
     prompt: 'Anthropic found that multi-agent systems used about 15 times as many tokens as chats. If a chat answer takes 2,000 tokens, roughly how many tokens would a multi-agent run on the same question use?'
     answer: 30000
@@ -95,7 +93,7 @@ What a subagent does get, as of October 2026:
 
 - **Its own system prompt**, not Claude Code's main one.
 - **The task message** Claude writes when handing off.
-- **Your CLAUDE.md files** and a snapshot of git status (except for the built-in Explore and Plan agents, which skip both).
+- **Your CLAUDE.md files** and a snapshot of git status (except for the built-in Explore and Plan agents, which skip both, and custom subagents that set `omitClaudeMd`, which skip CLAUDE.md).
 - **Any skills** its definition lists to preload.
 
 So the docs' advice is: if a rule must reach the subagent, "such as 'ignore the vendor/ directory,' restate it in the prompt you give Claude when delegating."
@@ -110,7 +108,7 @@ You don't have to define anything to start. As of October 2026, Claude Code incl
 - **Plan**: a read-only research agent used in plan mode to gather context before presenting a plan.
 - **General-purpose**: has every tool available to subagents, for tasks that need "both exploration and action".
 
-The docs say Explore and Plan start without your CLAUDE.md files and git status "to keep research fast and inexpensive". The flip side is that they start without your project's main rules, so anything they must follow belongs in the delegation message.
+The docs say Explore and Plan start without your CLAUDE.md files and git status "to keep research fast and inexpensive". The flip side is that they start without your top-level CLAUDE.md rules (a subfolder's CLAUDE.md still loads when they work there). Your main conversation still applies your rules to their results, so only a rule the subagent itself must follow needs to go in the delegation message.
 
 You can also just ask. Anthropic's best-practices guide suggests prompts like _"Use a subagent to review this code for security issues."_
 
@@ -148,7 +146,7 @@ Like a skill, a subagent is picked by its **description**: Claude uses it "to de
 
 🤔 Predict: the reviewer above lists `tools: Read, Grep, Glob, Bash`. If it finds a bug, can it fix it with the Edit tool?
 
-**No.** As of October 2026, `tools` is an allowlist: the subagent gets those tools and no others. The docs' own example with exactly that list says "the subagent can't edit files, write files, or use any MCP tools". (Bash can still change files through shell commands, as the hooks docs point out, so a strictly read-only reviewer might leave it out too.) Leave the field out and it "inherits every tool available to subagents".
+**No.** As of October 2026, `tools` is an allowlist: the subagent can use only tools from that list (and Claude Code may withhold some of them, for example in background runs). The docs' own example with exactly that list says "the subagent can't edit files, write files, or use any MCP tools". (Bash can still change files through shell commands, as the hooks docs point out, so a strictly read-only reviewer might leave it out too.) Leave the field out and it "inherits every tool available to subagents".
 
 That's one of the reasons the docs give for using subagents at all:
 
@@ -156,7 +154,7 @@ That's one of the reasons the docs give for using subagents at all:
 - **Specialise behaviour** with a focused system prompt.
 - **Control costs** by sending some tasks to a faster, cheaper model, set with the `model` field.
 
-The docs' own code-reviewer example is read-only in this way: it finds and reports, and the main conversation decides what to change.
+The docs' own code-reviewer example is read-only in this way: it reviews code without modifying it, and any fix happens elsewhere, for example back in the main conversation.
 
 ---
 
@@ -197,7 +195,7 @@ As of October 2026, Claude Code's docs list when the **main conversation** is th
 
 And when a **subagent** is the better place: the task produces **verbose output** you don't need, you want to **restrict its tools**, or the work is **self-contained** and can return a summary.
 
-In between sits the **fork**. As of October 2026, a fork is a subagent that "inherits the entire conversation so far instead of starting fresh", so you don't have to re-explain anything. Its own tool calls still stay out of your window and only its final result comes back. You start one with `/subtask` followed by the task.
+In between sits the **fork**. As of October 2026, a fork is a subagent that "inherits the entire conversation so far instead of starting fresh", so you don't have to re-explain anything. Its own tool calls still stay out of your window and only its final result comes back. You start one with `/subtask` followed by the task (or `/fork` if agent view is turned off).
 
 <Deeper title="Go deeper: skills and subagents together">
 The two features combine in two directions. As of October 2026:
@@ -231,7 +229,7 @@ Answers: (1) **Subagent**: lots of output, short summary. (2) **Main conversatio
 - **"More agents means better results."** Breadth-first research gained in Anthropic's set-up, but the post says most coding tasks have less to parallelise, and multi-agent runs used about 15× the tokens of a chat.
 - **"Subagents are free because they don't fill my window."** They spend their own tokens, count toward the same usage limits, and their summaries still land in your window.
 - **"A short handoff is fine; the subagent will work it out."** Vague handoffs led to misread tasks and duplicated searches; give an objective, output format, tools and boundaries.
-- **"Built-in Explore follows my CLAUDE.md."** Explore and Plan skip CLAUDE.md to stay lean, so put key rules in the delegation message.
+- **"Built-in Explore follows my CLAUDE.md."** Explore and Plan skip your top-level CLAUDE.md to stay lean, so put any rule they themselves must follow in the delegation message.
 
 ---
 
