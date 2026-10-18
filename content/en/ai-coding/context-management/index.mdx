@@ -101,12 +101,12 @@ Some of it loads before you type anything. As of October 2026, Claude Code's doc
 
 A bigger pile of text isn't just slower. Anthropic's guide calls the context window "the most important resource to manage", because "performance degrades as it fills".
 
-The context windows lesson called this **context rot**. Anthropic's engineering post on context offers a way to picture it: a model has an **attention budget**, and "every new token introduced depletes this budget by some amount". Part of the reason is how transformers work: every token can attend to every other token, so there are about n² pairs for n tokens, and a longer context stretches attention thinner.
+The context windows lesson called this **context rot**. Anthropic's engineering post on context offers a way to picture it: a model has an **attention budget**, and "every new token introduced depletes this budget by some amount". Part of the reason is how transformers work: every token can attend to every other token, so there are about n² pairs for n tokens (about half that in models like Claude, where each token looks only at earlier ones), and a longer context stretches attention thinner.
 
-The post stresses that this is "a performance gradient rather than a hard cliff". Models still work well with long inputs; they just get less precise at finding and using details. So the goal isn't a tiny window, it's the post's rule of thumb: "the smallest possible set of high-signal tokens" that gets the job done.
+The post stresses that this is "a performance gradient rather than a hard cliff". Models stay highly capable with long inputs, but they may get less precise at retrieving details and reasoning across the whole window. So the goal isn't a tiny window, it's the post's rule of thumb: "the smallest possible set of high-signal tokens" that gets the job done.
 
 <Deeper title="Go deeper: how fast the pairs grow">
-With n tokens, each token can look at all n, so there are n² attention scores per layer and head:
+In the simplest picture, with n tokens each token can look at all n, so there are n² attention scores per layer and head (masking to earlier tokens halves that, which doesn't change the ratios below):
 
 $$
 \begin{aligned}
@@ -115,7 +115,7 @@ n = 100{,}000 &\Rightarrow 10^{10} \text{ pairs}
 \end{aligned}
 $$
 
-A hundred times more tokens means ten thousand times more pairs. Attention weights in each row still add up to 1 (softmax), so the more tokens compete, the smaller the average weight each one gets. The post also points out that models see fewer very long sequences in training, so they have less practice with dependencies that span the whole window.
+A hundred times more tokens means ten thousand times more pairs. And because softmax makes each row of attention weights add up to 1, the more tokens compete, the smaller the average weight each one can get (1/n). The post also points out that models see fewer very long sequences in training, so they have less practice with dependencies that span the whole window.
 
 </Deeper>
 
@@ -125,7 +125,7 @@ A hundred times more tokens means ten thousand times more pairs. Attention weigh
 
 The simplest habit is also the strongest. As of October 2026, Claude Code's `/clear` command starts "a new conversation with empty context". Your old session isn't deleted; you can return to it with `/resume`.
 
-Anthropic's guide names a failure pattern it calls **the kitchen sink session**: you start one task, ask something unrelated, then go back. The window is now full of things the current task doesn't need, and the docs add that old conversation "costs tokens on every message".
+Anthropic's guide names a failure pattern it calls **the kitchen sink session**: you start one task, ask something unrelated, then go back. The window is now full of things the current task doesn't need, and the docs page on the context window adds that old conversation "costs tokens on every message".
 
 🤔 Predict: Claude has made the same mistake twice, and you've corrected it twice. Should you keep correcting in the same session?
 
@@ -165,7 +165,7 @@ A **subagent** is a second instance of the agent with its own, separate context 
 
 Anthropic's post describes the economics: each subagent "might explore extensively, using tens of thousands of tokens or more, but returns only a condensed, distilled summary of its work (often 1,000-2,000 tokens)".
 
-Worked example (made-up numbers in that range): a subagent reads 40,000 tokens of code to answer "how does our auth refresh tokens?" and replies in 1,500 tokens. Your main window grows by 1,500, not 40,000: under 4% of what reading it yourself would cost.
+Worked example (made-up numbers in that range): a subagent reads 40,000 tokens of code to answer "how does our auth refresh tokens?" and replies in 1,500 tokens. Your main window grows by roughly 1,500 (plus the task you sent and a small trailer), not 40,000: under 4% of what reading it yourself would cost.
 
 Anthropic's guide suggests prompts like _"Use subagents to investigate how our authentication system handles token refresh, and whether we have any existing OAuth utilities I should reuse."_ The trade-off is that you see the summary, not the evidence, so ask for file paths you can check. (Subagents get their own lesson later in this track.)
 
@@ -175,7 +175,7 @@ Anthropic's guide suggests prompts like _"Use subagents to investigate how our a
 
 Some work is too long for any one window. Anthropic's post describes **structured note-taking**: the agent writes notes to a file outside the context window, such as a to-do list or a `NOTES.md`, and reads them back later.
 
-Anthropic's post on long-running agents pushes this further. Its author compares the problem to engineers working in shifts, where "each new session begins with no memory of what came before". In their experiments, which built web apps, each coding session was prompted to read a progress file and the git log to get its bearings, work on one feature, then commit with a descriptive message and update the progress file.
+Anthropic's post on long-running agents pushes this further. The core problem, its author writes, is that "each new session begins with no memory of what came before", like engineers working in shifts who arrive knowing nothing of the previous shift. In their experiments, in which an agent built a clone of the claude.ai web app, each coding session was prompted to read a progress file and the git log to get its bearings, work on one feature, then commit with a descriptive message and update the progress file.
 
 Two smaller tools help day to day, as of October 2026:
 
@@ -199,7 +199,7 @@ Answers: (1) **/clear**: nothing from the feature helps the bug. (2) **/compact 
 
 ## Common misconceptions
 
-- **"A bigger context window means I don't need to manage it."** Anthropic's post expects that, for the foreseeable future, windows "of all sizes" will still face context pollution. More room doesn't make irrelevant tokens helpful.
+- **"A bigger context window means I don't need to manage it."** Anthropic's post expects that, for the foreseeable future, windows "of all sizes" will still face context pollution, at least when you want the agent's best performance. More room doesn't make irrelevant tokens helpful.
 - **"Compaction keeps everything important."** It keeps what the summary judges important. Early instructions can be lost, which is why lasting rules go in CLAUDE.md.
 - **"/clear throws my work away."** It clears the context, not your files, and the old conversation can be resumed.
 - **"Subagents are free."** They still spend tokens; they just spend them in a separate window. And you see their summary, not everything they read.
