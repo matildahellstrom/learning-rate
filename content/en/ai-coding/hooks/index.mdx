@@ -50,7 +50,7 @@ quiz:
       - Yes, but only at the end of the session
       - No, because Prettier refuses files changed by sed
     answer: 0
-    explanation: 'A matcher names tools, not files. Claude can also change files with shell commands, so the docs suggest also matching Bash (and listing changed files), a Stop hook that scans the working tree, or a FileChanged hook if every change must be caught.'
+    explanation: 'A matcher names tools, not files. Claude can also change files with shell commands, so the docs suggest also matching Bash|PowerShell (and listing changed files), a Stop hook that scans the working tree, or a FileChanged hook if every change must be caught.'
   - type: choice
     prompt: 'You run Claude Code with permissions bypassed. A PreToolUse hook returns a deny decision for a command. What happens?'
     options:
@@ -75,7 +75,7 @@ quiz:
 
 Your CLAUDE.md says, in capitals, **IMPORTANT: run the formatter after every edit.** For the first dozen edits Claude does. On the thirteenth, deep in a tricky refactor, it doesn't, and the pull request fails its style check.
 
-Nobody did anything wrong. The CLAUDE.md lesson showed that instruction files are advice: Claude tries to follow them, with no guarantee. Anthropic's own guide puts it this way: CLAUDE.md instructions are "advisory", while hooks "are deterministic and guarantee the action happens."
+Nobody did anything wrong. The CLAUDE.md lesson showed that instruction files are advice: Claude tries to follow them, with no guarantee. Anthropic's best-practices page puts it this way: CLAUDE.md instructions are "advisory", while hooks "are deterministic and guarantee the action happens."
 
 A **hook** is a command that Claude Code itself runs at a fixed moment, such as after every file edit. This lesson covers how hooks are set up, how they can block an action, the surprises in how they work, and how to keep them safe.
 
@@ -95,7 +95,7 @@ Hooks live in a `hooks` block in a settings file:
 - **`.claude/settings.json`** in a repository: that project, and it can be committed for the team.
 - **`.claude/settings.local.json`**: that project, just for you.
 
-Run `/hooks` to see what's configured. And you don't have to write the JSON by hand: Anthropic's guide suggests asking Claude, for example _"Write a hook that runs eslint after every file edit."_
+Run `/hooks` to see what's configured. And you don't have to write the JSON by hand: Anthropic's best-practices page suggests asking Claude, for example _"Write a hook that runs eslint after every file edit."_
 
 ---
 
@@ -104,7 +104,7 @@ Run `/hooks` to see what's configured. And you don't have to write the JSON by h
 Each hook is attached to an **event**, a moment in Claude Code's loop. As of October 2026, the docs list 33 of them. A handful cover most uses:
 
 - **`SessionStart`**: a session begins or resumes.
-- **`UserPromptSubmit`**: you send a prompt, before Claude processes it.
+- **`UserPromptSubmit`**: a prompt is submitted (by you, or a turn Claude Code starts itself), before Claude processes it.
 - **`PreToolUse`**: before a tool call runs. It **can block** the call.
 - **`PostToolUse`**: after a tool call succeeds.
 - **`Notification`**: Claude Code sends a notification, for example when it needs your input.
@@ -144,7 +144,7 @@ As of October 2026, the docs say that without a matcher, "a hook fires on every 
 
 🤔 Predict: Claude changes a file by running a `sed` command through the Bash tool. Does this formatter run?
 
-**No.** The matcher names tools, and Bash isn't `Edit` or `Write`. The docs warn that "Claude can also create or modify files by running shell commands." If a hook must see every change, they suggest also matching Bash, adding a `Stop` hook that scans the working tree once per turn, or using a `FileChanged` hook.
+**No.** The matcher names tools, and Bash isn't `Edit` or `Write`. The docs warn that "Claude can also create or modify files by running shell commands." If a hook must see every change, they suggest also matching `Bash|PowerShell` and listing changed files, adding a `Stop` hook that scans the working tree once per turn, or using a `FileChanged` hook.
 
 ---
 
@@ -160,9 +160,9 @@ Claude Code then blocks the edit and passes the reason to Claude, which the docs
 
 - **0**: no objection. For `PreToolUse` this "doesn't approve the tool call": your normal permission rules still apply.
 - **2**: block the action, with standard error as the reason. Some events, such as `SessionStart`, can't be blocked; there, exit 2 shows you the message and carries on.
-- **Anything else**: for most events, a **non-blocking error**. You see a notice, and the action goes ahead.
+- **Anything else**: for most events, a **non-blocking error**. You see a notice, and the action goes ahead (unless the hook prints valid JSON, which then decides, or is set to block on failure).
 
-The reference spells it out: exit 1 is a non-blocking error by default, "even though 1 is the conventional Unix failure code. If your hook is meant to enforce a policy, use `exit 2`."
+The reference spells it out: by default, exit 1 without valid JSON output is a non-blocking error, "even though 1 is the conventional Unix failure code. If your hook is meant to enforce a policy, use `exit 2`."
 
 <Deeper title="Go deeper: JSON decisions">
 Instead of relying on exit codes, a hook can print a JSON object to standard output to make a finer decision. A `PreToolUse` hook, for example, can return a permission decision of `allow`, `deny`, `ask` or `defer`.
@@ -177,7 +177,7 @@ As of October 2026, when several hooks match the same event, Claude Code runs th
 
 Claude Code has permission modes, including one that skips its usual approval prompts. Where do hooks sit?
 
-As of October 2026, the docs say `PreToolUse` hooks "fire before any permission-mode check", so a hook that denies a call "blocks the tool even in `bypassPermissions` mode". The docs say this lets you enforce policy that users "can't bypass by changing their permission mode".
+As of October 2026, the docs say `PreToolUse` hooks "fire before any permission-mode check", so a hook that denies a call "blocks the tool even in `bypassPermissions` mode". The docs say this lets you enforce policy that users "can't bypass by changing their permission mode". (One caveat in the docs: an installed mod can still approve a call your hook blocked, unless the hook is in managed settings.)
 
 It only works one way, though. Hooks in settings files "can tighten restrictions but not loosen them past what permission rules allow": a hook that says "allow" doesn't override a deny rule.
 
@@ -187,7 +187,7 @@ The features overview sums up where rules belong: "An instruction like 'never ed
 
 ## A gate before "done"
 
-A `Stop` hook runs when Claude finishes responding. As of October 2026, Anthropic's guide describes it as "a deterministic gate": it "runs your check as a script and blocks the turn from ending until it passes." If the tests fail, the hook blocks and Claude keeps working instead of stopping.
+A `Stop` hook runs when Claude finishes responding. As of October 2026, Anthropic's best-practices page describes it as "a deterministic gate": it "runs your check as a script and blocks the turn from ending until it passes." If the tests fail, the hook blocks and Claude keeps working instead of stopping.
 
 Two cautions from the docs:
 
@@ -240,7 +240,7 @@ Answers: **Hooks** for (1) `PostToolUse` on edits, (3) `PreToolUse` with exit 2,
 - **"A hook is a stronger kind of instruction."** It isn't an instruction at all: Claude Code runs it, and Claude doesn't decide whether it runs.
 - **"Exit 1 blocks the action."** Only exit 2 blocks; other non-zero codes are non-blocking errors by default.
 - **"A PostToolUse hook can catch and reverse a bad edit."** The tool has already run; block it in `PreToolUse` instead.
-- **"An Edit|Write matcher sees every file change."** Shell commands can change files too; match Bash as well, or check the working tree.
+- **"An Edit|Write matcher sees every file change."** Shell commands can change files too; match `Bash|PowerShell` as well, or check the working tree.
 - **"Hooks are harmless config."** They run with your full user permissions, so review any hook before you let it run.
 
 ---
