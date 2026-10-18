@@ -39,11 +39,6 @@
     "colour": "green",
     "upcoming": [
       {
-        "id": "hooks",
-        "title": "Hooks",
-        "order": 7
-      },
-      {
         "id": "mcp",
         "title": "MCP",
         "order": 8
