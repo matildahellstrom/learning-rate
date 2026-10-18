@@ -314,3 +314,18 @@ You asked to be told when the first version was ready, so these phases were buil
 
 1. Write a `PreToolUse` hook for this repo that blocks edits under `dist/`, then test it by piping sample JSON into the script and checking the exit code.
 2. Check the `write-lesson` skill's description against Anthropic's advice (what it does, when to use it, words people actually type). What would you change?
+
+## Tool use, agent loops and MCP (2026-10-18)
+
+**Built:** The first two Agentic AI lessons, Tool use and Agent loops, and MCP, the last Coding with AI lesson, with the `write-lesson` skill.
+
+**Concepts:**
+
+- **Specs are versioned, so cite the version.** The MCP site redirects to the 2026-07-28 docs, which made the protocol stateless and deprecated sampling. The lesson cites that version and sticks to parts that hold across versions (hosts, clients, servers, the three primitives).
+- **Mixed results are the result.** ReAct beat chain-of-thought on Fever but slightly trailed it on HotpotQA, and combining the two did best; a one-line "ReAct is better" summary would have dropped that.
+- **Model-specific API rules stay out of general claims.** Forced tool choice and missing-parameter behaviour differ by model, so the Tool use lesson leaves them out instead of stating them as general.
+
+**Explore:**
+
+1. Write a tiny `while stop_reason == "tool_use"` loop with one fake tool and print every turn. Where would you add a turn limit?
+2. Read a public MCP server's tool descriptions. Do they meet the "3–4 sentences" advice from Anthropic's define-tools guide?
