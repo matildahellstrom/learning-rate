@@ -37,13 +37,7 @@
     "description": "Prompting, context and Claude Code workflows that actually work.",
     "icon": "🛠️",
     "colour": "green",
-    "upcoming": [
-      {
-        "id": "mcp",
-        "title": "MCP",
-        "order": 8
-      }
-    ]
+    "upcoming": []
   },
   {
     "id": "agents",

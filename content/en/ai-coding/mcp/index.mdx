@@ -1,0 +1,254 @@
+---
+id: mcp
+title: MCP
+summary: How the Model Context Protocol lets one AI app plug into many outside tools and data sources, how to connect a server to Claude Code, and why every server needs your trust.
+track: ai-coding
+order: 8
+prerequisites: [tool-use, context-management]
+minutes: 13
+xp: 100
+volatility: fast-moving
+lastVerified: 2026-10-18
+sources:
+  - title: 'Anthropic (2024): Introducing the Model Context Protocol'
+    url: https://www.anthropic.com/news/model-context-protocol
+  - title: 'Model Context Protocol: What is the Model Context Protocol (MCP)?'
+    url: https://modelcontextprotocol.io/docs/2026-07-28/getting-started/intro
+  - title: 'Model Context Protocol: Architecture overview'
+    url: https://modelcontextprotocol.io/docs/2026-07-28/learn/architecture
+  - title: 'Model Context Protocol: Specification (version 2026-07-28)'
+    url: https://modelcontextprotocol.io/specification/2026-07-28
+  - title: 'Model Context Protocol: Tools (specification, version 2026-07-28)'
+    url: https://modelcontextprotocol.io/specification/2026-07-28/server/tools
+  - title: 'Model Context Protocol: Security best practices'
+    url: https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices
+  - title: 'Anthropic: Connect Claude Code to tools via MCP (Claude Code docs)'
+    url: https://code.claude.com/docs/en/mcp
+  - title: 'Anthropic: Security (Claude Code docs)'
+    url: https://code.claude.com/docs/en/security
+quiz:
+  - type: numeric
+    prompt: 'Three AI apps each need to reach the same six services. Without a shared protocol, each app needs its own connector for each service. With MCP, each app implements MCP once and each service gets one MCP server. How many fewer pieces have to be built with MCP?'
+    answer: 9
+    tolerance: 0
+    explanation: 'Without a standard: 3 × 6 = 18 custom connectors. With MCP: 3 app-side implementations + 6 servers = 9 pieces. That is 18 − 9 = 9 fewer, and the gap grows as either side grows, because a product grows faster than a sum.'
+  - type: choice
+    prompt: 'VS Code, acting as an MCP host, connects to a Sentry server and a local filesystem server. How many MCP clients does it create?'
+    options:
+      - None; the host talks to servers directly
+      - One, shared by every server
+      - Three, one per tool
+      - Two, one for each server
+    answer: 3
+    explanation: "The MCP docs say the host creates one MCP client for each MCP server, and each client keeps a dedicated connection to its server. VS Code is the docs' own example: connecting to a second server creates a second client."
+  - type: choice
+    prompt: 'A database MCP server offers three things: a function that runs a query, the database schema as context, and a template with example queries. Which mapping is right?'
+    options:
+      - Query is a resource, schema is a tool, template is a prompt
+      - Query is a tool, schema is a resource, template is a prompt
+      - All three are tools
+      - Query is a prompt, schema is a tool, template is a resource
+    answer: 1
+    explanation: 'Tools are functions for the model to execute, resources are data that provide context, and prompts are reusable templates. The MCP docs use this same database example to show all three primitives.'
+  - type: choice
+    prompt: 'You run claude -p in a freshly cloned repository whose .mcp.json defines a project-scoped server. What does Claude Code do with that server, as of October 2026?'
+    options:
+      - Loads it without asking, because a non-interactive run can't show the approval prompt
+      - Asks for approval in the terminal and waits
+      - Ignores every .mcp.json file in non-interactive runs
+      - Refuses to start until you delete .mcp.json
+    answer: 0
+    explanation: 'In interactive sessions Claude Code asks before using project-scoped servers from .mcp.json. In claude -p runs, Agent SDK sessions and cloud sessions it cannot show that prompt, so it loads them without asking. Review the file first, or keep a server out with disabledMcpjsonServers or --strict-mcp-config.'
+  - type: choice
+    prompt: 'A server you found online marks its delete_everything tool with an annotation saying it is harmless. What does the MCP specification say about that annotation?'
+    options:
+      - Clients must trust it, because annotations are part of the protocol
+      - Clients should run the tool to check
+      - Clients must treat annotations as untrusted unless they come from a trusted server
+      - Annotations are signed, so they cannot be false
+    answer: 2
+    explanation: 'The specification says clients MUST consider tool annotations untrusted unless they come from trusted servers. A description is just text the server chose to send, and MCP itself cannot enforce its security principles at the protocol level.'
+  - type: choice
+    prompt: 'You connect ten MCP servers to Claude Code. With tool search on (the default in most set-ups as of October 2026), what loads into context at session start?'
+    options:
+      - Every tool's full definition from all ten servers
+      - Only tool names and server instructions; full definitions load when Claude needs them
+      - Nothing at all until you type /mcp
+      - The source code of every server
+    answer: 1
+    explanation: 'Tool search defers MCP tool definitions until Claude needs them, so only tool names and server instructions load at the start. The docs list exceptions where Claude Code loads tools upfront instead, such as some proxies, platforms and older models.'
+---
+
+# Copy, paste, repeat 🔌
+
+You're fixing a bug from your issue tracker. You copy the issue into Claude Code. Claude asks about an error, so you open your monitoring dashboard and paste that too. Then a database query. You've become the cable between Claude and your tools.
+
+As of October 2026, Claude Code's docs suggest a better moment to stop: "Connect a server when you find yourself copying data into chat from another tool". Once connected, Claude "can read and act on that system directly instead of working from what you paste."
+
+The thing being connected is an **MCP server**. This lesson covers what the Model Context Protocol is, the parts it's built from, how to add a server to Claude Code, what it costs in context, and why a server deserves the same caution as any program you install.
+
+---
+
+## One plug, many tools
+
+In November 2024, Anthropic announced it was "open-sourcing the Model Context Protocol (MCP)". The problem it named: "Every new data source requires its own custom implementation, making truly connected systems difficult to scale."
+
+🤔 Predict: four AI apps each want to reach the same five services. If every pair needs its own custom connector, how many connectors is that? And if every app speaks one shared protocol and every service offers one server for it?
+
+**20 versus 9.** Custom connectors multiply: 4 × 5 = 20. With a shared protocol, the work adds up instead: 4 app-side implementations plus 5 servers. That's the arithmetic behind Anthropic's aim of "replacing fragmented integrations with a single protocol".
+
+As of October 2026, the MCP site calls it "an open-source standard for connecting AI applications to external systems" and offers an analogy: "Think of MCP like a USB-C port for AI applications." It lists support in assistants such as Claude and ChatGPT and in development tools such as VS Code and Cursor.
+
+---
+
+## Hosts, clients and servers
+
+As of October 2026, the specification names three roles:
+
+- **Host**: the AI application, such as Claude Code or VS Code. The spec calls hosts "LLM applications that initiate connections".
+- **Client**: "connectors within the host application".
+- **Server**: "services that provide context and capabilities", such as a filesystem or database server.
+
+The architecture docs add: the host creates **one client for each server**, and each client keeps "a dedicated connection" to its server. Their example: VS Code connects to a Sentry server and gets one client; connect a filesystem server too, and it creates a second.
+
+Messages use **JSON-RPC 2.0**, a standard format for sending requests and replies as JSON. The spec says MCP takes some inspiration from the Language Server Protocol, which standardises how to add support for programming languages across development tools.
+
+The docs also draw a boundary: MCP "focuses solely on the protocol for context exchange". It doesn't dictate how an app uses its model or what the model does with the context.
+
+---
+
+## What a server can offer
+
+As of October 2026, the specification defines three things a server can offer:
+
+- **Tools**: "functions for the AI model to execute", such as running a query or creating an issue.
+- **Resources**: "context and data, for the user or the AI model to use", such as a file or a database schema.
+- **Prompts**: "templated messages and workflows for users", such as a ready-made instruction with examples.
+
+The architecture docs give one database server as an example of all three: "tools for querying the database, a resource that contains the schema of the database, and a prompt that includes few-shot examples for interacting with the tools."
+
+Notice who's in charge of each. The tools spec calls tools **model-controlled**: the model can discover and call them. Prompts are aimed at users. In Claude Code, as of October 2026, you reference a server's resources with `@`, like a file, and its prompts show up as commands you run with `/`.
+
+---
+
+## How a tool call travels
+
+The tool use lesson showed a model asking for a tool and your code running it. MCP standardises the "your code" part.
+
+🤔 Predict: Claude wants to use a tool from your issue-tracker server. Does the model talk to the server itself?
+
+**No.** As of October 2026, the architecture docs describe the host's side:
+
+1. The client asks each server for its tools with **`tools/list`**. Each tool comes with a `name`, a `description` and an `inputSchema`, the same ingredients as a tool you'd define yourself.
+2. The host combines tools from every server into one registry the model can see.
+3. When the model asks for one, the client sends **`tools/call`** to the right server with the tool's name and arguments.
+4. The result comes back as content (text, images and more) for the model to read.
+
+So the model writes the same kind of tool request it always does. The host and its clients handle the plumbing, which is why a server written once can work in many hosts.
+
+---
+
+## Local or remote
+
+As of October 2026, MCP defines two standard ways to carry messages, called **transports**:
+
+- **stdio**: the host starts the server as a program on your machine and talks to it through standard input and output. The docs call this a "local" server.
+- **Streamable HTTP**: the server runs elsewhere and is reached over the web, often serving many clients. The docs say "MCP recommends using OAuth to obtain authentication tokens" (OAuth is a widely used standard for granting access without handing over a password).
+
+Claude Code's docs, as of October 2026, call HTTP "the recommended option for connecting to remote MCP servers", mark an older transport (SSE) as deprecated, and describe stdio servers as local processes "ideal for tools that need direct system access or custom scripts". Their example for adding a remote server:
+
+```bash
+claude mcp add --transport http notion https://mcp.notion.com/mcp
+```
+
+Then `claude mcp list` shows your servers, and `/mcp` inside a session shows their status and handles sign-in.
+
+---
+
+## Where a server's settings live
+
+As of October 2026, Claude Code stores each server at one of three **scopes**:
+
+- **Local** (the default): this project only, private to you, stored in `~/.claude.json`. Good for servers with credentials you don't want in version control.
+- **Project**: stored in `.mcp.json` at the project's root, which you can commit so "everyone on your team gets the same MCP tools and services".
+- **User**: all your projects on this machine, still private to you, also in `~/.claude.json`.
+
+If the same server is defined in more than one scope, Claude Code connects once, using local first, then project, then user.
+
+A project's `.mcp.json` arrives with the code, so Claude Code treats it carefully. In interactive sessions, the docs say, it "prompts for approval" before using project-scoped servers.
+
+🤔 Predict: what happens in a scripted `claude -p` run, where nobody is there to answer a prompt?
+
+**It loads them without asking.** As of October 2026, the docs say that in `claude -p` runs, Agent SDK sessions and cloud sessions, Claude Code "can't show that prompt: it loads project-scoped servers without asking." Before scripting Claude Code over someone else's repository, read its `.mcp.json`, or keep servers out with the `disabledMcpjsonServers` setting or the `--strict-mcp-config` flag.
+
+---
+
+## Tools cost context
+
+The context management lesson showed that everything in the window competes for the model's attention. Every tool definition is text the model has to be shown.
+
+As of October 2026, Claude Code handles this with **tool search**, on by default: "Only tool names and server instructions load at session start", and full definitions load when Claude needs them, "so adding more MCP servers has minimal impact on your context window." The docs list exceptions where Claude Code loads every tool upfront instead, including some proxies, some cloud platforms and older models.
+
+Results cost context too. As of October 2026, Claude Code warns when an MCP tool's output passes 10,000 tokens and, by default, caps it at 25,000 tokens (adjustable with `MAX_MCP_OUTPUT_TOKENS`). A successful text result over the cap is saved to a file, which Claude reads when it needs the content.
+
+So connect the servers you'll use, not every one you can find.
+
+---
+
+## A server is code you trust
+
+As of October 2026, the specification is direct: "Tools represent arbitrary code execution and must be treated with appropriate caution." It also says that what a server says about its tools, such as annotations, "should be considered untrusted, unless obtained from a trusted server." And it admits a limit: "MCP itself cannot enforce these security principles at the protocol level". It's up to the apps that implement MCP to build in consent, for example the spec's rule that hosts must get your explicit consent before invoking any tool.
+
+Three ways things go wrong, described at the level of mechanism:
+
+- **A malicious local server.** A stdio server is a program on your machine. The MCP security guide warns that a harmful start-up command can be slipped into a client's configuration, or harmful code shipped inside a server, and either runs with the same privileges as the client.
+- **Poisoned content.** Claude Code's docs warn that "servers that fetch external content can expose you to prompt injection risk": a web page or ticket the server returns can carry instructions aimed at the model. The AI security lesson covers how this works.
+- **Too much access.** If a token with broad permissions leaks, whoever holds it gets everything it covers. The security guide recommends starting with a minimal set of permissions and asking for more only when needed.
+
+The defences, from the specification and Claude Code's docs: use servers you wrote or "from providers that you trust"; keep a human able to deny tool calls; show tool inputs before they're sent, "to avoid malicious or accidental data exfiltration"; and run local servers in a sandbox where you can. Note that Anthropic reviews connectors for its directory, but its docs say it "does not security-audit or manage any MCP server."
+
+---
+
+## Your turn: pick the scope
+
+For each server, choose **local**, **project** or **user** scope.
+
+1. Your team's issue tracker, which everyone on the repository should have.
+2. A personal notes server you want in every project you open.
+3. An experimental server for this one project, configured with your own API key.
+
+Answers: (1) **project**: it goes in `.mcp.json`, committed for the team. (2) **user**: it loads in all your projects, private to you. (3) **local**: this project only, and the key stays out of version control.
+
+---
+
+## Common misconceptions
+
+- **"MCP is a Claude-only feature."** It's an open standard; the MCP site lists clients from several companies, including ChatGPT, VS Code and Cursor.
+- **"The model connects to the server."** The host's MCP client does; the model just asks for tools by name.
+- **"MCP servers are just tools."** Servers can also offer resources (context data) and prompts (templates).
+- **"An official-looking server is safe."** A server is code with your client's privileges; Anthropic's docs say it doesn't security-audit MCP servers.
+- **"More servers are free."** Tool search keeps definitions small at the start, but tool results still fill your context.
+
+---
+
+## Quiz time 🧠
+
+Six questions on plugging in safely.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- **MCP** is an open standard for connecting AI apps to outside systems: build a connector once, use it in many apps.
+- A **host** (the app) creates one **client** per **server**, and they talk in **JSON-RPC**.
+- Servers offer **tools** (for the model to call), **resources** (context) and **prompts** (templates).
+- **stdio** servers run on your machine; **Streamable HTTP** servers run remotely, ideally behind OAuth.
+- In Claude Code, servers live at **local**, **project** (`.mcp.json`) or **user** scope; a scripted `claude -p` run loads project servers **without asking**.
+- **Tool search** keeps definitions out of context until needed; big results are capped.
+- A server is **code you trust**: annotations aren't proof, fetched content can carry injected instructions, and the host has to enforce consent.
+
+**Related:** the tool use lesson covers the round trip MCP standardises, the agent loops lesson covers the loop those tools run in, the hooks lesson covers hooks, which can themselves call MCP tools, the context management lesson covers the budget servers share, and the AI security lesson covers prompt injection in depth.
+
+Hit **Finish** to collect your XP! 🏁
