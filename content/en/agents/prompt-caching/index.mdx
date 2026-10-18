@@ -1,0 +1,241 @@
+---
+id: prompt-caching
+title: Prompt caching
+summary: How an API can reuse the work it already did on the start of your prompt, what that costs, and how to structure prompts so the cache actually hits.
+track: agents
+order: 5
+prerequisites: [context-windows, agent-loops]
+minutes: 12
+xp: 100
+volatility: fast-moving
+lastVerified: 2026-10-18
+sources:
+  - title: 'Anthropic: Prompt caching (Claude API docs)'
+    url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+  - title: 'Anthropic: Pricing (Claude API docs)'
+    url: https://platform.claude.com/docs/en/about-claude/pricing
+  - title: 'Anthropic (2024): Introducing Contextual Retrieval'
+    url: https://www.anthropic.com/engineering/contextual-retrieval
+quiz:
+  - type: numeric
+    prompt: 'On Claude Opus 5 (as of October 2026: $5 per million input tokens, 5-minute cache writes at 1.25 times that, cache reads at 0.1 times), you send a 200,000-token prefix five times within a few minutes: one cache write, then four reads. What do those five requests cost for the prefix, in dollars?'
+    answer: 1.65
+    tolerance: 0.01
+    explanation: 'Base price for 200,000 tokens is $1.00. The write costs 1.25 × $1.00 = $1.25 and each read 0.1 × $1.00 = $0.10, so $1.25 + 4 × $0.10 = $1.65. Without caching, five requests would cost $5.00.'
+  - type: choice
+    prompt: 'Your system prompt starts with the current date and time, and your cache breakpoint is at the end of it. Why do you never get a cache hit?'
+    options:
+      - The minimum length is too high for system prompts
+      - System prompts cannot be cached
+      - The timestamp changes every request, and any change at or before the breakpoint changes the prefix being looked up
+      - The cache only works for tool definitions
+    answer: 2
+    explanation: 'A cache hit needs an identical prefix up to the breakpoint. A timestamp near the start makes every request different from the first token on, so each request pays for a fresh write. Put stable content first and the changing part after the breakpoint.'
+  - type: choice
+    prompt: 'Users of your app usually reply about every 20 minutes, and each request reuses a long document. Which cache lifetime fits best?'
+    options:
+      - The 1-hour cache, because the 5-minute entry would expire between replies
+      - The 5-minute cache, because it is cheaper to write
+      - No caching, because 20 minutes is too long for any cache
+      - The 5-minute cache, refreshed by sending the same question again
+    answer: 0
+    explanation: 'Anthropic suggests the 1-hour cache for prompts used less often than every 5 minutes but more often than every hour. Its writes cost 2 times the base input price instead of 1.25, but a 5-minute entry would have expired before each reply arrived.'
+  - type: choice
+    prompt: 'As of October 2026, you mark a 300-token system prompt for caching on Claude Opus 5.5, whose minimum cacheable length on the Claude API is 512 tokens. What happens?'
+    options:
+      - The API returns an error
+      - The prompt is padded to 512 tokens automatically
+      - It is cached anyway, at a higher price
+      - The request is processed without caching, and no error is returned
+    answer: 3
+    explanation: 'The docs say shorter prompts cannot be cached even if marked, and no error is returned. Both cache fields in the usage report come back as 0, which is how you spot it.'
+  - type: numeric
+    prompt: 'A response reports cache_read_input_tokens of 30,000, cache_creation_input_tokens of 2,000 and input_tokens of 500. How many input tokens did the request contain in total?'
+    answer: 32500
+    tolerance: 0
+    explanation: 'The total is the sum of all three: 30,000 + 2,000 + 500 = 32,500. input_tokens only counts the tokens after the last cache breakpoint, so on its own it badly understates the prompt.'
+  - type: choice
+    prompt: 'Does reading a prompt from the cache change how Claude generates its answer?'
+    options:
+      - Yes, cached answers are always shorter
+      - No, the docs say caching has no effect on output token generation
+      - Yes, the model skips its reasoning
+      - Yes, it reuses the previous answer
+    answer: 1
+    explanation: 'Caching reuses the work done on the input prefix. It does not store or replay answers, and the docs say it has no effect on output token generation.'
+---
+
+# Paying twice for the same words 💸
+
+The agent loops lesson showed how an agent works: every turn, your code sends a new request containing everything so far, plus the latest tool results.
+
+Picture a coding agent with 10,000 tokens of instructions and tool definitions. After 20 turns, it has sent those same 10,000 tokens 20 times, and each time the model read them from scratch. Only the end of each request was new.
+
+**Prompt caching** lets the API skip that repeated work. This lesson covers what is actually reused, why only the start of a prompt can be cached, how to mark what to cache, what it costs, how long the cache lasts, and how to tell whether it worked. The details are for Anthropic's Claude API, as of October 2026; other providers' versions differ.
+
+---
+
+## From KV cache to prompt cache
+
+The context windows lesson introduced the **KV cache**: while handling one request, a model computes each token's keys and values once and keeps them, so it doesn't redo that work for every new token. Processing the prompt is the **prompt phase**, often called prefill.
+
+Without prompt caching, the next request has to process its prompt again, even if it starts exactly like the last one. As the pricing page puts it, caching is a way to avoid "reprocessing the same large system prompt, document, or conversation history on every request".
+
+Prompt caching keeps that work between requests. As of October 2026, Anthropic's docs describe it as "allowing resuming from specific prefixes in your prompts". Their data-retention notes say what is kept: "KV (key-value) cache representations and cryptographic hashes of cached content", held in memory only and not stored at rest.
+
+🤔 Predict: why can only the start of a prompt (a **prefix**) be reused, and not a matching passage from the middle?
+
+**Because each token's stored keys and values depend on the tokens before it.** Attention mixes earlier positions into each later one, so in every layer above the first, a token's keys and values already carry information from everything before it. Change one early word and the stored values for every later token change too. So stored work is only valid for a prompt that matches exactly from the very first token, and, in line with that, the docs describe each cache entry as identified by a hash of the whole prefix.
+
+---
+
+## Order matters
+
+As of October 2026, the docs say caching covers "the entire prompt: tools, system, and messages (in that order)", up to the point you mark. That order is a hierarchy: "Changes at each level invalidate that level and all subsequent levels."
+
+- Change a **tool definition**, and the whole cache is invalid.
+- Change the **system prompt**, and the tools' cache survives but the rest doesn't.
+- Add a **new message** at the end, and everything before it can still be reused.
+
+Matching is strict: "Cache hits require 100% identical prompt segments, including all text and images up to and including the block marked with cache control." The docs list some less obvious ways to break it, such as changing the `tool_choice` setting or adding or removing an image, and they warn that some programming languages (they name Swift and Go) can shuffle the order of keys when converting to JSON, which changes the text and breaks the cache.
+
+The rule that follows: put what **never changes** first (tools, instructions, reference documents), and what changes **last** (the user's latest message).
+
+---
+
+## Marking what to cache
+
+As of October 2026, the docs offer two ways to switch it on:
+
+- **Automatic caching**: one `cache_control` field at the top level of the request. The system places the cache point on the last block it can cache, and moves it forward as a conversation grows.
+- **Explicit breakpoints**: put `cache_control` on particular blocks yourself, up to 4 per request. That suits sections that change at different rates. The docs' four-breakpoint example caches tools, instructions, RAG documents and the conversation separately, so updating the documents leaves the tools and instructions cached.
+
+One detail catches people out. A cache entry is written only at a breakpoint, and it is identified by a hash of the whole prefix ending there.
+
+🤔 Predict: your prompt is a long fixed system context, then a block holding a timestamp and the user's question. You put the breakpoint on that last block. What happens on the next request?
+
+**No hit, ever.** The timestamp differs, so the prefix ending at the breakpoint differs. The system does look back up to 20 blocks for an earlier entry, but none was ever written at those positions. The docs' verdict: "You pay for a fresh cache write on every request and never get a read." Move the breakpoint to the last block that stays the same. (Automatic caching falls into the same trap here, because it marks the last block, so the docs recommend an explicit breakpoint in this case.)
+
+---
+
+## What it costs
+
+As of October 2026, caching uses multipliers on a model's base input price:
+
+- **Writing** to the 5-minute cache: **1.25×**.
+- **Writing** to the 1-hour cache: **2×**.
+- **Reading** from the cache: **0.1×** as the standard rate. The docs list exceptions: 0.05× on Claude Opus 5.5 and Claude Sonnet 5.5, and 0.025× on Claude Fable 5.1 and Claude Mythos 5.1.
+
+Breakpoints themselves are free; you pay for what is written and read.
+
+A worked example on Claude Opus 5, whose base input price is \$5 per million tokens. A 100,000-token prefix costs \$0.50 to send uncached. Writing it to the 5-minute cache costs \$0.625; each read costs \$0.05.
+
+- Ten requests uncached: 10 × \$0.50 = **\$5.00**.
+- Ten requests cached: \$0.625 + 9 × \$0.05 = **\$1.075**.
+
+The pricing page sums it up for the standard 0.1× read rate: caching "pays off after one cache read for the 5-minute duration (1.25x write), or after two cache reads for the 1-hour duration (2x write)."
+
+<Deeper title="Go deeper: the break-even point">
+Measure costs in units of the uncached price of the prefix. Sending it $n + 1$ times uncached costs $n + 1$. With a write then $n$ reads at the standard rate:
+
+$$
+\begin{gathered}
+\text{5-minute: } 1.25 + 0.1\,n \\
+\text{1-hour: } 2 + 0.1\,n
+\end{gathered}
+$$
+
+For the 5-minute cache, $1.25 + 0.1n < n + 1$ when $n > 0.28$, so one read already wins. For the 1-hour cache, $2 + 0.1n < n + 1$ needs $n > 1.11$, so two reads.
+
+These multipliers also stack with other price changes, such as the Batch API discount.
+
+</Deeper>
+
+---
+
+## How long it lasts
+
+As of October 2026, a cache entry lasts **5 minutes** by default, and "is refreshed for no additional cost each time the cached content is used." So a busy conversation keeps its cache warm on its own.
+
+The clock starts at the **start** of the request that writes or reads the entry, not when the response ends. The docs' example: if a response takes 4 minutes to stream, the follow-up must start within about 1 minute of it finishing to reuse the cache.
+
+For slower traffic there's a **1-hour** option, at the higher write price. The docs suggest it for prompts used "less frequently than 5 minutes, but more frequently than every hour", such as a chat where the user may not reply within 5 minutes. They say the two lifetimes behave the same for speed: "You will generally see improved time-to-first-token for long documents."
+
+There's no way to clear the cache by hand. Entries expire on their own.
+
+---
+
+## Too short to cache
+
+Not every prompt qualifies. As of October 2026, on the Claude API, the minimum cacheable length depends on the model. Some examples from the docs:
+
+- **512 tokens** for models including Claude Opus 5.5, Claude Sonnet 5.5 and Claude Haiku 5.5.
+- **1,024 tokens** for models including Claude Opus 4.8 and Claude Sonnet 5.
+- **4,096 tokens** for Claude Opus 4.6 and Claude Opus 4.5.
+
+Amazon Bedrock has its own per-model minimums, documented separately.
+
+What happens below the minimum? The docs say the request is "processed without caching, and no error is returned". Nothing warns you, so you have to check.
+
+---
+
+## Did it work?
+
+As of October 2026, each response's usage report has three input counts:
+
+- `cache_creation_input_tokens`: tokens written to the cache by this request.
+- `cache_read_input_tokens`: tokens read from the cache.
+- `input_tokens`: tokens **after** the last breakpoint, which weren't cached.
+
+The total is the sum of all three. The docs' example: 100,000 tokens read from the cache plus a 50-token question gives 100,050 input tokens, even though `input_tokens` says 50.
+
+If both cache counts are 0, nothing was cached, perhaps because the prompt was below the minimum. The docs' troubleshooting list also points to the usual suspects: a breakpoint on a block that changes, a changed `tool_choice` or image, or shuffled JSON keys.
+
+One more trap for parallel work: "a cache entry only becomes available after the first response begins." If you fire off ten identical requests at once, they can all miss. Send one first, then the rest once its response has begun.
+
+---
+
+## What caching doesn't change
+
+As of October 2026, three things stay as they were.
+
+- **The answer.** The docs say "Prompt caching has no effect on output token generation." It reuses work on the input; it doesn't store or replay responses.
+- **The context window.** The context windows lesson noted that cached prefixes still take up room in the window. Caching changes what you pay, not how much fits.
+- **Who can use it.** Cache entries are never shared between organisations, even for identical prompts. On the Claude API they're also kept separate per workspace within an organisation; on Amazon Bedrock and Google Cloud, separation is per organisation.
+
+Caching also made one idea from the RAG lesson cheaper. For Contextual Retrieval, Anthropic's 2024 post says you "load the document into the cache once and then reference the previously cached content" while writing a note for each of its chunks, instead of paying full price for the document every time.
+
+---
+
+## Common misconceptions
+
+- **"The cache stores answers."** It stores the processed prompt prefix (as KV cache representations). The model still writes a fresh answer.
+- **"Any repeated text gets cached."** Only an identical **prefix**, from the very first token up to a breakpoint. A matching paragraph in the middle of a different prompt doesn't help.
+- **"A cache read is always 10% of the price."** That's the standard multiplier as of October 2026, but the docs list cheaper rates for some models, and writes cost more than normal input.
+- **"If I mark it, it's cached."** Not below the model's minimum length, and not if the marked block changes every request. Check the usage fields.
+- **"input_tokens is the size of my prompt."** It counts only what comes after the last breakpoint; add the two cache fields for the total.
+
+---
+
+## Quiz time 🧠
+
+Six questions. Some need a little arithmetic.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- **Prompt caching** keeps the processed form of a prompt **prefix** between requests, building on the **KV cache**.
+- Only an **identical prefix** can be reused, in the order **tools → system → messages**: put stable content first.
+- Mark it with **automatic caching** or up to **4 explicit breakpoints**, and put the breakpoint on the **last block that stays the same**.
+- As of October 2026, writes cost **1.25×** (5 minutes) or **2×** (1 hour) and reads usually **0.1×**, with cheaper reads on some models.
+- Entries last **5 minutes**, refreshed on each use, or **1 hour** at a higher write price. Below a **model-specific minimum**, nothing is cached and no error is raised.
+- Check `cache_read_input_tokens` and `cache_creation_input_tokens` to see whether it worked.
+
+**Coming up:** the guardrails and prompt injection lesson covers keeping tool-using systems safe.
+
+**Related:** the context windows lesson explains the KV cache and the prompt phase, the agent loops lesson shows why agents resend so much, the RAG lesson covers Contextual Retrieval, the tool use lesson covers the tool definitions at the front of the prompt, and the evals lesson covers measuring whether a change, such as reordering a prompt, made things worse.
+
+Hit **Finish** to collect your XP! 🏁

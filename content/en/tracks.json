@@ -47,11 +47,6 @@
     "colour": "orange",
     "upcoming": [
       {
-        "id": "prompt-caching",
-        "title": "Prompt caching",
-        "order": 5
-      },
-      {
         "id": "guardrails",
         "title": "Guardrails & prompt injection",
         "order": 6
