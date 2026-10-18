@@ -1,0 +1,260 @@
+---
+id: subagents
+title: Subagents
+summary: What a Claude Code subagent starts with, how to define your own with its own prompt and tools, and when splitting work across agents pays off.
+track: ai-coding
+order: 6
+prerequisites: [context-management, skills, prompting]
+minutes: 13
+xp: 100
+volatility: fast-moving
+lastVerified: 2026-10-18
+sources:
+  - title: 'Anthropic: Create custom subagents (Claude Code docs)'
+    url: https://code.claude.com/docs/en/sub-agents
+  - title: 'Anthropic: Extend Claude Code (Claude Code docs)'
+    url: https://code.claude.com/docs/en/features-overview
+  - title: 'Anthropic: Best practices for Claude Code'
+    url: https://code.claude.com/docs/en/best-practices
+  - title: 'Anthropic: Extend Claude with skills (Claude Code docs)'
+    url: https://code.claude.com/docs/en/skills
+  - title: 'Anthropic: Automate actions with hooks (Claude Code docs)'
+    url: https://code.claude.com/docs/en/hooks-guide
+  - title: 'Hadfield, Zhang, Lien, Scholz, Fox & Ford (2025): How we built our multi-agent research system (Anthropic engineering)'
+    url: https://www.anthropic.com/engineering/multi-agent-research-system
+quiz:
+  - type: choice
+    prompt: 'Early in a session you and Claude agreed never to touch the legacy/ folder. That rule is not in any CLAUDE.md. Claude now delegates a search to a custom subagent. What does the subagent know about legacy/?'
+    options:
+      - Everything, because it shares your conversation history
+      - Only what Claude puts in the delegation message, since it starts with a fresh context
+      - It reads your auto memory, so it will remember
+      - Subagents can never see folder names
+    answer: 1
+    explanation: 'A subagent that is not a fork starts with a fresh context window. It gets its own system prompt, the task message Claude writes, and (for most subagents) your CLAUDE.md files, but not your chat. The docs say to restate a rule like this in the delegation prompt if it must reach the subagent.'
+  - type: choice
+    prompt: 'A custom subagent is defined with tools set to Read, Grep, Glob. You ask it to find and fix a bug. What happens?'
+    options:
+      - It edits the files anyway, because the task needs it
+      - It switches itself to the general-purpose agent
+      - It deletes the bug report
+      - It has no editing tools, so it can only find the bug and report back
+    answer: 3
+    explanation: "The tools field is an allowlist: the subagent gets those tools and nothing else. Claude Code's docs give a read-only code reviewer as an example; it reports what it found, and the main conversation (or another agent) makes the fix."
+  - type: numeric
+    prompt: 'Anthropic found that multi-agent systems used about 15 times as many tokens as chats. If a chat answer takes 2,000 tokens, roughly how many tokens would a multi-agent run on the same question use?'
+    answer: 30000
+    tolerance: 500
+    explanation: '2,000 × 15 = 30,000 tokens. That is why the authors say multi-agent systems need tasks whose value is high enough to pay for the increased performance.'
+  - type: choice
+    prompt: 'Which of these is the best fit for a subagent?'
+    options:
+      - Run the whole test suite and report only the failing tests with their errors
+      - Rename one variable in the file you are both looking at
+      - Design a new API with you, one question at a time
+      - Plan, build and test a feature where every step depends on the last
+    answer: 0
+    explanation: 'The test run produces a lot of output you will not read again, and the job is self-contained with a short summary at the end. The other three need back-and-forth, shared context or speed, which the docs say suit the main conversation.'
+  - type: choice
+    prompt: 'A lead agent tells three subagents only "research the payment code". What did Anthropic see happen with short instructions like that?'
+    options:
+      - The subagents refused to start
+      - Each subagent automatically picked a different area
+      - Subagents misread the task or repeated each other's searches
+      - The three subagents merged into one context window
+    answer: 2
+    explanation: "Anthropic's research team found short, vague handoffs often led subagents to misinterpret the task or run the same searches as each other. Each subagent needs an objective, an output format, guidance on tools and sources, and clear boundaries."
+  - type: choice
+    prompt: 'A side task needs almost everything you have discussed in this session, and re-explaining it would take a long time. What does Claude Code offer for this?'
+    options:
+      - The built-in Explore agent, which reads your chat first
+      - A new custom subagent with a longer description
+      - Running /clear and starting again
+      - A fork, which starts with a copy of the conversation so far
+    answer: 3
+    explanation: 'A fork inherits the whole conversation, so you do not have to re-explain, and only its final result comes back to your main window. Explore and custom subagents start fresh, and /clear throws your context away.'
+---
+
+# Sixty files you didn't need to see 🔎
+
+You ask Claude Code where your app handles refunds. It searches, opens a file, opens another, follows an import, and forty minutes of tool output later you have your answer, plus a context window stuffed with code you'll never look at again.
+
+The context management lesson introduced the way out: hand the search to a **subagent**, a separate worker with its own context window that does the reading and sends back a summary.
+
+This lesson goes further: what a subagent starts with (and what it doesn't), the built-in ones, how to define your own with its own prompt and tools, how to brief one, and when running several at once is worth the cost.
+
+---
+
+## A fresh start, on purpose
+
+🤔 Predict: you've spent an hour agreeing with Claude that the `vendor/` folder is off-limits. That rule isn't written anywhere. Claude hands a search to a subagent. Does the subagent know to avoid `vendor/`?
+
+**Not unless it's told.** As of October 2026, Claude Code's docs say each subagent "starts with a fresh, isolated context window. It doesn't see your conversation history, the skills you've already invoked, or the files Claude has already read." Claude writes a **delegation message** summarising the task, and the subagent works from that.
+
+What a subagent does get, as of October 2026:
+
+- **Its own system prompt**, not Claude Code's main one.
+- **The task message** Claude writes when handing off.
+- **Your CLAUDE.md files** and a snapshot of git status (except for the built-in Explore and Plan agents, which skip both).
+- **Any skills** its definition lists to preload.
+
+So the docs' advice is: if a rule must reach the subagent, "such as 'ignore the vendor/ directory,' restate it in the prompt you give Claude when delegating."
+
+---
+
+## The built-in helpers
+
+You don't have to define anything to start. As of October 2026, Claude Code includes built-in subagents that Claude "automatically uses when appropriate":
+
+- **Explore**: "a fast, read-only agent optimized for searching and analyzing codebases". It can't write or edit files.
+- **Plan**: a read-only research agent used in plan mode to gather context before presenting a plan.
+- **General-purpose**: has every tool available to subagents, for tasks that need "both exploration and action".
+
+The docs say Explore and Plan start without your CLAUDE.md files and git status "to keep research fast and inexpensive". The flip side is that they start without your project's main rules, so anything they must follow belongs in the delegation message.
+
+You can also just ask. Anthropic's best-practices guide suggests prompts like _"Use a subagent to review this code for security issues."_
+
+---
+
+## Defining your own
+
+When you keep sending the same kind of worker with the same instructions, the docs suggest defining a **custom subagent**. As of October 2026, it's a Markdown file with YAML frontmatter, saved in `.claude/agents/` (this project) or `~/.claude/agents/` (all your projects). Anthropic's guide gives this example:
+
+```markdown
+---
+name: security-reviewer
+description: Reviews code for security vulnerabilities
+tools: Read, Grep, Glob, Bash
+model: opus
+---
+
+You are a senior security engineer. Review code for:
+
+- Injection vulnerabilities (SQL, XSS, command injection)
+- Authentication and authorization flaws
+- Secrets or credentials in code
+- Insecure data handling
+
+Provide specific line references and suggested fixes.
+```
+
+Only `name` and `description` are required. The body becomes the subagent's **system prompt**: the docs say subagents get "only this system prompt plus basic environment details like the working directory, not the Claude Code system prompt."
+
+Like a skill, a subagent is picked by its **description**: Claude uses it "to decide when to delegate tasks". The docs say adding phrases like "use proactively" to the description encourages proactive delegation.
+
+---
+
+## Tools are a fence
+
+🤔 Predict: the reviewer above lists `tools: Read, Grep, Glob, Bash`. If it finds a bug, can it fix it with the Edit tool?
+
+**No.** As of October 2026, `tools` is an allowlist: the subagent gets those tools and no others. The docs' own example with exactly that list says "the subagent can't edit files, write files, or use any MCP tools". (Bash can still change files through shell commands, as the hooks docs point out, so a strictly read-only reviewer might leave it out too.) Leave the field out and it "inherits every tool available to subagents".
+
+That's one of the reasons the docs give for using subagents at all:
+
+- **Enforce constraints** by limiting which tools a subagent can use.
+- **Specialise behaviour** with a focused system prompt.
+- **Control costs** by sending some tasks to a faster, cheaper model, set with the `model` field.
+
+The docs' own code-reviewer example is read-only in this way: it finds and reports, and the main conversation decides what to change.
+
+---
+
+## The handoff is a prompt
+
+A subagent only knows what it's told, so the delegation message is a prompt like any other, and the prompting lesson's advice applies.
+
+Anthropic's research team learned this building a multi-agent research system. Their lead agent started with short instructions like "research the semiconductor shortage", and found these "often were vague enough that subagents misinterpreted the task or performed the exact same searches as other agents."
+
+Their conclusion: "Each subagent needs an objective, an output format, guidance on the tools and sources to use, and clear task boundaries."
+
+For a coding task, compare _"look into the payment code"_ with _"In `src/payments/`, find every place we call the refund API. Don't read tests. Reply with a list of file:line and one sentence on each."_ The second says what to find, where to look, what to skip and what to send back.
+
+And remember what comes back is the **summary**, not everything the subagent read. If you need evidence, ask for it in the output format, such as file and line references.
+
+---
+
+## Many at once
+
+Subagents can run side by side. As of October 2026, Claude Code's docs suggest prompts like _"Research the authentication, database, and API modules in parallel using separate subagents"_, and add that this "works best when the research paths don't depend on each other."
+
+Anthropic's research system shows the upside. In their internal evaluation, a lead agent on Claude Opus 4 with Claude Sonnet 4 subagents "outperformed single-agent Claude Opus 4 by 90.2%", and they say such systems "excel especially for breadth-first queries" that branch in many directions at once.
+
+🤔 Predict: so should every coding task fan out to a team of subagents?
+
+**No.** The same post says "most coding tasks involve fewer truly parallelizable tasks than research, and LLM agents are not yet great at coordinating and delegating to other agents in real time." And it's expensive: "agents typically use about 4× more tokens than chat interactions, and multi-agent systems use about 15× more tokens than chats." As of October 2026, Claude Code's docs add that subagents' requests count toward the same usage limits as your main conversation, and that many subagents each returning detailed results "can consume significant context".
+
+---
+
+## When to stay in the main conversation
+
+As of October 2026, Claude Code's docs list when the **main conversation** is the better place:
+
+- The task needs **frequent back-and-forth** or iterative refinement.
+- Several phases **share a lot of context**, such as planning, building and testing.
+- It's a **quick, targeted change**.
+- **Latency matters**: a fresh subagent "may need time to gather context".
+
+And when a **subagent** is the better place: the task produces **verbose output** you don't need, you want to **restrict its tools**, or the work is **self-contained** and can return a summary.
+
+In between sits the **fork**. As of October 2026, a fork is a subagent that "inherits the entire conversation so far instead of starting fresh", so you don't have to re-explain anything. Its own tool calls still stay out of your window and only its final result comes back. You start one with `/subtask` followed by the task.
+
+<Deeper title="Go deeper: skills and subagents together">
+The two features combine in two directions. As of October 2026:
+
+- A **skill with `context: fork`** runs in a new subagent, with the skill's content as the task. Despite the name, the docs stress it is not a fork of your conversation: the subagent "doesn't see your conversation history, so the skill's instructions have to stand on their own."
+- A **subagent with a `skills` field** gets the full content of those skills loaded at startup, rather than on demand as in the main conversation.
+
+Subagents can also start subagents of their own, by default up to three layers below the main conversation.
+
+</Deeper>
+
+---
+
+## Your turn: delegate or not?
+
+For each task, choose **a subagent** or **the main conversation**.
+
+1. Run the full test suite and report only what failed.
+2. Change a button label you can both see on screen.
+3. Search three unrelated modules for uses of a deprecated function.
+4. Work out a database schema with you, question by question.
+5. Review a finished diff against the plan, as a fresh pair of eyes.
+
+Answers: (1) **Subagent**: lots of output, short summary. (2) **Main conversation**: quick and targeted, and a fresh subagent would have to find the file first. (3) **Subagents**, one per module: independent paths that can run in parallel. (4) **Main conversation**: it needs back-and-forth. (5) **Subagent**: Anthropic's guide says a reviewer in a fresh context "sees only the diff and the criteria you give it, not the reasoning that produced the change".
+
+---
+
+## Common misconceptions
+
+- **"A subagent knows what we've discussed."** Unless it's a fork, it starts fresh with its own prompt and the task message; restate any rule it must follow.
+- **"More agents means better results."** Breadth-first research gained in Anthropic's set-up, but the post says most coding tasks have less to parallelise, and multi-agent runs used about 15× the tokens of a chat.
+- **"Subagents are free because they don't fill my window."** They spend their own tokens, count toward the same usage limits, and their summaries still land in your window.
+- **"A short handoff is fine; the subagent will work it out."** Vague handoffs led to misread tasks and duplicated searches; give an objective, output format, tools and boundaries.
+- **"Built-in Explore follows my CLAUDE.md."** Explore and Plan skip CLAUDE.md to stay lean, so put key rules in the delegation message.
+
+---
+
+## Quiz time 🧠
+
+Six questions on briefing and choosing subagents.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- A **subagent** works in its **own context window** and returns a summary.
+- Unless it's a **fork**, it starts fresh: its own prompt, the task message and (usually) CLAUDE.md, but **not your chat**.
+- **Custom subagents** are Markdown files in `.claude/agents/`; the **description** decides when Claude delegates.
+- The **`tools`** list fences in what a subagent can do, such as a read-only reviewer.
+- Brief it like a colleague: **objective, output format, tools and sources, boundaries**.
+- Parallel subagents suit **independent, breadth-first** work; they cost **far more tokens**.
+- Keep back-and-forth, shared-context and quick work in the **main conversation**.
+
+**Coming up:** the hooks lesson covers commands that run at fixed points every time, including when a subagent starts or stops.
+
+**Related:** the context management lesson explains why keeping exploration out of your window matters, the skills lesson covers the other on-demand feature, and the explore, plan, implement, verify lesson uses a fresh subagent as a reviewer.
+
+Hit **Finish** to collect your XP! 🏁

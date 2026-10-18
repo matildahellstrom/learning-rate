@@ -39,11 +39,6 @@
     "colour": "green",
     "upcoming": [
       {
-        "id": "subagents",
-        "title": "Subagents",
-        "order": 6
-      },
-      {
         "id": "hooks",
         "title": "Hooks",
         "order": 7
