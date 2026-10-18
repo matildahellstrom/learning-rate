@@ -284,3 +284,18 @@ You asked to be told when the first version was ready, so these phases were buil
 
 1. Fit polynomials of degree 1 to 4 to the lesson's five points and plot each one at x = 5. Where does the error start to grow?
 2. Work out the KV cache per token for Llama 3 70B (80 layers, 8 key-value heads, 128 numbers per head, 2 bytes). How many tokens fit in 40 GB?
+
+## Context management, explore-plan-implement-verify and CLAUDE.md (2026-10-18)
+
+**Built:** Three more Coding with AI lessons with the `write-lesson` skill: Context management, Explore, plan, implement, verify, and CLAUDE.md.
+
+**Concepts:**
+
+- **Quote the sentence, not the gist.** A draft quoted the AGENTS.md paper as saying context files "do not generally improve" success; the abstract's words are "providing context files does not generally improve task success rates". Checking quotes against the raw page text caught it.
+- **Docs and research can agree for different reasons.** Anthropic suggests under 200 lines per CLAUDE.md, IFScale shows instruction-following falling as instructions pile up, and Gloaguen et al. found repository overviews didn't help. Each is scoped to its own set-up, so the lesson cites each separately.
+- **Advisory versus deterministic.** CLAUDE.md is context Claude tries to follow; hooks run whatever Claude decides, so must-happen rules belong there.
+
+**Explore:**
+
+1. Run `/context` in this repo and see how many tokens CLAUDE.md costs at startup.
+2. Apply the pruning question ("Would removing this cause Claude to make mistakes?") to this repo's CLAUDE.md. Which lines would you cut?
