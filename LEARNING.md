@@ -329,3 +329,19 @@ You asked to be told when the first version was ready, so these phases were buil
 
 1. Write a tiny `while stop_reason == "tool_use"` loop with one fake tool and print every turn. Where would you add a turn limit?
 2. Read a public MCP server's tool descriptions. Do they meet the "3–4 sentences" advice from Anthropic's define-tools guide?
+
+## RAG, evals and prompt caching (2026-10-18)
+
+**Built:** Three more Agentic AI lessons, Retrieval-augmented generation, Evals and Prompt caching, with the `write-lesson` skill.
+
+**Concepts:**
+
+- **Report the conditions with the number.** Contextual Retrieval's "49% fewer failures" is an average over four domains with one embedding model and a top-20 cut-off, and it's a relative drop (5.7% to 2.9%), not 49 points.
+- **A score has error bars.** 80% on 100 pass-or-fail questions is roughly 80 ± 8 at 95% confidence, so small prompt tweaks need more questions, or paired comparisons, before they mean anything.
+- **Prices and limits are per model.** Cache reads are 0.1× on most Claude models but cheaper on some, and the minimum cacheable length runs from 512 to 4,096 tokens, so the lesson names the model for every figure.
+- **MDX reads braces and dollar signs.** A quoted template like `{position}` broke the page, and `$314` would have started maths; inline code and `\$` fixed them.
+
+**Explore:**
+
+1. Build a 20-question eval for something you use, run it three times, and compare pass@3 with pass^3.
+2. Send the same long prompt twice to the Claude API with a cache breakpoint and read the three usage fields. Then add a timestamp at the top and watch the cache miss.
