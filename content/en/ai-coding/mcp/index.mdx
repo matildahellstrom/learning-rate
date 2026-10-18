@@ -24,6 +24,8 @@ sources:
     url: https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices
   - title: 'Anthropic: Connect Claude Code to tools via MCP (Claude Code docs)'
     url: https://code.claude.com/docs/en/mcp
+  - title: 'Anthropic: Hooks reference (Claude Code docs)'
+    url: https://code.claude.com/docs/en/hooks
   - title: 'Anthropic: Security (Claude Code docs)'
     url: https://code.claude.com/docs/en/security
 quiz:
@@ -113,7 +115,7 @@ The architecture docs add: the host creates **one client for each server**, and 
 
 Messages use **JSON-RPC 2.0**, a standard format for sending requests and replies as JSON. The spec says MCP takes some inspiration from the Language Server Protocol, which standardises how to add support for programming languages across development tools.
 
-The docs also draw a boundary: MCP "focuses solely on the protocol for context exchange". It doesn't dictate how an app uses its model or what the model does with the context.
+The docs also draw a boundary: MCP "focuses solely on the protocol for context exchange". It doesn't dictate how an app uses its model or manages the context it receives.
 
 ---
 
@@ -189,7 +191,7 @@ The context management lesson showed that everything in the window competes for 
 
 As of October 2026, Claude Code handles this with **tool search**, on by default: "Only tool names and server instructions load at session start", and full definitions load when Claude needs them, "so adding more MCP servers has minimal impact on your context window." The docs list exceptions where Claude Code loads every tool upfront instead, including some proxies, some cloud platforms and older models.
 
-Results cost context too. As of October 2026, Claude Code warns when an MCP tool's output passes 10,000 tokens and, by default, caps it at 25,000 tokens (adjustable with `MAX_MCP_OUTPUT_TOKENS`). A successful text result over the cap is saved to a file, which Claude reads when it needs the content.
+Results cost context too. As of October 2026, Claude Code warns when an MCP tool's output passes 10,000 tokens and, by default, caps it at 25,000 tokens (adjustable with `MAX_MCP_OUTPUT_TOKENS`). A successful text result over the cap (or, unless the server raises the tool's limit, longer than 50,000 characters) is saved to a file, which Claude reads when it needs the content.
 
 So connect the servers you'll use, not every one you can find.
 
@@ -197,7 +199,7 @@ So connect the servers you'll use, not every one you can find.
 
 ## A server is code you trust
 
-As of October 2026, the specification is direct: "Tools represent arbitrary code execution and must be treated with appropriate caution." It also says that what a server says about its tools, such as annotations, "should be considered untrusted, unless obtained from a trusted server." And it admits a limit: "MCP itself cannot enforce these security principles at the protocol level". It's up to the apps that implement MCP to build in consent, for example the spec's rule that hosts must get your explicit consent before invoking any tool.
+As of October 2026, the specification is direct: "Tools represent arbitrary code execution and must be treated with appropriate caution." It also says that what a server says about its tools, such as annotations, "should be considered untrusted, unless obtained from a trusted server." And it admits a limit: "MCP itself cannot enforce these security principles at the protocol level". It's up to the apps that implement MCP to build in consent, for example the spec's principle that hosts should get your explicit consent before invoking any tool.
 
 Three ways things go wrong, described at the level of mechanism:
 
@@ -205,7 +207,7 @@ Three ways things go wrong, described at the level of mechanism:
 - **Poisoned content.** Claude Code's docs warn that "servers that fetch external content can expose you to prompt injection risk": a web page or ticket the server returns can carry instructions aimed at the model. The AI security lesson covers how this works.
 - **Too much access.** If a token with broad permissions leaks, whoever holds it gets everything it covers. The security guide recommends starting with a minimal set of permissions and asking for more only when needed.
 
-The defences, from the specification and Claude Code's docs: use servers you wrote or "from providers that you trust"; keep a human able to deny tool calls; show tool inputs before they're sent, "to avoid malicious or accidental data exfiltration"; and run local servers in a sandbox where you can. Note that Anthropic reviews connectors for its directory, but its docs say it "does not security-audit or manage any MCP server."
+The defences, from the specification, the MCP security guide and Claude Code's docs: use servers you wrote or "from providers that you trust"; keep a human able to deny tool calls; show tool inputs before they're sent, "to avoid malicious or accidental data exfiltration"; and run local servers in a sandbox where you can. Note that Anthropic reviews connectors for its directory, but its docs say it "does not security-audit or manage any MCP server."
 
 ---
 
@@ -226,7 +228,7 @@ Answers: (1) **project**: it goes in `.mcp.json`, committed for the team. (2) **
 - **"MCP is a Claude-only feature."** It's an open standard; the MCP site lists clients from several companies, including ChatGPT, VS Code and Cursor.
 - **"The model connects to the server."** The host's MCP client does; the model just asks for tools by name.
 - **"MCP servers are just tools."** Servers can also offer resources (context data) and prompts (templates).
-- **"An official-looking server is safe."** A server is code with your client's privileges; Anthropic's docs say it doesn't security-audit MCP servers.
+- **"An official-looking server is safe."** A local server is code that runs with your client's privileges, and a remote one sees whatever you give it access to; Anthropic's docs say it doesn't security-audit MCP servers.
 - **"More servers are free."** Tool search keeps definitions small at the start, but tool results still fill your context.
 
 ---
