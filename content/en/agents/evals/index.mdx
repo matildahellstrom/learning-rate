@@ -120,7 +120,7 @@ Who decides whether an output passed? Anthropic's post describes three kinds of 
 - **Model-based**: another language model grades the output, for example against a rubric or by comparing two answers. Flexible and able to handle open-ended output, but non-deterministic, more expensive than code, and in need of "calibration with human graders".
 - **Human**: experts or crowd raters. The post calls this "gold standard quality", but expensive and slow.
 
-As of October 2026, the docs give a blunt order of preference. Code-based grading is "Fastest and most reliable"; human grading is "Most flexible and high quality, but slow and expensive. Avoid if possible."; model grading is "suitable for complex judgment" but you should "Test to ensure reliability first then scale."
+As of October 2026, the docs give a blunt verdict on each. Code-based grading is "Fastest and most reliable"; human grading is "Most flexible and high quality, but slow and expensive. Avoid if possible."; model grading is "suitable for complex judgment" but you should "Test to ensure reliability first then scale."
 
 They also put quantity first: "More questions with slightly lower signal automated grading is better than fewer questions with high-quality human hand-graded evals." The post calls deterministic graders "natural for coding agents": does the code run, and do the tests pass? For conversational agents, where quality of interaction matters, it says teams typically use model-based graders.
 
@@ -237,7 +237,7 @@ Evals aren't the only check, either. The post likens it to the Swiss cheese mode
 - **"Model judges are unbiased."** In Zheng and colleagues' tests, most judges favoured the first answer shown, and two of the three judges tested usually preferred padded answers. Swap the order and calibrate against people.
 - **"One run per task is enough."** Agents vary between runs. pass@k and pass^k summarise several trials in different ways.
 - **"Check that the agent followed the right steps."** Anthropic found that too rigid; grade the outcome, and read transcripts to see how it got there.
-- **"A low score means a weak model."** It can mean a broken task or grader: CORE-Bench went from 42% to 95% once its grading bugs were fixed.
+- **"A low score means a weak model."** It can mean a broken task, grader or harness: CORE-Bench went from 42% to 95% after grading bugs were fixed and a less constrained harness was used.
 
 ---
 
