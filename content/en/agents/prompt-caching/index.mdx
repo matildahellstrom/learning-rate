@@ -14,6 +14,8 @@ sources:
     url: https://platform.claude.com/docs/en/build-with-claude/prompt-caching
   - title: 'Anthropic: Pricing (Claude API docs)'
     url: https://platform.claude.com/docs/en/about-claude/pricing
+  - title: 'Anthropic: Context windows (Claude API docs)'
+    url: https://platform.claude.com/docs/en/build-with-claude/context-windows
   - title: 'Anthropic (2024): Introducing Contextual Retrieval'
     url: https://www.anthropic.com/engineering/contextual-retrieval
 quiz:
@@ -95,9 +97,9 @@ As of October 2026, the docs say caching covers "the entire prompt: tools, syste
 
 - Change a **tool definition**, and the whole cache is invalid.
 - Change the **system prompt**, and the tools' cache survives but the rest doesn't.
-- Add a **new message** at the end, and everything before it can still be reused.
+- Add a **new message** at the end, and everything before it can still be reused, as long as a cached entry sits within the 20-block lookback window (otherwise add a second breakpoint).
 
-Matching is strict: "Cache hits require 100% identical prompt segments, including all text and images up to and including the block marked with cache control." The docs list some less obvious ways to break it, such as changing the `tool_choice` setting or adding or removing an image, and they warn that some programming languages (they name Swift and Go) can shuffle the order of keys when converting to JSON, which changes the text and breaks the cache.
+Matching is strict: "Cache hits require 100% identical prompt segments, including all text and images up to and including the block marked with cache control." The docs list some less obvious ways to break it, such as changing the `tool_choice` setting or adding or removing an image, and they warn that some programming languages (they name Swift and Go) can shuffle the order of keys in `tool_use` blocks when converting them to JSON, which changes the text and breaks the cache.
 
 The rule that follows: put what **never changes** first (tools, instructions, reference documents), and what changes **last** (the user's latest message).
 
@@ -167,11 +169,11 @@ There's no way to clear the cache by hand. Entries expire on their own.
 
 ## Too short to cache
 
-Not every prompt qualifies. As of October 2026, on the Claude API, the minimum cacheable length depends on the model. Some examples from the docs:
+Not every prompt qualifies. As of October 2026, on the Claude API (and on Google Cloud, Microsoft Foundry and Claude Platform on AWS), the minimum cacheable length depends on the model. Some examples from the docs:
 
 - **512 tokens** for models including Claude Opus 5.5, Claude Sonnet 5.5 and Claude Haiku 5.5.
 - **1,024 tokens** for models including Claude Opus 4.8 and Claude Sonnet 5.
-- **4,096 tokens** for Claude Opus 4.6 and Claude Opus 4.5.
+- **4,096 tokens** for models including Claude Opus 4.6, Claude Opus 4.5 and Claude Haiku 4.5.
 
 Amazon Bedrock has its own per-model minimums, documented separately.
 
@@ -200,7 +202,7 @@ One more trap for parallel work: "a cache entry only becomes available after the
 As of October 2026, three things stay as they were.
 
 - **The answer.** The docs say "Prompt caching has no effect on output token generation." It reuses work on the input; it doesn't store or replay responses.
-- **The context window.** The context windows lesson noted that cached prefixes still take up room in the window. Caching changes what you pay, not how much fits.
+- **The context window.** The context windows lesson noted that cached prefixes still take up room in the window; Anthropic's context window docs say cache reads and writes "all three count toward the window" along with ordinary input. Caching changes what you pay, not how much fits.
 - **Who can use it.** Cache entries are never shared between organisations, even for identical prompts. On the Claude API they're also kept separate per workspace within an organisation; on Amazon Bedrock and Google Cloud, separation is per organisation.
 
 Caching also made one idea from the RAG lesson cheaper. For Contextual Retrieval, Anthropic's 2024 post says you "load the document into the cache once and then reference the previously cached content" while writing a note for each of its chunks, instead of paying full price for the document every time.
