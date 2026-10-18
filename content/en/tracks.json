@@ -53,11 +53,6 @@
     "colour": "orange",
     "upcoming": [
       {
-        "id": "tool-use",
-        "title": "Tool use",
-        "order": 1
-      },
-      {
         "id": "agent-loops",
         "title": "Agent loops",
         "order": 2

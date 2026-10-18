@@ -1,0 +1,288 @@
+---
+id: tool-use
+title: Tool use
+summary: How a language model calls tools it can't run itself, what a tool definition contains, and how to design tools a model uses well.
+track: agents
+order: 1
+prerequisites: [next-token-prediction, context-windows]
+minutes: 13
+xp: 100
+volatility: fast-moving
+lastVerified: 2026-10-18
+sources:
+  - title: 'Anthropic: Tool use with Claude (Claude API docs)'
+    url: https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview
+  - title: 'Anthropic: How tool use works (Claude API docs)'
+    url: https://platform.claude.com/docs/en/agents-and-tools/tool-use/how-tool-use-works
+  - title: 'Anthropic: Define tools (Claude API docs)'
+    url: https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools
+  - title: 'Anthropic: Handle tool calls (Claude API docs)'
+    url: https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls
+  - title: 'Schick et al. (2023): Toolformer, Language Models Can Teach Themselves to Use Tools'
+    url: https://arxiv.org/abs/2302.04761
+  - title: 'Anthropic (2025): Writing effective tools for agents, with agents'
+    url: https://www.anthropic.com/engineering/writing-tools-for-agents
+  - title: 'Anthropic (2024): Building effective agents'
+    url: https://www.anthropic.com/engineering/building-effective-agents
+quiz:
+  - type: choice
+    prompt: 'You give Claude a get_weather tool through the API and ask about the weather in Oslo. Who runs the code that looks up the weather?'
+    options:
+      - Claude runs it inside the model
+      - Anthropic runs every tool for you
+      - Your application, after Claude returns a structured request naming the tool and its arguments
+      - Nobody; Claude guesses the weather from its training data
+    answer: 2
+    explanation: "Anthropic's docs put it plainly: the model never executes anything on its own. For a tool you define, Claude returns a tool_use block, your code runs the lookup, and you send the answer back in a tool_result. (Anthropic does run its own server tools, such as web search, but get_weather is yours.)"
+  - type: numeric
+    prompt: 'Toolformer keeps a sampled API call only if it lowers the loss on the next tokens by at least a threshold. With no call the loss is 3.0; with the call but no result it is 2.6; with the call and its result it is 2.2. By how much does the call and its result beat the better of the two alternatives?'
+    answer: 0.4
+    tolerance: 0.01
+    explanation: 'The comparison is against the smaller of the two alternative losses: min(3.0, 2.6) = 2.6. The call with its result scores 2.2, so the reduction is 2.6 − 2.2 = 0.4. If the threshold were 0.5, this call would be dropped from the training data.'
+  - type: choice
+    prompt: 'Your app asks a model whether to approve a refund, then uses a regular expression to find "approve" or "deny" in its prose reply. What does Anthropic suggest?'
+    options:
+      - Make the decision a tool call, so it arrives in a fixed structure
+      - Write a longer regular expression
+      - Ask the model to reply in capital letters
+      - Remove the decision from the model entirely
+    answer: 0
+    explanation: "The docs call this a clear sign you should be using tools: if you're writing a regex to extract a decision from model output, that decision should have been a tool call. A tool's schema fixes the shape of the answer."
+  - type: choice
+    prompt: 'Your tool fails because an outside service is rate-limiting you. Which tool_result helps the model most?'
+    options:
+      - An empty result, so the model is not distracted
+      - "The text 'failed'"
+      - A full stack trace of the exception
+      - 'An error marked is_error, saying the rate limit was hit and to retry after 60 seconds'
+    answer: 3
+    explanation: 'Anthropic suggests instructive error messages: what went wrong and what to try next, for example "Rate limit exceeded. Retry after 60 seconds." A bare "failed" or an opaque trace leaves the model guessing.'
+  - type: choice
+    prompt: 'Toolformer could call a calculator, a search engine and more. What could it not do, according to its authors?'
+    options:
+      - Call any tool without a human approving it
+      - Chain tools, using one tool's output as another tool's input
+      - Use a calculator
+      - Improve on its base model on any task
+    answer: 1
+    explanation: 'The paper lists this as a limitation: API calls for each tool were generated independently, so the training data had no examples of chained tool use. It also could not use a tool interactively, such as refining a search.'
+  - type: choice
+    prompt: 'An address-book tool for an agent could be list_contacts (returns everyone) or search_contacts (returns matches). Why does Anthropic suggest the second?'
+    options:
+      - Agents cannot read lists
+      - list_contacts is slower to write
+      - The agent would spend its limited context reading every contact, while search returns only what it needs
+      - search_contacts needs no description
+    answer: 2
+    explanation: 'Anthropic notes that agents have limited context, while computer memory is cheap. A tool that dumps every contact makes the agent read them token by token, like reading an address book from the first page. A search tool skips to the relevant entries.'
+---
+
+# The model that can't check the weather ☔
+
+Ask a language model "Should I take an umbrella in Oslo today?" and it has a problem. Everything it knows came from training text, which stopped at some date. It has never seen today's sky.
+
+What it _can_ do is write. So suppose you tell it: "If you need the weather, write a short, structured request naming a city, and I'll look it up for you." The model writes the request, your program calls a weather service, you paste the answer back, and the model replies "Yes, take one: rain from noon."
+
+That is **tool use**, also called **function calling**. This lesson covers who runs what, how one round trip works, what a tool definition contains, where the idea came from, when a tool is worth it, and how to design tools a model uses well.
+
+---
+
+## The model asks, your code acts
+
+As of October 2026, Anthropic's docs describe tool use as letting Claude "call functions that you define or that Anthropic provides". Claude decides when to call a tool "based on the user's request and the tool's description", and returns "a structured call" for someone else to run.
+
+🤔 Predict: you give Claude a `get_weather` tool. When Claude decides to use it, does the model run your weather code?
+
+**No.** The docs are blunt: "The model never executes anything on its own. It emits a structured request, your code (or Anthropic's servers) runs the operation, and the result flows back into the conversation."
+
+The model doesn't see your code either. In the docs' words: "Claude never sees your implementation; it only sees the schema you provided and the result you returned."
+
+This links back to next-token prediction: the model still only produces output, and a tool call is output in a precise, structured format that a program can read and act on.
+
+---
+
+## One round trip, step by step
+
+Here is the docs' own example, as of October 2026, for a tool you define:
+
+1. **You send** the question ("What's the weather in San Francisco?") plus a list of tools, including `get_weather`.
+2. **Claude replies** with `stop_reason: "tool_use"` and a `tool_use` block instead of an answer.
+3. **Your code runs** the lookup.
+4. **You send** the result back in a `tool_result` block.
+5. **Claude answers** using that result.
+
+The `tool_use` block in step 2 looks like this:
+
+```json
+{
+  "type": "tool_use",
+  "id": "toolu_01A09q90qw90lq917835lq9",
+  "name": "get_weather",
+  "input": { "location": "San Francisco, CA" }
+}
+```
+
+The `id` is there so your reply can say which call it answers: your `tool_result` carries a matching `tool_use_id`. In the docs' example, the result is "15 degrees Celsius, partly cloudy", and Claude turns it into a sentence for the user.
+
+One response can also contain several `tool_use` blocks, and a real task often needs many round trips in a row. Repeating that cycle is what makes an agent; the agent loops lesson covers it.
+
+---
+
+## What a tool definition contains
+
+As of October 2026, a tool you define for the Claude API has three main parts:
+
+- **`name`**: letters, digits, `_` or `-`, up to 128 characters.
+- **`description`**: in the docs' words, "what the tool does, when it should be used, and how it behaves".
+- **`input_schema`**: a **JSON Schema**, a standard way to describe the shape of some JSON: which fields exist, their types, and which are required.
+
+```json
+{
+  "name": "get_weather",
+  "description": "Get the current weather for a given location.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "location": { "type": "string", "description": "City and state, e.g. San Francisco, CA" }
+    },
+    "required": ["location"]
+  }
+}
+```
+
+Remember the context window: the model can only use what's in it. Tool definitions are text too. As of October 2026, the docs list the names, descriptions and schemas you send among the input tokens you pay for, along with the `tool_use` and `tool_result` blocks, and the API adds a special system prompt that enables tool use.
+
+---
+
+## Where the idea came from
+
+In 2023, Timo Schick and seven co-authors described the problem this way: language models solve new tasks from a few examples, yet "struggle with basic functionality, such as arithmetic or factual lookup, where much simpler and smaller models excel."
+
+Their model, **Toolformer**, learned to call a calculator, a question-answering system, two search engines, a translator and a calendar. It was trained "to decide which APIs to call, when to call them, what arguments to pass, and how to best incorporate the results". A call sat inside ordinary text, like this example from the paper: `Calculator(735 / 499) → 1.47`.
+
+The clever part was how the training data was made. The model itself proposed possible calls, the calls were run, and a call was kept only if its result made the following words **easier to predict**. That needed only "a handful of demonstrations for each API". Built on a 6.7-billion-parameter model, Toolformer was "often competitive with much larger models" across the tasks they tested.
+
+The authors also listed what it couldn't do. It couldn't **chain** tools (feed one tool's output into another), and it couldn't use a tool interactively, such as refining a search.
+
+<Deeper title="Go deeper: Toolformer's filter">
+For a candidate call at some position in a text, the paper compares the model's loss (how surprised it is) on the words that follow, in three versions: with no call, with the call but no result, and with the call and its result. Write $L^{+}$ for the last one and $L^{-}$ for the better of the first two:
+
+$$
+\begin{aligned}
+L^{-} &= \min(L_{\text{none}},\ L_{\text{call only}}) \\
+\text{keep if}\quad &L^{-} - L^{+} \ge \tau
+\end{aligned}
+$$
+
+where $\tau$ is a threshold. A made-up example: if $L_{\text{none}} = 2.4$, $L_{\text{call only}} = 2.7$ and $L^{+} = 1.9$, then $L^{-} = 2.4$ and the call saves $2.4 - 1.9 = 0.5$. Comparing against "call only" checks that the **result** helped, not just the act of writing a call.
+
+</Deeper>
+
+---
+
+## When a tool is worth it
+
+As of October 2026, with the default setting (`tool_choice` of `auto`), the docs say Claude decides each turn whether to call a tool or answer directly. It calls one "when the request maps to that tool's described capability and the answer isn't already in context".
+
+🤔 Predict: which of these need a tool? (a) Translate a paragraph into French. (b) Find customer 42's last order in your database. (c) Email the team a summary.
+
+**(b) and (c).** The docs list where tools fit: **actions with side effects** (sending an email), **fresh or external data** (your database), **structured outputs** of a guaranteed shape, and **calling existing systems**. Translation, summarising and general knowledge don't need one, and the docs warn that "every tool call is at least one extra round trip", which can outweigh a small task.
+
+The docs add a handy test: "if you're writing a regex to extract a decision from model output, that decision should have been a tool call."
+
+---
+
+## Three kinds of tools
+
+As of October 2026, the docs sort Claude's tools by **where the code runs**:
+
+- **Tools you define.** You write the schema and run the code. The docs say "the vast majority of tool-use traffic" is this kind.
+- **Anthropic-schema tools**, such as `bash` and `text_editor`. Anthropic publishes the schema, but your application still runs each call. The docs say these schemas are "trained-in": Claude has been optimised on thousands of successful runs that use them, so it calls them more reliably than a home-made tool doing the same job.
+- **Server tools**, such as `web_search` and `code_execution`. Anthropic runs these, and you "never construct a `tool_result` block" for them. Some, like web search, are charged per use on top of tokens.
+
+Whichever kind, the model's side of the deal is the same: choose a tool, fill in its inputs, and read the result.
+
+---
+
+## Descriptions are prompts
+
+The model picks a tool by reading its name and description, so those words do a lot of work. As of October 2026, Anthropic's guide calls detailed descriptions "by far the most important factor in tool performance" and suggests "at least 3–4 sentences" per tool: what it does, when to use it (and when not), what each parameter means, and its limits.
+
+Anthropic's engineers found the same in their own agents. When they launched Claude's web search tool, Claude was "needlessly appending 2025" to its search queries, which skewed the results; a better tool description fixed it.
+
+🤔 Predict: while building a coding agent, Anthropic saw the model make mistakes with file paths like `src/app.ts` after it had moved out of the project's root folder. Would you fix the prompt, or the tool?
+
+**The tool.** They changed it "to always require absolute filepaths" (paths that start from the top of the file system), "and we found that the model used this method flawlessly." For that agent, they report spending more time optimising the tools than the overall prompt. Their advice is to **poka-yoke** your tools: "Change the arguments so that it is harder to make mistakes."
+
+---
+
+## Design for an agent, not a programmer
+
+Anthropic's 2025 post on writing tools argues that tools shouldn't be written the way we'd write functions and APIs for other developers, but designed for agents. It calls a tool "a contract between deterministic systems and non-deterministic agents": asked about an umbrella, an agent might call the weather tool, answer from general knowledge, or ask a clarifying question first. Some lessons from that post:
+
+- **Fewer, sharper tools.** "More tools don't always lead to better outcomes." An agent with `list_contacts` has to read every contact through its limited context; a `search_contacts` tool returns just the matches.
+- **Return what the model needs.** Anthropic found that swapping cryptic IDs for meaningful names "significantly improves Claude's precision in retrieval tasks by reducing hallucinations". In one example, a "concise" reply option used 72 tokens where the detailed one used 206.
+- **Unambiguous names.** A parameter called `user_id` beats one called `user`.
+- **Errors that teach.** As of October 2026, the API docs suggest returning a failure with `"is_error": true` and saying what went wrong and what to try next, such as "Rate limit exceeded. Retry after 60 seconds.", rather than just "failed".
+
+---
+
+## Tools change the stakes
+
+A model without tools can only produce text for a person to read. With tools, its words become actions: a sent email, a changed record, a deleted file.
+
+Two things follow from how tool use works:
+
+- **Results are read by the model.** As of October 2026, the API docs say a tool's result "flows back into the conversation", so a web page or email a tool fetches lands in front of the model like everything else. The AI security lesson explains how instructions hidden in such content (**indirect prompt injection**) can try to steer a model.
+- **Your code is the gate.** Because your application runs every client tool, it decides what actually happens: which tools exist at all, which inputs it accepts, and which actions wait for a person to approve.
+
+Anthropic's agents post recommends "extensive testing in sandboxed environments, along with the appropriate guardrails" for agents that act on their own. The AI security lesson covers the usual layers, such as giving a tool only the access its task needs and having a person approve risky actions.
+
+---
+
+## Your turn: fix the tool
+
+Each tool has one flaw. Name it, then check the answers.
+
+1. `get_data`, described as "Gets data."
+2. `read_file`, which takes a path relative to wherever the agent last moved.
+3. `list_all_tickets`, which returns all 40,000 support tickets.
+4. A tool that answers every failure with the single word "error".
+
+Answers: (1) a vague **name and description**: say what data, when to use it and what each parameter means. (2) a **mistake-prone argument**: require an absolute path. (3) **context-hungry output**: offer search, filters or pagination instead. (4) an **unhelpful error**: say what went wrong and what to try next.
+
+---
+
+## Common misconceptions
+
+- **"The model runs the tool."** It writes a structured request; your code (or, for server tools, Anthropic) runs it.
+- **"The model can see how my tool works."** It sees only the name, description, schema and the results you return.
+- **"More tools make a smarter agent."** Overlapping or bulky tools can distract it and fill its context; a few well-chosen ones often do better.
+- **"Descriptions are just documentation for humans."** They're part of the prompt, and Anthropic calls them the most important factor in tool performance.
+- **"A tool's output is just data."** The model reads it like any other text, which is why untrusted results need care.
+
+---
+
+## Quiz time 🧠
+
+Six questions on tools that work.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- In **tool use**, the model writes a **structured request**; your code (or Anthropic, for server tools) runs it and sends back a **result**.
+- One round trip: **`tool_use`** block out, **`tool_result`** back, matched by **id**.
+- A tool definition is a **name**, a **description** and an **input schema**, and all of it costs **context**.
+- **Toolformer** (2023) taught a model to call tools by keeping only the calls whose results made the next words easier to predict.
+- Use a tool for **actions, fresh data, fixed-shape output and existing systems**; skip it when the model can answer from what it knows.
+- Good tools have **detailed descriptions**, **mistake-proof arguments**, **lean outputs** and **instructive errors**.
+- Tools turn words into **actions**, so your code decides what's allowed.
+
+**Coming up:** the agent loops lesson covers repeating this round trip until a task is done, and the guardrails and prompt injection lesson goes deeper into keeping tool-using systems safe.
+
+**Related:** the next-token prediction lesson explains why a model can't look things up on its own, the context windows lesson covers the budget tool definitions and results share, the AI security lesson covers indirect prompt injection, and the MCP lesson covers a standard way to plug tools into apps like Claude Code.
+
+Hit **Finish** to collect your XP! 🏁
