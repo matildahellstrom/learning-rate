@@ -1,0 +1,256 @@
+---
+id: rag
+title: Retrieval-augmented generation
+summary: How a model can look things up before it answers, how the search step finds the right passages, and why that step is where most of the work goes.
+track: agents
+order: 3
+prerequisites: [embeddings, context-windows]
+minutes: 12
+xp: 100
+volatility: fast-moving
+lastVerified: 2026-10-18
+sources:
+  - title: 'Lewis et al. (2020): Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks'
+    url: https://arxiv.org/abs/2005.11401
+  - title: 'Karpukhin et al. (2020): Dense Passage Retrieval for Open-Domain Question Answering'
+    url: https://arxiv.org/abs/2004.04906
+  - title: 'Anthropic (2024): Introducing Contextual Retrieval'
+    url: https://www.anthropic.com/engineering/contextual-retrieval
+quiz:
+  - type: choice
+    prompt: 'A support bot uses embeddings only. A user asks about "Error code TS-999" and gets pages about error codes in general. What would most likely help?'
+    options:
+      - A bigger language model to write the answer
+      - Retrieving fewer chunks
+      - Adding a keyword search such as BM25 alongside the embeddings
+      - Splitting the documents into longer chunks
+    answer: 2
+    explanation: 'Embeddings capture meaning but can miss an exact string like an identifier. BM25 scores exact word matches, which is why Anthropic suggests combining the two. A bigger generator cannot fix a passage that was never retrieved.'
+  - type: numeric
+    prompt: "In Anthropic's tests, adding Contextual Embeddings and Contextual BM25 cut the top-20 retrieval failure rate from 5.7% to 2.9%. By what percentage did failures fall? (Give a number like 25 for 25%.)"
+    answer: 49
+    tolerance: 1.5
+    explanation: 'The drop is 5.7 − 2.9 = 2.8 points. As a share of the starting rate, 2.8 ÷ 5.7 ≈ 0.49, so failures fell by about 49%. That is a relative reduction: the failure rate roughly halved, it did not fall by 49 percentage points.'
+  - type: choice
+    prompt: 'Lewis and colleagues built a Wikipedia index from December 2016 and one from December 2018, then asked their RAG model about world leaders who changed in between. What did this show?'
+    options:
+      - The model's knowledge could be updated by swapping the index, without retraining
+      - The model ignored the index and answered from memory
+      - Older indexes always gave better answers
+      - The model had to be retrained for each index
+    answer: 0
+    explanation: 'With matching index and leaders, it answered 70% (2016) and 68% (2018) correctly; with mismatched ones, only 12% and 4%. The answers followed whichever index it was given, so replacing the documents updated what it knew.'
+  - type: choice
+    prompt: "A chunk reads: 'The company's revenue grew by 3% over the previous quarter.' Why might a search for ACME's Q2 2023 revenue growth miss it?"
+    options:
+      - The chunk is too short to embed
+      - Numbers cannot be embedded
+      - BM25 ignores percentages
+      - The chunk never says which company or which quarter it is about
+    answer: 3
+    explanation: "Splitting a document strips away the context around each piece. Contextual Retrieval tackles this by adding a short note, such as 'This chunk is from an SEC filing on ACME corp's performance in Q2 2023', to each chunk before it is indexed."
+  - type: choice
+    prompt: "Your whole knowledge base is about 50 pages. What did Anthropic's 2024 post suggest for a knowledge base this small?"
+    options:
+      - Build a vector database with reranking
+      - Put the whole knowledge base in the prompt, with no retrieval step
+      - Fine-tune the model on the pages
+      - Split it into one-sentence chunks
+    answer: 1
+    explanation: 'The post said that under about 200,000 tokens (about 500 pages) you can include the entire knowledge base in the prompt, and that prompt caching makes this faster and cheaper. Retrieval earns its keep when the material is too big to fit.'
+  - type: choice
+    prompt: 'In the DPR paper, the dense retriever beat BM25 on every dataset except SQuAD. What did the authors think was the main reason?'
+    options:
+      - SQuAD questions are in a different language
+      - The dense retriever was not trained at all
+      - SQuAD questions were written by people looking at the passage, so they share many exact words with it
+      - BM25 was given the answers
+    answer: 2
+    explanation: "When questions reuse the passage's own words, keyword matching has a clear advantage. The authors also pointed out that SQuAD was collected from only 500 or so Wikipedia articles, which they saw as a source of bias."
+---
+
+# The open-book exam 📚
+
+Your company changed its refund policy last week. You ask a chatbot about it, and it answers confidently with last year's rules.
+
+That's not the model being careless. Everything it knows was baked into its weights during training. It has no way to know what changed afterwards, and no way to see your company's internal documents at all.
+
+Now imagine giving it an open-book exam instead: before it answers, someone finds the relevant pages and puts them in front of it. That's **retrieval-augmented generation**, or **RAG**. This lesson covers where the idea came from, how the search step works, why plain keyword search still matters, how chunks lose their meaning and how to fix it, and when you don't need retrieval at all.
+
+---
+
+## Two kinds of memory
+
+In the 2020 paper that called the approach retrieval-augmented generation, Lewis and colleagues describe the drawbacks of pre-trained language models that keep all their knowledge in their weights. Such models "cannot easily expand or revise their memory, can't straightforwardly provide insight into their predictions, and may produce 'hallucinations'".
+
+Their fix gives the model two memories:
+
+- **Parametric memory**: what's stored in the model's weights (its parameters). In their system, a pre-trained model that writes text.
+- **Non-parametric memory**: an external collection of documents the model can search. In their system, an index of Wikipedia.
+
+The second kind is plain text, and the authors point out that this makes it "human-readable" and "human-writable": people can read what's in it, and update it.
+
+🤔 Predict: if you swap the document collection for a newer one, does the model need retraining to use the new facts?
+
+**No.** The next steps show how the pieces fit, and then the experiment that tested this.
+
+---
+
+## The pipeline
+
+Much of a RAG system's work happens before anyone asks a question. Anthropic's 2024 Contextual Retrieval post describes this preprocessing as follows:
+
+1. Split the documents into **chunks**, "usually no more than a few hundred tokens".
+2. Turn each chunk into an **embedding** with an embedding model.
+3. Store the embeddings in a **vector database** that can search by similarity.
+
+Then, for each question:
+
+4. Find the chunks most similar to the question.
+5. Add them to the prompt, and let the model answer.
+
+The embeddings lesson showed that similar meanings end up as nearby vectors. Retrieval puts that to work: turn the question into a vector too, and look for the closest chunk vectors.
+
+Why chunks, rather than whole documents? A search needs to point at the part that answers the question, and the prompt has limited room (the context windows lesson covers that budget). The 2020 RAG paper split each Wikipedia article into "disjoint 100-word chunks", 21 million of them.
+
+---
+
+## Search by meaning: dense retrieval
+
+How do you turn questions and passages into vectors that land close together when one answers the other? Karpukhin and colleagues' 2020 **Dense Passage Retrieval** (DPR) uses two encoders, both built from BERT, a pre-trained language model: one for questions, one for passages. A passage scores highly when the **dot product** of its vector with the question's vector is large.
+
+Their example shows why this helps. The question "Who is the bad guy in lord of the rings?" can be answered by "Sala Baker is best known for portraying the villain Sauron in the Lord of the Rings trilogy." In the authors' words, a keyword-based system "would have difficulty" finding that passage, since it never says "bad guy", while a dense retriever "would be able to better match 'bad guy' with 'villain'".
+
+It worked. On Natural Questions, a set of real Google search queries, the right passage was in DPR's top 20 results 78.4% of the time, against 59.1% for BM25, a classic keyword method. A version trained on just 1,000 examples already beat BM25 there.
+
+<Deeper title="Go deeper: why a dot product">
+DPR scores a question $q$ against a passage $p$ as
+
+$$
+\text{sim}(q, p) = E_Q(q)^{\top} E_P(p)
+$$
+
+where $E_Q$ and $E_P$ are the two encoders, each producing 768 numbers. Because the score splits into one vector per side, every passage vector can be computed once, in advance. At question time only the question needs encoding, and the search becomes **maximum inner product search**, which the RAG paper notes can be solved approximately and fast (it used the FAISS library over 21 million passages).
+
+The authors note that more expressive scoring, such as letting the two texts attend to each other, exists, but it can't be precomputed this way. For unit-length vectors the dot product equals cosine similarity, the measure from the embeddings lesson.
+
+</Deeper>
+
+---
+
+## Keywords still matter
+
+Dense retrieval didn't win everywhere. DPR beat BM25 on every dataset the authors tested **except SQuAD**. They suspected the reason: the people who wrote SQuAD's questions had the passage in front of them, so questions and passages share many exact words, which gives BM25 "a clear advantage".
+
+The RAG paper saw something similar. When they swapped their learned retriever for BM25, BM25 did best on FEVER, a fact-checking task, perhaps because its claims are "heavily entity-centric". Learned retrieval did better on all their other tasks.
+
+🤔 Predict: a user searches a support site for "Error code TS-999". What might an embedding search return?
+
+Anthropic's post uses exactly this example: an embedding model "might find content about error codes in general, but could miss the exact 'TS-999' match". **BM25** ranks passages by how well their words match the query's, with adjustments for word frequency and document length, so it finds the exact string.
+
+So a common design runs **both** searches and merges the results, which Anthropic's post calls combining the results "using rank fusion techniques". Meaning-based search catches paraphrases; the post says BM25 is "particularly effective for queries that include unique identifiers or technical terms".
+
+---
+
+## What the 2020 paper found
+
+Lewis and colleagues joined a DPR retriever to BART, a 400-million-parameter model that writes text. They fine-tuned the question encoder and BART together, keeping the passage index fixed. The retrieved passages were simply joined onto the question as extra input, and in training they retrieved 5 or 10 passages per question.
+
+- On three open-domain question-answering benchmarks (Natural Questions, WebQuestions and CuratedTrec), it set new state-of-the-art results at the time.
+- For writing Jeopardy-style questions, human evaluators compared 452 pairs of outputs. They judged RAG more factual in 42.7% of cases and BART more factual in only 7.1%; in a further 17%, both were factual. They also found RAG's outputs more specific.
+
+Then the test from earlier. The authors built a second index from a December 2016 Wikipedia dump, alongside their December 2018 one, and asked `Who is {position}?` about 82 world leaders who had changed in between. With matching index and year, the model answered 70% (2016) and 68% (2018) correctly. With mismatched ones, only 12% and 4%. In their words, "we can update RAG's world knowledge by simply replacing its non-parametric memory."
+
+<Deeper title="Go deeper: two ways to use the passages">
+The paper treats the retrieved passage $z$ as a hidden choice and averages over the top $k$ passages:
+
+$$
+\begin{aligned}
+p(y \mid x) &\approx \sum_{z} p(z \mid x)\, p(y \mid x, z)
+\end{aligned}
+$$
+
+That's **RAG-Sequence**: one passage is assumed responsible for the whole answer. **RAG-Token** does the averaging separately for every output token, so different tokens can lean on different passages. On Jeopardy question writing, RAG-Token did better; the authors suggest that's because those questions often combine facts from more than one document.
+
+</Deeper>
+
+---
+
+## Chunks lose their context
+
+Chunking has a catch. Anthropic's post gives an example from a collection of company financial filings. A relevant chunk might say:
+
+"The company's revenue grew by 3% over the previous quarter."
+
+🤔 Predict: someone asks "What was the revenue growth for ACME Corp in Q2 2023?" Why might this chunk be hard to find?
+
+**It never names the company or the quarter.** That information was elsewhere in the document, and splitting cut it off. Neither embeddings nor keywords can match what isn't there.
+
+Anthropic's fix, **Contextual Retrieval**, prepends a short explanation to each chunk before indexing it. They had Claude 3 Haiku read the whole document plus one chunk and write that note, "usually 50-100 tokens". The chunk above becomes: "This chunk is from an SEC filing on ACME corp's performance in Q2 2023; the previous quarter's revenue was \$314 million. The company's revenue grew by 3% over the previous quarter."
+
+Their results, averaged over four kinds of material (codebases, fiction, arXiv papers and science papers), using their best embedding model and counting how often a relevant chunk was missing from the top 20:
+
+- Contextual embeddings: failures fell from 5.7% to 3.7% (35% fewer).
+- Contextual embeddings plus contextual BM25: 5.7% to 2.9% (49% fewer).
+
+They also tried adding generic document summaries to chunks and "saw very limited gains".
+
+---
+
+## Rerank, then choose how many
+
+A first search can return a lot of chunks, "sometimes hundreds", of varying relevance. A **reranker** is a second model that reads each candidate alongside the question and scores how relevant it is. Anthropic's set-up retrieved the top 150 chunks, reranked them, and passed the best 20 to the model. With reranking on top of contextual embeddings and contextual BM25, top-20 failures fell from 5.7% to 1.9% (67% fewer).
+
+Reranking isn't free. The post notes it adds an extra step at run time, so some latency and cost, and that you trade more chunks reranked for better results against lower latency and cost.
+
+How many chunks should the model see? More chunks make it more likely the answer is in there, but the post warns that "more information can be distracting for models". They tried 5, 10 and 20 chunks and found 20 worked best of those, but advised experimenting on your own use case. The context windows lesson showed a related problem: models can make poor use of material buried in the middle of a long prompt.
+
+---
+
+## When you don't need RAG
+
+Anthropic's 2024 post opens with a reminder: "Sometimes the simplest solution is the best." If your knowledge base is under 200,000 tokens, "about 500 pages of material", you can put all of it in the prompt and skip retrieval. Prompt caching, the subject of a later lesson in this track, makes repeating a large prompt faster and cheaper.
+
+RAG earns its place when the material is too big to fit, changes often, or when you want to show where an answer came from.
+
+Two cautions:
+
+- **Retrieval can miss.** If the right chunk isn't found, the model can only answer from what it was given, or from what it already knows. In Anthropic's tests, even the best set-up still left 1.9% of relevant chunks outside the top 20.
+- **Measure it.** The post's tips include "Always run evals". It helps to check retrieval (was the right chunk found?) separately from the answer (was it right?), so you know which half to fix.
+
+RAG doesn't have to be a fixed pipeline either. An agent can call search as a tool, look at the results and decide whether to search again: the tool use and agent loop lessons cover how.
+
+---
+
+## Common misconceptions
+
+- **"RAG retrains the model on your documents."** The model's weights stay the same. The documents are searched at question time and pasted into the prompt.
+- **"Embeddings make keyword search obsolete."** In the DPR paper, BM25 still won on SQuAD, and in the RAG paper it did best on FEVER. Anthropic's post recommends keyword search for unique identifiers and technical terms.
+- **"RAG stops hallucinations."** It grounds answers in retrieved text, and in the 2020 study people judged RAG's Jeopardy questions more factual than BART's. But a missed or misleading passage can still produce a wrong answer.
+- **"More retrieved chunks is always better."** Anthropic found 20 beat 5 or 10 in their tests, but warned that more information can distract a model.
+- **"You always need a vector database."** For a knowledge base that fits in the prompt, Anthropic's 2024 post suggests skipping retrieval.
+
+---
+
+## Quiz time 🧠
+
+Six questions on finding the right page.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- **RAG** retrieves relevant text and adds it to the prompt: **parametric** memory in the weights, **non-parametric** memory in searchable documents.
+- The pipeline: **chunk**, **embed**, store, then find the closest chunks for each question.
+- **Dense retrieval** (DPR) matches meaning, such as "bad guy" and "villain"; **BM25** matches exact words, such as error codes. Many systems use **both**.
+- Swapping the index updated the 2020 RAG model's knowledge **without retraining**.
+- Chunks lose context; **Contextual Retrieval** adds a short note to each one, and a **reranker** sorts the best to the top.
+- If everything fits in the prompt, you may not need retrieval at all. Either way, **measure** retrieval and answers separately.
+
+**Coming up:** the evals lesson covers measuring whether a system like this actually works, and the prompt caching lesson covers making a large, repeated prompt cheaper.
+
+**Related:** the embeddings lesson explains the vectors behind search, the context windows lesson covers the prompt's budget and the lost-in-the-middle effect, the tool use and agent loops lessons show search as a tool an agent can call, and the hallucination & calibration lesson covers why models make things up.
+
+Hit **Finish** to collect your XP! 🏁

@@ -47,11 +47,6 @@
     "colour": "orange",
     "upcoming": [
       {
-        "id": "rag",
-        "title": "Retrieval-augmented generation",
-        "order": 3
-      },
-      {
         "id": "evals",
         "title": "Evals",
         "order": 4
