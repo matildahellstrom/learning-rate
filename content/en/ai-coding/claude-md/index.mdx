@@ -51,7 +51,7 @@ quiz:
     answer: 0
     explanation: "Anthropic's guide says that if Claude keeps doing something despite a rule against it, the file is probably too long and the rule is getting lost. Its docs suggest a target of under 200 lines per file."
   - type: numeric
-    prompt: 'Gloaguen and colleagues found context files raised inference cost by over 20% on average. Suppose a task normally uses 50,000 tokens and a context file raises that by exactly 20%. How many tokens does it use now?'
+    prompt: 'Gloaguen and colleagues found context files raised inference cost by around 20% on average. Suppose a task normally uses 50,000 tokens and a context file raises that by exactly 20%. How many tokens does it use now?'
     answer: 60000
     tolerance: 100
     explanation: '50,000 × 1.2 = 60,000 tokens. The file loads at the start of every session, so even a file that does not raise the success rate is paid for every time.'
@@ -87,7 +87,7 @@ It isn't being rude. Claude Code's docs put it simply: "Each Claude Code session
 
 ## A note Claude reads first
 
-A CLAUDE.md is just text. As of October 2026, Anthropic's docs say there's "no required format", but to "keep it short and human-readable". A tiny example from Anthropic's guide:
+A CLAUDE.md is just text. As of October 2026, Anthropic's docs say there's "no required format", but to "keep it short and human-readable". An excerpt from Anthropic's example:
 
 ```markdown
 # Code style
@@ -99,7 +99,7 @@ A CLAUDE.md is just text. As of October 2026, Anthropic's docs say there's "no r
 - Be sure to typecheck when you're done making a series of code changes
 ```
 
-Claude Code puts the file's contents into the context window as a message after its system prompt, at the start of every conversation. The context management lesson showed that the project-root CLAUDE.md is also re-read from disk after compaction, which is why rules that must last belong there rather than in chat.
+As of October 2026, Claude Code puts the file's contents into the context window as a message after its system prompt, at the start of every conversation. The context management lesson showed that the project-root CLAUDE.md is also re-read from disk after compaction, which is why rules that must last belong there rather than in chat.
 
 You don't have to start from a blank page. The `/init` command looks at your project and writes a starter file; if one exists already, the docs say it suggests improvements rather than overwriting it. To check the file actually loaded, run `/context` and look under **Memory files**.
 
@@ -116,7 +116,7 @@ There can be more than one. As of October 2026, the docs list these places, from
 
 🤔 Predict: you start Claude Code in `foo/bar/`, and both `foo/CLAUDE.md` and `foo/bar/CLAUDE.md` exist. Does the closer one replace the other?
 
-**No.** Claude Code loads the files in your working directory and every directory above it, and they are "concatenated into context rather than overriding each other". The order runs from the top down, so `foo/bar/CLAUDE.md` is read last. Files in subfolders below where you started load later, once Claude works with a file in that folder.
+**No.** As of October 2026, Claude Code loads the files in your working directory and every directory above it, and they are "concatenated into context rather than overriding each other". The order runs from the top down, so `foo/bar/CLAUDE.md` is read last. Files in subfolders below where you started load later, once Claude works with a file in that folder.
 
 ---
 
@@ -141,9 +141,9 @@ The thread running through them: things Claude can't work out by reading the cod
 
 The same guide lists what to **exclude**: anything Claude can figure out by reading the code, standard language conventions, detailed API documentation (link to it instead), information that changes often, long tutorials, file-by-file descriptions of the codebase, and self-evident advice like "write clean code".
 
-🤔 Predict: a popular tip is to start a context file with an overview of the repository. Does that help a coding agent finish its tasks?
+🤔 Predict: a popular tip is to start a context file with an overview of the repository. Does that help a coding agent find its way around?
 
-A 2026 study by Gloaguen and colleagues tested this on real tasks, with both model-written context files and ones developers had committed to their own repositories. In its latest version, the paper reports that "providing context files does not generally improve task success rates", while raising inference cost by "over 20% on average". Agents did follow the instructions in the files well, but **repository overviews were not helpful**.
+A 2026 study by Gloaguen and colleagues tested this on real tasks, with both model-written context files and ones developers had committed to their own repositories. In its latest version, the paper reports that "providing context files does not generally improve task success rates", while raising inference cost (by about 20% or more on average for model-written files, and up to 19% for developer-written ones). Agents did follow the instructions in the files well, but **repository overviews didn't help** them reach the relevant files any faster.
 
 The authors don't conclude that context files are useless. They say they are useful "for specifying non-standard coding practices", and that any attempt to improve performance with them "should be rigorously evaluated". That fits Anthropic's include list: the unusual things, not the obvious ones.
 
@@ -176,13 +176,13 @@ Vague rules leave the model to guess. The docs suggest instructions "concrete en
 
 Each good version is something you could look at and say yes or no. It's the same advice as the prompting lesson's "be clear and direct", applied to a note that every session reads. That's also how you debug the file: if Claude asks you a question the file already answers, the guide says "the phrasing might be ambiguous".
 
-Anthropic's engineering post on context describes the same balance for any instructions: the "right altitude" sits between brittle, over-detailed rules and vague guidance that "falsely assumes shared context". And it adds that "minimal does not necessarily mean short": include what's needed, nothing more.
+Anthropic's engineering post on context describes the same balance for system prompts, and it carries over to CLAUDE.md: the "right altitude" sits between brittle, over-detailed rules and vague guidance that "falsely assumes shared context". And it adds that "minimal does not necessarily mean short": include what's needed, nothing more.
 
 ---
 
 ## Advice, not a guarantee
 
-The docs are careful about what CLAUDE.md is: "context, not enforced configuration". It arrives as a message after the system prompt, and "there's no guarantee of strict compliance, especially for vague or conflicting instructions".
+As of October 2026, the docs are careful about what CLAUDE.md is: "context, not enforced configuration". It arrives as a message after the system prompt, and "there's no guarantee of strict compliance, especially for vague or conflicting instructions".
 
 So for things that must happen every time, use a different tool:
 
@@ -191,7 +191,7 @@ So for things that must happen every time, use a different tool:
 - **Path-scoped rules** in `.claude/rules/` load only when Claude works with matching files.
 
 <Deeper title="Go deeper: AGENTS.md and auto memory">
-Other coding tools use a file called `AGENTS.md` for the same job. As of October 2026, Claude Code's docs say it reads `AGENTS.md` when there's no CLAUDE.md in the working directory or above it (from version 2.1.277), and a CLAUDE.md can also import an `AGENTS.md` so both tools share one file.
+Other coding tools use a file called `AGENTS.md` for the same job. As of October 2026, Claude Code's docs say by default it reads `AGENTS.md` when there's no CLAUDE.md or CLAUDE.local.md in the working directory or above it (from version 2.1.277), and a CLAUDE.md can also import an `AGENTS.md` so both tools share one file.
 
 Claude Code also has **auto memory**: notes Claude writes for itself about your preferences and corrections. You write CLAUDE.md; Claude writes auto memory. As of October 2026, only the first 200 lines or 25KB of its index file load at the start of each session.
 
@@ -225,7 +225,7 @@ Answers: **keep** 2 and 5: Claude can't guess either from the code, and getting 
 ## Common misconceptions
 
 - **"CLAUDE.md is a config file Claude must obey."** It's context. Claude tries to follow it, but for guarantees use hooks.
-- **"More detail always helps."** Longer files reduce adherence, and one study found repository overviews didn't improve task success.
+- **"More detail always helps."** Longer files reduce adherence, and one study found repository overviews didn't help agents find the relevant files any faster, and context files overall didn't generally improve task success.
 - **"Splitting it into imports makes it cheaper."** Imported files load at launch too; path-scoped rules and skills are what load on demand.
 - **"The closest CLAUDE.md replaces the others."** They are joined together, with the closest one read last.
 - **"Write it once and forget it."** Review and prune it like code, and check that changes actually shift Claude's behaviour.
