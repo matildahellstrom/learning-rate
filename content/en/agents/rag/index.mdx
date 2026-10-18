@@ -14,6 +14,8 @@ sources:
     url: https://arxiv.org/abs/2005.11401
   - title: 'Karpukhin et al. (2020): Dense Passage Retrieval for Open-Domain Question Answering'
     url: https://arxiv.org/abs/2004.04906
+  - title: 'Anthropic: Context windows (Claude API docs)'
+    url: https://platform.claude.com/docs/en/build-with-claude/context-windows
   - title: 'Anthropic (2024): Introducing Contextual Retrieval'
     url: https://www.anthropic.com/engineering/contextual-retrieval
 quiz:
@@ -59,7 +61,7 @@ quiz:
     answer: 1
     explanation: 'The post said that under about 200,000 tokens (about 500 pages) you can include the entire knowledge base in the prompt, and that prompt caching makes this faster and cheaper. Retrieval earns its keep when the material is too big to fit.'
   - type: choice
-    prompt: 'In the DPR paper, the dense retriever beat BM25 on every dataset except SQuAD. What did the authors think was the main reason?'
+    prompt: 'In the DPR paper, the dense retriever beat BM25 on every dataset except SQuAD. What was one reason the authors gave?'
     options:
       - SQuAD questions are in a different language
       - The dense retriever was not trained at all
@@ -157,7 +159,7 @@ So a common design runs **both** searches and merges the results, which Anthropi
 Lewis and colleagues joined a DPR retriever to BART, a 400-million-parameter model that writes text. They fine-tuned the question encoder and BART together, keeping the passage index fixed. The retrieved passages were simply joined onto the question as extra input, and in training they retrieved 5 or 10 passages per question.
 
 - On three open-domain question-answering benchmarks (Natural Questions, WebQuestions and CuratedTrec), it set new state-of-the-art results at the time.
-- For writing Jeopardy-style questions, human evaluators compared 452 pairs of outputs. They judged RAG more factual in 42.7% of cases and BART more factual in only 7.1%; in a further 17%, both were factual. They also found RAG's outputs more specific.
+- For writing Jeopardy-style questions, human evaluators compared 452 pairs of outputs. They judged RAG more factual in 42.7% of cases and BART more factual in only 7.1%; in a further 11.7%, both were judged factual (per the paper's results table). They also found RAG's outputs more specific.
 
 Then the test from earlier. The authors built a second index from a December 2016 Wikipedia dump, alongside their December 2018 one, and asked `Who is {position}?` about 82 world leaders who had changed in between. With matching index and year, the model answered 70% (2016) and 68% (2018) correctly. With mismatched ones, only 12% and 4%. In their words, "we can update RAG's world knowledge by simply replacing its non-parametric memory."
 
@@ -170,7 +172,7 @@ p(y \mid x) &\approx \sum_{z} p(z \mid x)\, p(y \mid x, z)
 \end{aligned}
 $$
 
-That's **RAG-Sequence**: one passage is assumed responsible for the whole answer. **RAG-Token** does the averaging separately for every output token, so different tokens can lean on different passages. On Jeopardy question writing, RAG-Token did better; the authors suggest that's because those questions often combine facts from more than one document.
+That's **RAG-Sequence**: one passage is assumed responsible for the whole answer. **RAG-Token** does the averaging separately for every output token, so different tokens can lean on different passages. On Jeopardy question writing, RAG-Token did better; the authors suggest that's because Jeopardy questions often contain two separate pieces of information, which RAG-Token can draw from different documents.
 
 </Deeper>
 
@@ -186,7 +188,7 @@ Chunking has a catch. Anthropic's post gives an example from a collection of com
 
 **It never names the company or the quarter.** That information was elsewhere in the document, and splitting cut it off. Neither embeddings nor keywords can match what isn't there.
 
-Anthropic's fix, **Contextual Retrieval**, prepends a short explanation to each chunk before indexing it. They had Claude 3 Haiku read the whole document plus one chunk and write that note, "usually 50-100 tokens". The chunk above becomes: "This chunk is from an SEC filing on ACME corp's performance in Q2 2023; the previous quarter's revenue was \$314 million. The company's revenue grew by 3% over the previous quarter."
+Anthropic's fix, **Contextual Retrieval**, prepends a short explanation to each chunk before indexing it. They had Claude 3 Haiku (since retired) read the whole document plus one chunk and write that note, "usually 50-100 tokens". The chunk above becomes: "This chunk is from an SEC filing on ACME corp's performance in Q2 2023; the previous quarter's revenue was \$314 million. The company's revenue grew by 3% over the previous quarter."
 
 Their results, averaged over four kinds of material (codebases, fiction, arXiv papers and science papers), using their best embedding model and counting how often a relevant chunk was missing from the top 20:
 
@@ -201,7 +203,7 @@ They also tried adding generic document summaries to chunks and "saw very limite
 
 A first search can return a lot of chunks, "sometimes hundreds", of varying relevance. A **reranker** is a second model that reads each candidate alongside the question and scores how relevant it is. Anthropic's set-up retrieved the top 150 chunks, reranked them, and passed the best 20 to the model. With reranking on top of contextual embeddings and contextual BM25, top-20 failures fell from 5.7% to 1.9% (67% fewer).
 
-Reranking isn't free. The post notes it adds an extra step at run time, so some latency and cost, and that you trade more chunks reranked for better results against lower latency and cost.
+Reranking isn't free. The post notes it adds a small amount of latency at run time (though passing fewer chunks to the model can save cost and latency overall), and that you trade more chunks reranked for better results against lower latency and cost.
 
 How many chunks should the model see? More chunks make it more likely the answer is in there, but the post warns that "more information can be distracting for models". They tried 5, 10 and 20 chunks and found 20 worked best of those, but advised experimenting on your own use case. The context windows lesson showed a related problem: models can make poor use of material buried in the middle of a long prompt.
 
@@ -209,14 +211,14 @@ How many chunks should the model see? More chunks make it more likely the answer
 
 ## When you don't need RAG
 
-Anthropic's 2024 post opens with a reminder: "Sometimes the simplest solution is the best." If your knowledge base is under 200,000 tokens, "about 500 pages of material", you can put all of it in the prompt and skip retrieval. Prompt caching, the subject of a later lesson in this track, makes repeating a large prompt faster and cheaper.
+Anthropic's 2024 post opens with a reminder: "Sometimes the simplest solution is the best." If your knowledge base is under 200,000 tokens, "about 500 pages of material", it says you can put all of it in the prompt and skip retrieval. As of October 2026, many Claude models accept up to 1M tokens, so the cut-off now depends on your model's context window. Prompt caching, the subject of a later lesson in this track, makes repeating a large prompt faster and cheaper.
 
 RAG earns its place when the material is too big to fit, changes often, or when you want to show where an answer came from.
 
 Two cautions:
 
 - **Retrieval can miss.** If the right chunk isn't found, the model can only answer from what it was given, or from what it already knows. In Anthropic's tests, even the best set-up still left 1.9% of relevant chunks outside the top 20.
-- **Measure it.** The post's tips include "Always run evals". It helps to check retrieval (was the right chunk found?) separately from the answer (was it right?), so you know which half to fix.
+- **Measure it.** The post's tips include "Always run evals". A useful habit, though not one the post spells out: check retrieval (was the right chunk found?) separately from the answer (was it right?), so you know which half to fix.
 
 RAG doesn't have to be a fixed pipeline either. An agent can call search as a tool, look at the results and decide whether to search again: the tool use and agent loop lessons cover how.
 
@@ -225,7 +227,7 @@ RAG doesn't have to be a fixed pipeline either. An agent can call search as a to
 ## Common misconceptions
 
 - **"RAG retrains the model on your documents."** The model's weights stay the same. The documents are searched at question time and pasted into the prompt.
-- **"Embeddings make keyword search obsolete."** In the DPR paper, BM25 still won on SQuAD, and in the RAG paper it did best on FEVER. Anthropic's post recommends keyword search for unique identifiers and technical terms.
+- **"Embeddings make keyword search obsolete."** In the DPR paper, BM25 still won on SQuAD, and in the RAG paper it did best on FEVER. Anthropic's post says keyword search is particularly effective for unique identifiers and technical terms, and recommends combining it with embeddings.
 - **"RAG stops hallucinations."** It grounds answers in retrieved text, and in the 2020 study people judged RAG's Jeopardy questions more factual than BART's. But a missed or misleading passage can still produce a wrong answer.
 - **"More retrieved chunks is always better."** Anthropic found 20 beat 5 or 10 in their tests, but warned that more information can distract a model.
 - **"You always need a vector database."** For a knowledge base that fits in the prompt, Anthropic's 2024 post suggests skipping retrieval.
