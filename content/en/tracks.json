@@ -53,11 +53,6 @@
     "colour": "orange",
     "upcoming": [
       {
-        "id": "agent-loops",
-        "title": "Agent loops",
-        "order": 2
-      },
-      {
         "id": "rag",
         "title": "Retrieval-augmented generation",
         "order": 3

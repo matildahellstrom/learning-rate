@@ -1,0 +1,277 @@
+---
+id: agent-loops
+title: Agent loops
+summary: How an agent repeats think, act and observe until a task is done, what makes the loop stop, and when a fixed workflow beats letting the model drive.
+track: agents
+order: 2
+prerequisites: [tool-use, reasoning-models]
+minutes: 13
+xp: 100
+volatility: fast-moving
+lastVerified: 2026-10-18
+sources:
+  - title: 'Anthropic: How tool use works (Claude API docs)'
+    url: https://platform.claude.com/docs/en/agents-and-tools/tool-use/how-tool-use-works
+  - title: 'Anthropic: How the agent loop works (Claude Agent SDK docs)'
+    url: https://code.claude.com/docs/en/agent-sdk/agent-loop
+  - title: 'Yao et al. (2022): ReAct, Synergizing Reasoning and Acting in Language Models'
+    url: https://arxiv.org/abs/2210.03629
+  - title: 'Google Research (2022): ReAct, Synergizing Reasoning and Acting in Language Models'
+    url: https://research.google/blog/react-synergizing-reasoning-and-acting-in-language-models/
+  - title: 'Anthropic (2024): Building effective agents'
+    url: https://www.anthropic.com/engineering/building-effective-agents
+quiz:
+  - type: choice
+    prompt: 'Your code drives a tool-use loop with the Claude API. A response comes back with stop_reason "end_turn". What should your loop do?'
+    options:
+      - Run the tools again, in case Claude missed one
+      - Stop looping; Claude has finished its reply
+      - Send the same request again
+      - Delete the conversation history and start over
+    answer: 1
+    explanation: 'The loop runs while stop_reason is "tool_use". Any other stop reason ends it. "end_turn" means Claude has produced its reply; others, such as "max_tokens" or "refusal", mean it stopped for a reason your application should handle.'
+  - type: numeric
+    prompt: 'A hypothetical agent gets each step right 95% of the time, and mistakes are independent and never corrected. What is the chance that a 20-step run has no mistakes? Give a decimal between 0 and 1.'
+    answer: 0.358
+    tolerance: 0.01
+    explanation: '0.95 multiplied by itself 20 times is about 0.358, so roughly a one-in-three chance of a clean run. Small per-step error rates compound over long runs, which is why agents check results against the real environment as they go.'
+  - type: choice
+    prompt: 'Which summary of the ReAct results is accurate?'
+    options:
+      - ReAct beat chain-of-thought on every benchmark
+      - ReAct was fine-tuned on millions of examples
+      - ReAct only worked on robots
+      - ReAct beat chain-of-thought on Fever but slightly trailed it on HotpotQA, and combining the two did best
+    answer: 3
+    explanation: 'With PaLM-540B, ReAct scored 60.9 against 56.3 for chain-of-thought on Fever, but 27.4 against 29.4 on HotpotQA. On those question tasks, the best results came from combining ReAct with chain-of-thought. In the main experiments ReAct was prompted with a few examples, not fine-tuned on millions.'
+  - type: choice
+    prompt: 'Support emails must go to one of three fixed teams: billing, technical or general. Which design fits best?'
+    options:
+      - A routing workflow that classifies each email and sends it on
+      - A fully autonomous agent with every tool you have
+      - An evaluator-optimizer loop that rewrites each email
+      - No model at all; read every email by hand
+    answer: 0
+    explanation: 'The categories are distinct and known in advance, the kind of case Anthropic describes routing for. An agent adds cost and unpredictability for a path you can write down; the evaluator-optimizer pattern is for refining output against clear criteria.'
+  - type: choice
+    prompt: 'In the Agent SDK docs, fixing failing tests in auth.ts took three tool-use turns (run tests, read files, edit and re-run) and a final text reply. What happens with max_turns set to 2?'
+    options:
+      - The run finishes normally, because the final reply does not count
+      - The SDK ignores the limit for coding tasks
+      - The loop stops before the edit, and the result has the subtype error_max_turns
+      - Claude edits the file twice as fast
+    answer: 2
+    explanation: 'max_turns counts tool-use turns only. Two turns cover running the tests and reading the files, so the docs say the loop would have stopped before the edit step. The SDK then returns a result with the error_max_turns subtype instead of success.'
+  - type: choice
+    prompt: 'Your agent keeps repeating the same search and thought, over and over. ReAct saw this error pattern too. What is the most sensible guard?'
+    options:
+      - Remove every tool from the agent
+      - Add a stopping condition, such as a maximum number of turns or a budget, and check for progress
+      - Make the system prompt longer
+      - Turn off the observations
+    answer: 1
+    explanation: 'In their HotpotQA analysis, the ReAct authors report a frequent failure where the model repeats earlier thoughts and actions and cannot break out of the loop. Anthropic suggests stopping conditions such as a maximum number of iterations, and the Agent SDK offers max_turns and a budget cap.'
+---
+
+# Nobody wrote the steps 🔁
+
+You type one line into a coding agent: "Fix the failing tests in auth.ts." A minute later it reports that the bug is fixed and the tests pass.
+
+In between, it ran the tests, read two files, made an edit and ran the tests again. Nobody wrote those steps in advance. The model chose each one after seeing the result of the last.
+
+The tool use lesson covered one round trip: the model asks for a tool, your code runs it, the result comes back. An **agent** is what you get when that round trip repeats. This lesson covers how the loop works, where the "think, act, observe" pattern came from, how loops go wrong and how they stop, and when a fixed workflow is the better choice.
+
+---
+
+## A tool call, on repeat
+
+As of October 2026, Anthropic's API docs give the "canonical shape" of the loop as a `while` loop keyed on the **stop reason**, the field that says why the model stopped writing:
+
+1. Send a request with your tools and the user's message.
+2. Claude replies with `stop_reason: "tool_use"` and one or more tool calls.
+3. Run each tool and package the outputs as `tool_result` blocks.
+4. Send a new request with everything so far plus those results.
+5. Repeat from step 2 while the stop reason is `"tool_use"`.
+
+The docs explain why your code has to do the looping: "The model can't run your code, so every tool call is a round trip".
+
+🤔 Predict: when does the loop end?
+
+**When the stop reason is anything other than `"tool_use"`.** As of October 2026, the docs list `"end_turn"` (Claude has finished its reply), `"max_tokens"`, `"stop_sequence"` and `"refusal"`, the last three being reasons your application should handle. For tools Anthropic runs on its own servers, such as web search, a similar loop runs on Anthropic's side, with an iteration limit; hitting it returns `"pause_turn"`, and you re-send to let Claude continue.
+
+---
+
+## Watch one run
+
+As of October 2026, Anthropic's Agent SDK (a library that runs the same loop that powers Claude Code) walks through the auth.ts example from the start of this lesson. Its docs call each round trip a **turn**:
+
+- **Turn 1:** run `npm test`. Three tests fail.
+- **Turn 2:** read `auth.ts` and `auth.test.ts`.
+- **Turn 3:** edit `auth.ts`, then run `npm test` again. All three pass.
+- **Final turn:** a text-only reply: "Fixed the auth bug, all three tests pass now."
+
+"That was four turns: three with tool calls, one final text-only response." The loop ends because Claude produced a reply with no tool calls.
+
+Everything piles up as it goes. The SDK docs say the context window "does not reset between turns within a session": the system prompt, tool definitions, every tool input and every output all accumulate. When it nears its limit, the SDK **compacts** the conversation, replacing older history with a summary.
+
+Claude Code's docs have a name for the software around the model that provides the tools and manages what the model sees: the **agentic harness**.
+
+---
+
+## Think, act, observe: ReAct
+
+The reasoning models lesson showed that a model does better when it writes out its reasoning first, a **chain of thought**. But a chain of thought only uses what the model already knows. In 2022, Shunyu Yao and colleagues at Princeton and Google asked: what if the model **alternates** reasoning with actions?
+
+Their method, **ReAct**, has the model write a thought, take an action, read the **observation** that comes back, and repeat. In their words, "reasoning traces help the model induce, track, and update action plans as well as handle exceptions, while actions allow it to interface with external sources". A thought changes nothing in the outside world; an action does.
+
+A made-up example in that style, for a coding task:
+
+- **Thought:** the login test fails, so the bug is probably in the auth code.
+- **Action:** read `auth.ts`.
+- **Observation:** the token check compares against the wrong field.
+- **Thought:** fix that comparison, then re-run the tests.
+
+For question answering, their model had three actions on Wikipedia: `search`, `lookup` (find the next sentence containing a word) and `finish` (give the answer). In their main set-up, a large model (PaLM-540B) was left unchanged and simply prompted with a few examples.
+
+---
+
+## What ReAct found
+
+The results were mixed, and the mix is the lesson.
+
+- On two interactive tasks (ALFWorld, a text-based game with goals such as "examine paper under desklamp", and WebShop, a simulated online shop), ReAct beat imitation and reinforcement learning methods "by an absolute success rate of 34% and 10% respectively", prompted with "only one or two in-context examples".
+- On fact checking (Fever), ReAct beat plain chain-of-thought: 60.9 against 56.3.
+- On multi-step questions (HotpotQA), it "slightly lags behind" chain-of-thought: 27.4 against 29.4.
+
+Why not a clean win? In the authors' error analysis on HotpotQA, chain-of-thought's main failure was making facts up, while ReAct's answers were better grounded in what it looked up. But ReAct was only as good as its searches: "non-informative search", which "counts for 23% of the error cases" in their sample, derailed its reasoning. On these two question tasks, the best results came from combining ReAct with chain-of-thought.
+
+---
+
+## How loops go wrong
+
+🤔 Predict: an agent's search keeps returning nothing useful. What might a simple think-act-observe loop do next?
+
+In their HotpotQA analysis, ReAct's authors saw one pattern often enough to call out: the model "repetitively generates the previous thoughts and actions" and fails to "jump out of the loop". They suspected their simple decoding method played a part.
+
+Anthropic's agents post names the general risk: the autonomy of agents means "higher costs, and the potential for compounding errors". It recommends "extensive testing in sandboxed environments, along with the appropriate guardrails".
+
+<Deeper title="Go deeper: why errors compound">
+Take a hypothetical agent that gets each step right with probability $p$, where mistakes are independent and never caught. The chance that all $n$ steps are right is
+
+$$
+P(\text{clean run}) = p^{\,n}
+$$
+
+With $p = 0.99$ and $n = 50$: $0.99^{50} \approx 0.61$. Even a 1% error rate per step leaves roughly a 39% chance of at least one slip in 50 steps.
+
+Real agents aren't this simple, and the assumption that mistakes are never caught is exactly what feedback breaks: a test run or an error message lets the agent notice and recover. That's the reason to check results against the real world at each step.
+
+</Deeper>
+
+---
+
+## Brakes: when the loop stops
+
+A loop that ends only when the model decides it's done needs brakes. Anthropic's agents post says a task "often terminates upon completion, but it's also common to include stopping conditions (such as a maximum number of iterations) to maintain control."
+
+As of October 2026, the Agent SDK offers two:
+
+- **`max_turns`**: the most tool-use turns allowed. It counts tool-use turns only, not the final reply.
+- **`max_budget_usd`**: an estimated spend at which the loop stops.
+
+Both default to no limit. The docs say that without limits the loop runs until Claude finishes, which "is fine for well-scoped tasks but can run long on open-ended prompts", and that "setting a budget is a good default for production agents."
+
+🤔 Predict: in the auth.ts run, what would `max_turns=2` do?
+
+**It stops before the edit.** Turns 1 and 2 (run the tests, read the files) use up the limit, and the docs say the loop "would have stopped before the edit step". The result then carries the subtype `error_max_turns` instead of `success`, so your code knows the task didn't finish. One more caution from the docs: spend is checked after each response, so a run can go past its budget by up to the cost of the response that crossed it.
+
+---
+
+## Ground truth at every step
+
+What keeps a loop on track? Anthropic's post says that during execution "it's crucial for the agents to gain 'ground truth' from the environment at each step (such as tool call results or code execution) to assess its progress."
+
+That's why coding suits agents. The post's reasons include: "Code solutions are verifiable through automated tests", and agents "can iterate on solutions using test results as feedback". It adds a limit: "human review remains crucial" to check that a fix fits the wider system.
+
+Feedback includes being told no. As of October 2026, the Agent SDK docs say that when a tool call is denied, Claude gets a rejection message as the tool's result and "typically attempts a different approach or reports that it couldn't proceed."
+
+---
+
+## Workflows or agents?
+
+Anthropic's post draws a line between two kinds of system:
+
+- **Workflows**: "LLMs and tools are orchestrated through predefined code paths." You write the steps; the model does each one.
+- **Agents**: "LLMs dynamically direct their own processes and tool usage". The model chooses the steps.
+
+Its first advice is to find "the simplest solution possible", which "might mean not building agentic systems at all." Agentic systems "often trade latency and cost for better task performance", and for many applications "optimizing single LLM calls with retrieval and in-context examples is usually enough."
+
+The post describes five workflow patterns:
+
+- **Prompt chaining**: a fixed sequence of calls, each working on the last one's output, with checks in between. Example: write an outline, check it, then write the document.
+- **Routing**: classify the input and send it to a specialised prompt or model, such as refund requests versus technical support.
+- **Parallelisation**: split a task into independent parts, or run the same task several times and vote.
+- **Orchestrator-workers**: a central model breaks down a task whose subtasks can't be predicted in advance, hands the parts to workers and combines their results.
+- **Evaluator-optimizer**: one call writes a response, another evaluates it and gives feedback, in a loop.
+
+(The post dates from December 2024, and a note at its top says much of the tooling it describes has since changed. The patterns themselves are the part this lesson uses.)
+
+---
+
+## When to let the model drive
+
+As Anthropic's post puts it, agents are for "open-ended problems where it's difficult or impossible to predict the required number of steps, and where you can't hardcode a fixed path." The model may run for many turns, so "you must have some level of trust in its decision-making."
+
+Their implementation is often simple: the post says agents are "typically just LLMs using tools based on environmental feedback in a loop." It closes with three principles:
+
+1. Keep the agent's design **simple**.
+2. Be **transparent**: show the agent's planning steps.
+3. Craft the **agent-computer interface** through thorough tool documentation and testing, with as much effort as goes into interfaces for people.
+
+---
+
+## Your turn: workflow or agent?
+
+For each, pick **a workflow** (and which pattern) or **an agent**.
+
+1. Write marketing copy, then translate it into German.
+2. Fix a bug reported only as "checkout sometimes fails", in a codebase you haven't read.
+3. Send each support email to billing, technical or general.
+4. Polish a literary translation until a reviewer model has no more notes.
+
+Answers: (1) **prompt chaining**: two fixed steps, one after the other. (2) **an agent**: nobody can list the steps in advance, and tests give feedback along the way. (3) **routing**: a few known categories. (4) **evaluator-optimizer**: write, critique, repeat against clear criteria.
+
+---
+
+## Common misconceptions
+
+- **"An agent is a special kind of model."** In Anthropic's description it's usually a model using tools in a loop; the loop is ordinary code.
+- **"The loop stops when the task is done."** It stops when the model replies without calling a tool, which isn't always the same thing. Turn and budget limits are the backstop.
+- **"Thinking and acting together always beats thinking alone."** In the ReAct study, ReAct trailed chain-of-thought on HotpotQA, and on its question tasks the best results combined the two.
+- **"More autonomy is always better."** Anthropic's advice is the simplest system that works, often a single call or a fixed workflow.
+- **"Each turn starts fresh."** Within a session, every tool input and output stays in the context window until it's compacted.
+
+---
+
+## Quiz time 🧠
+
+Six questions on loops that finish.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- An **agent loop** repeats the tool round trip while the stop reason is **`tool_use`**, and ends when the model replies without a tool call.
+- Each round trip is a **turn**, and the **context** keeps growing until it's compacted.
+- **ReAct** (2022) interleaved **thought, action and observation**: strong on interactive tasks, mixed on question answering.
+- Loops can **repeat themselves** and **compound errors**; checking results against the real world at each step keeps them grounded.
+- **Stopping conditions** such as `max_turns` and a **budget** cap keep runs under control.
+- **Workflows** follow code paths you write; **agents** choose their own. Start with the **simplest** option that works.
+
+**Coming up:** the retrieval-augmented generation lesson covers giving a model the right documents, and the evals lesson covers measuring whether your agent actually works.
+
+**Related:** the tool use lesson covers a single round trip, the reasoning models lesson covers chains of thought, the explore, plan, implement, verify lesson shows how to steer Claude Code's own loop, the context management lesson covers keeping a long run's context lean, and the subagents lesson covers the orchestrator-workers idea inside Claude Code.
+
+Hit **Finish** to collect your XP! 🏁
