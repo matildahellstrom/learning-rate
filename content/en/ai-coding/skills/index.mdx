@@ -100,7 +100,7 @@ Where you save it decides where it works:
 - **`~/.claude/skills/<name>/`**: personal, for all your projects on this machine.
 - **`.claude/skills/<name>/`** in a repository: for that project. Commit it and your team gets it too.
 
-As of October 2026, the docs also say custom commands "have been merged into skills": an older file in `.claude/commands/` still works the same way. Skills follow **Agent Skills**, a format Anthropic published as an open standard in December 2025 "for cross-platform portability", so the same folders can work in other AI tools.
+As of October 2026, the docs also say custom commands "have been merged into skills": an older file in `.claude/commands/` still works the same way. Skills follow **Agent Skills**, a format Anthropic published as an open standard in December 2025 "for cross-platform portability", so a skill that sticks to the standard's fields can work in other AI tools. Claude Code adds extras of its own, such as `disable-model-invocation`, that don't carry over.
 
 ---
 
@@ -178,7 +178,7 @@ All three hold instructions, but they behave differently. As of October 2026, Cl
 
 - **CLAUDE.md** loads every session. Use it for what Claude "should always know": build commands, conventions, "never do X" rules.
 - **A skill** loads on demand. Use it for "reference material Claude needs sometimes" or a workflow you start by typing its name.
-- **A hook** is a command Claude Code runs at a fixed moment, such as after every edit. Its docs say it "fires on its event without Claude deciding", while with a skill "Claude interprets the instructions; outcome can vary".
+- **A hook** is something Claude Code runs at a fixed moment, such as after every edit: usually a shell command, though it can also be an HTTP request, an MCP tool call, a prompt or a subagent. The docs' comparison table says it "fires on its event without Claude deciding", while with a skill "Claude interprets the instructions; outcome can vary".
 
 That last point matters. If Claude skips a skill rule "that must hold every time", the docs' advice is to move it into a hook.
 
@@ -193,7 +193,7 @@ Anthropic's own advice is to measure. Its post says to "start with evaluation": 
 A 2026 benchmark, **SkillsBench**, did this at scale: 87 tasks across 8 domains, each paired with curated skills and an automatic checker. In its latest version, Li and colleagues ran 18 combinations of model and agent tool, including Claude Code, with and without the skills.
 
 - Curated skills raised the average pass rate **from 33.9% to 50.5%**. Every one of the 18 set-ups improved, but by very different amounts (from 4.1 to 25.7 points).
-- **Focused beat exhaustive.** Compact and standard-length skills gained about 19 to 22 points; "comprehensive" documentation gained 0.7. Tasks with one to three skills gained more than tasks with four or more.
+- **Focused beat exhaustive.** Compact and standard-length skills gained about 19 to 22 points; "comprehensive" documentation gained 0.7 (only 5 tasks had skills that long, and the groups are different tasks, so treat that as a hint). Tasks with one to three skills gained more than tasks with four or more.
 - **Skills the agent wrote for itself didn't help.** In three set-ups where the agent first wrote its own skills, results fell below having no skills at all. The authors note this mixes the content's quality with other effects, such as whether the agent found its skills, and interference between writing them and solving the task.
 
 Skills weren't universally good either: 13 of the 87 tasks got worse with them. The authors found gains were biggest for concrete procedures and fiddly formats, and smaller or negative "when models already have strong priors or the Skill adds overhead".
@@ -231,11 +231,11 @@ Answers: (1) **CLAUDE.md**: short and needed every session. (2) and (6) **Skills
 
 ## Common misconceptions
 
-- **"Installing lots of skills fills the context window."** Only names and descriptions load up front; bodies and files load when used.
+- **"Installing lots of skills fills the context window."** Only names and descriptions load up front, and bodies and files load when used, so each skill costs a little context every turn. With very many, Claude Code drops some descriptions to fit a budget.
 - **"A skill guarantees the steps happen."** Claude interprets a skill and the outcome can vary; use a hook for must-happen rules.
 - **"The skill's body tells Claude when to use it."** The description does. A vague description can mean a skill that doesn't fire, or fires at the wrong time.
 - **"More detail makes a better skill."** In SkillsBench, comprehensive documentation helped far less than focused procedures.
-- **"Let the agent write its own skills and you're done."** In SkillsBench, self-written skills scored below no skills at all; test a skill before trusting it.
+- **"Let the agent write its own skills and you're done."** In the three SkillsBench set-ups that tested it, self-written skills scored below no skills at all; test a skill before trusting it.
 
 ---
 
@@ -254,7 +254,7 @@ Six questions on writing skills that load at the right time.
 - The **description** does the matching, so say what it does and when, with words people actually use.
 - Use **`disable-model-invocation`** for anything with side effects, so only you can start it.
 - A used skill **stays in context** and isn't re-read: keep it short and write standing instructions.
-- In **SkillsBench**, curated, focused skills helped on average; exhaustive ones barely did, and self-written ones scored below none at all.
+- In **SkillsBench**, curated, focused skills helped on average; exhaustive ones barely did, and in the set-ups tested, self-written ones scored below none at all.
 - Skills can run code, so **trust them like code**.
 
 **Coming up:** the subagents lesson covers handing a task to a worker with its own context window, and the hooks lesson covers rules that run every time.
