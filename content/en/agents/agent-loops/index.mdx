@@ -14,6 +14,8 @@ sources:
     url: https://platform.claude.com/docs/en/agents-and-tools/tool-use/how-tool-use-works
   - title: 'Anthropic: How the agent loop works (Claude Agent SDK docs)'
     url: https://code.claude.com/docs/en/agent-sdk/agent-loop
+  - title: 'Anthropic: How Claude Code works (Claude Code docs)'
+    url: https://code.claude.com/docs/en/how-claude-code-works
   - title: 'Yao et al. (2022): ReAct, Synergizing Reasoning and Acting in Language Models'
     url: https://arxiv.org/abs/2210.03629
   - title: 'Google Research (2022): ReAct, Synergizing Reasoning and Acting in Language Models'
@@ -29,7 +31,7 @@ quiz:
       - Send the same request again
       - Delete the conversation history and start over
     answer: 1
-    explanation: 'The loop runs while stop_reason is "tool_use". Any other stop reason ends it. "end_turn" means Claude has produced its reply; others, such as "max_tokens" or "refusal", mean it stopped for a reason your application should handle.'
+    explanation: 'The loop runs while stop_reason is "tool_use". Any other stop reason ends the client tool loop (with server tools, "pause_turn" means re-send to continue). "end_turn" means Claude has produced its reply; others, such as "max_tokens" or "refusal", mean it stopped for a reason your application should handle.'
   - type: numeric
     prompt: 'A hypothetical agent gets each step right 95% of the time, and mistakes are independent and never corrected. What is the chance that a 20-step run has no mistakes? Give a decimal between 0 and 1.'
     answer: 0.358
@@ -41,9 +43,9 @@ quiz:
       - ReAct beat chain-of-thought on every benchmark
       - ReAct was fine-tuned on millions of examples
       - ReAct only worked on robots
-      - ReAct beat chain-of-thought on Fever but slightly trailed it on HotpotQA, and combining the two did best
+      - ReAct beat chain-of-thought on Fever but slightly trailed it on HotpotQA, and combining ReAct with self-consistent chain-of-thought did best
     answer: 3
-    explanation: 'With PaLM-540B, ReAct scored 60.9 against 56.3 for chain-of-thought on Fever, but 27.4 against 29.4 on HotpotQA. On those question tasks, the best results came from combining ReAct with chain-of-thought. In the main experiments ReAct was prompted with a few examples, not fine-tuned on millions.'
+    explanation: 'With PaLM-540B, ReAct scored 60.9 against 56.3 for chain-of-thought on Fever, but 27.4 against 29.4 on HotpotQA. On those question tasks, the best results came from combining ReAct with self-consistency, a stronger form of chain-of-thought that samples many reasoning chains and takes a majority vote. In the main experiments ReAct was prompted with a few examples, not fine-tuned on millions.'
   - type: choice
     prompt: 'Support emails must go to one of three fixed teams: billing, technical or general. Which design fits best?'
     options:
@@ -97,7 +99,7 @@ The docs explain why your code has to do the looping: "The model can't run your 
 
 🤔 Predict: when does the loop end?
 
-**When the stop reason is anything other than `"tool_use"`.** As of October 2026, the docs list `"end_turn"` (Claude has finished its reply), `"max_tokens"`, `"stop_sequence"` and `"refusal"`, the last three being reasons your application should handle. For tools Anthropic runs on its own servers, such as web search, a similar loop runs on Anthropic's side, with an iteration limit; hitting it returns `"pause_turn"`, and you re-send to let Claude continue.
+**When the stop reason is anything other than `"tool_use"`.** As of October 2026, the docs list `"end_turn"` (Claude has finished its reply), `"max_tokens"`, `"stop_sequence"` and `"refusal"`, which the docs describe as Claude either having produced a final answer or having stopped for another reason your application should handle. For tools Anthropic runs on its own servers, such as web search, a similar loop runs on Anthropic's side, with an iteration limit; hitting it returns `"pause_turn"`, and you re-send to let Claude continue.
 
 ---
 
@@ -143,7 +145,7 @@ The results were mixed, and the mix is the lesson.
 - On fact checking (Fever), ReAct beat plain chain-of-thought: 60.9 against 56.3.
 - On multi-step questions (HotpotQA), it "slightly lags behind" chain-of-thought: 27.4 against 29.4.
 
-Why not a clean win? In the authors' error analysis on HotpotQA, chain-of-thought's main failure was making facts up, while ReAct's answers were better grounded in what it looked up. But ReAct was only as good as its searches: "non-informative search", which "counts for 23% of the error cases" in their sample, derailed its reasoning. On these two question tasks, the best results came from combining ReAct with chain-of-thought.
+Why not a clean win? In the authors' error analysis on HotpotQA, chain-of-thought's main failure was making facts up, while ReAct's answers were better grounded in what it looked up. But ReAct was only as good as its searches: "non-informative search", which "counts for 23% of the error cases" in their sample, derailed its reasoning. On these two question tasks, the best results came from combining ReAct with self-consistency, a stronger form of chain-of-thought that samples many reasoning chains and takes a majority vote.
 
 ---
 
@@ -183,7 +185,7 @@ Both default to no limit. The docs say that without limits the loop runs until C
 
 🤔 Predict: in the auth.ts run, what would `max_turns=2` do?
 
-**It stops before the edit.** Turns 1 and 2 (run the tests, read the files) use up the limit, and the docs say the loop "would have stopped before the edit step". The result then carries the subtype `error_max_turns` instead of `success`, so your code knows the task didn't finish. One more caution from the docs: spend is checked after each response, so a run can go past its budget by up to the cost of the response that crossed it.
+**It stops before the edit.** Turns 1 and 2 (run the tests, read the files) use up the limit, and the docs say the loop "would have stopped before the edit step". The result then carries the subtype `error_max_turns` instead of `success`, so your code knows the task didn't finish. One more caution from the docs: spend is checked after each response, so a run can go past its budget by up to the cost of the response that crossed it, plus anything subagents still running spend before they stop.
 
 ---
 
@@ -247,7 +249,7 @@ Answers: (1) **prompt chaining**: two fixed steps, one after the other. (2) **an
 
 - **"An agent is a special kind of model."** In Anthropic's description it's usually a model using tools in a loop; the loop is ordinary code.
 - **"The loop stops when the task is done."** It stops when the model replies without calling a tool, which isn't always the same thing. Turn and budget limits are the backstop.
-- **"Thinking and acting together always beats thinking alone."** In the ReAct study, ReAct trailed chain-of-thought on HotpotQA, and on its question tasks the best results combined the two.
+- **"Thinking and acting together always beats thinking alone."** In the ReAct study, ReAct trailed chain-of-thought on HotpotQA, and on its question tasks the best results combined ReAct with self-consistent chain-of-thought.
 - **"More autonomy is always better."** Anthropic's advice is the simplest system that works, often a single call or a fixed workflow.
 - **"Each turn starts fresh."** Within a session, every tool input and output stays in the context window until it's compacted.
 
