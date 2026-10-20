@@ -1,0 +1,280 @@
+---
+id: guardrails
+title: Guardrails & prompt injection
+summary: How to build an agent so that a fooled model can do little harm, from screening what it reads to permission rules, sandboxes and safer agent designs.
+track: agents
+order: 6
+prerequisites: [tool-use, agent-loops, ai-security]
+minutes: 13
+xp: 100
+volatility: fast-moving
+lastVerified: 2026-10-20
+sources:
+  - title: 'Anthropic: Mitigate jailbreaks and prompt injections (Claude API docs)'
+    url: https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/mitigate-jailbreaks
+  - title: 'Anthropic: Configure permissions (Claude Code docs)'
+    url: https://code.claude.com/docs/en/permissions
+  - title: 'Anthropic: Configure the sandboxed Bash tool (Claude Code docs)'
+    url: https://code.claude.com/docs/en/sandboxing
+  - title: 'Anthropic: Security (Claude Code docs)'
+    url: https://code.claude.com/docs/en/security
+  - title: 'Anthropic (2025): Beyond permission prompts, making Claude Code more secure and autonomous'
+    url: https://www.anthropic.com/engineering/claude-code-sandboxing
+  - title: 'OWASP Top 10 for LLM Applications (2025): LLM06 Excessive Agency'
+    url: https://genai.owasp.org/llmrisk/llm062025-excessive-agency/
+  - title: 'OWASP Top 10 for LLM Applications (2025): LLM05 Improper Output Handling'
+    url: https://genai.owasp.org/llmrisk/llm052025-improper-output-handling/
+  - title: "Greshake et al. (2023): Not what you've signed up for, Compromising Real-World LLM-Integrated Applications with Indirect Prompt Injection"
+    url: https://arxiv.org/abs/2302.12173
+  - title: 'Hines et al. (2024): Defending Against Indirect Prompt Injection Attacks With Spotlighting'
+    url: https://arxiv.org/abs/2403.14720
+  - title: 'Beurer-Kellner et al. (2025): Design Patterns for Securing LLM Agents against Prompt Injections'
+    url: https://arxiv.org/abs/2506.08837
+quiz:
+  - type: choice
+    prompt: 'As of October 2026, your Claude Code settings deny Bash(aws *) and allow Bash(aws s3 ls), and no hooks or mods are installed. Claude tries to run aws s3 ls. What happens?'
+    options:
+      - It runs, because the allow rule is more specific
+      - It prompts you, because the two rules conflict
+      - "It is blocked, because deny rules are checked first and specificity doesn't change the order"
+      - It runs once, then the deny rule applies from the next call
+    answer: 2
+    explanation: "The docs say rules are evaluated deny, then ask, then allow, and the first match wins. An allow rule can't carve an exception out of a deny rule, however narrow it is."
+  - type: choice
+    prompt: "Anthropic's 2025 sandboxing post says effective sandboxing needs both filesystem and network isolation. What goes wrong with filesystem isolation alone?"
+    options:
+      - A compromised agent could read sensitive files such as SSH keys and send them out over the network
+      - The agent could no longer edit files in your project
+      - Permission prompts would increase
+      - Nothing; filesystem isolation alone is enough
+    answer: 0
+    explanation: 'Without network isolation, the post says, a compromised agent could exfiltrate files like SSH keys. Without filesystem isolation it could escape the sandbox and gain network access. Each boundary covers the gap the other leaves.'
+  - type: choice
+    prompt: 'An agent follows the plan-then-execute pattern: it fixes its list of tool calls before reading any untrusted data. A calendar entry it reads contains injected instructions. What can the injection still do?'
+    options:
+      - Add a new tool call, such as deleting files
+      - Nothing at all; the pattern stops every injection
+      - Change which tools are available to the agent
+      - Change the arguments of a planned call, such as the text of the email being sent
+    answer: 3
+    explanation: "The paper says an injection can't force a tool that isn't in the plan, but can still manipulate the inputs to the planned calls. It's control-flow protection, not a full fix."
+  - type: choice
+    prompt: 'Why did the spotlighting authors advise against relying on plain delimiters around untrusted text?'
+    options:
+      - Delimiters made the models worse at summarising
+      - An attacker who learns the system prompt can put the same delimiters in their text
+      - Delimiters had no effect at all in their tests
+      - Delimiters only work with base64
+    answer: 1
+    explanation: 'Delimiters roughly halved attack success for GPT-3.5-Turbo in their tests, but the authors note an attacker who knows the delimiting strategy can include the markers and break out. They recommend at least datamarking, or encoding with capable models.'
+  - type: numeric
+    prompt: 'Anthropic reported that, in its internal usage, sandboxing cut permission prompts by 84%. If a session would have raised 50 prompts, about how many would be left?'
+    answer: 8
+    tolerance: 1
+    explanation: '84% of 50 is 42 prompts removed, so 50 − 42 = 8 remain. Fewer, better-chosen prompts are the point: a person asked 50 times starts approving without reading.'
+  - type: choice
+    prompt: 'An agent only needs to read a product table, but it connects to the database with an account that can also update and delete rows. Which OWASP root cause of excessive agency is this?'
+    options:
+      - Excessive functionality
+      - Excessive autonomy
+      - Excessive permissions
+      - Improper output handling
+    answer: 2
+    explanation: "OWASP's own example: a read-only job using an identity with UPDATE, INSERT and DELETE rights is excessive permissions. Excessive functionality is about tools the agent doesn't need; excessive autonomy is acting on high-impact steps without a check."
+---
+
+# The bug report that gave orders 🚧
+
+Imagine you ask a coding agent to fix a bug described in an issue on your project. As the agent loops lesson showed, the agent then picks its own next tool calls, one after another, without you checking each step. Somewhere in the issue, a stranger has added a paragraph **addressed to the agent**, asking it to read a credentials file on your machine and send it to a web address. (This is a made-up scenario, but the AI security lesson shows the mechanism is real.)
+
+That lesson explained **why** a model can fall for this: instructions and data reach it as one stream of tokens. It also listed the broad defences.
+
+This lesson is the engineering follow-up. Assume the model **will** sometimes be fooled. How do you build the agent around it so that a fooled model can do as little harm as possible? We'll go layer by layer: screening what it reads, presenting untrusted text, limiting what it can do, enforcing limits outside the model, and designing agents so injected text can't steer them.
+
+---
+
+## Guardrails are layers, not a wall
+
+A **guardrail** is any check or limit around a model that keeps a system within the behaviour you intended. No single one is enough, so you stack them.
+
+The reason is a point Greshake and colleagues made in 2023: apps built on language models "blur the line between data and instructions", and processing retrieved prompts "can act as arbitrary code execution". If reading text is a bit like running code, you treat it the way security people treat untrusted code: assume some of it gets through, and limit the damage.
+
+Even the vendors say so. As of October 2026, Claude Code's security page warns that while its protections "significantly reduce risk, no system is completely immune to all attacks."
+
+A useful picture is a series of gates:
+
+1. **Before the model:** screen what goes in.
+2. **Inside the prompt:** make untrusted text look like data.
+3. **Around the model:** give it only the tools and rights it needs.
+4. **After the model:** check its output and actions before they take effect.
+5. **Underneath:** let the operating system enforce hard limits.
+
+---
+
+## Screening what goes in
+
+As of October 2026, Anthropic's guide to mitigating jailbreaks and prompt injections separates two threat models. In **jailbreaks and direct injection**, the user of your app is the adversary. In **indirect injection**, the user is trusted but the model reads third-party content: web pages, emails, documents, tool results.
+
+For both, one suggested layer is a **screen**: a quick call to a lightweight model before the main conversation sees the text. The guide uses structured outputs to force a single yes-or-no field, such as whether a tool's output contains instructions trying to redirect the assistant. Your code only passes the content on "if the screen reports no injection attempt". The guide's example even tells the screen to judge whether such instructions are **present**, not whether they would succeed.
+
+🤔 Predict: sometimes the screening call comes back with no verdict at all, because the screening model declined the request. Should your code let the content through, or block it?
+
+Block it. The guide's example screener (Claude Haiku 5.5, as of October 2026) runs safety classifiers that can decline the screening request itself. The guide says to treat that refusal as a positive result: as a harmful verdict when screening user input, and the same as a suspected injection when screening a tool's output. Security people call this **failing closed**: when a check can't decide, the safe default is no.
+
+A screen raises the bar, but it's a model judging text, so it can be fooled too. A 2025 paper on agent design by Beurer-Kellner and colleagues says detectors make attackers "deceive both the agent's primary LLM and the detection system", yet "remain fundamentally heuristic and cannot guarantee prevention of all attacks."
+
+Anthropic's guide also recommends that you **red-team** your own agent before deploying it: test it with documents, emails and tool outputs that deliberately contain injection attempts, and confirm your screening and confirmation steps catch what the model doesn't. (The evals lesson covers building that kind of test suite.)
+
+---
+
+## Making data look like data
+
+If the model can't tell whose words are whose, can you **mark** them? A 2024 paper by Hines and colleagues tested a family of tricks they called **spotlighting**, which change untrusted text so its source stays visible to the model.
+
+- **Delimiting:** put special markers before and after the document.
+- **Datamarking:** weave a marker **through** the document. Their example replaces every space with the character ˆ, so `In this manner` becomes `Inˆthisˆmanner`, and the system prompt tells the model what the marks mean.
+- **Encoding:** convert the whole document to something like base64, which capable models can still read.
+
+🤔 Predict: which helped more against injection, markers around the document or markers through it?
+
+Markers through it. With GPT-3.5-Turbo, warnings in the system prompt alone had a "very modest" effect, and delimiters cut the attack success rate by about half, from a baseline of around 60%. Datamarking and encoding did much better: with encoding, attack success for GPT-3.5-Turbo fell to 0.0% on a summarising task and 1.8% on a question-answering task. Across their experiments, the abstract reports a drop from above 50% to below 2%.
+
+Keep the conditions in mind: the models were older GPT-family ones (text-davinci-003, GPT-3.5-Turbo and GPT-4), and the 1,000 attack documents were synthetic, all variations on one simple attack that tries to make the model reply with a single keyword. Encoding also hurt GPT-3.5-Turbo's ability to do the actual task (only the most powerful models decoded it well), so the authors recommend encoding when high-capacity models such as GPT-4 are in use, and at least datamarking otherwise.
+
+<Deeper title="Go deeper: thinking like the attacker">
+The authors assume the attacker may know the whole system prompt. That changes which tricks survive:
+
+- **Delimiters** are easy to beat: an attacker who knows the markers can include them in their own text and appear to close the document. The authors don't recommend delimiting in practice.
+- **Datamarking** with spaces fails on text that has no spaces. Their fix is to choose the marker, and where it goes, dynamically or at random.
+- **Encoding** must be one the attacker can't run backwards. A simple letter-swap cipher works both ways, so an attacker could prepare text that turns **into** their instructions when your system encodes it. Base64, they argue, gives "a one-way transformation that the attacker cannot control".
+
+</Deeper>
+
+As of October 2026, Anthropic's guide gives Claude-specific advice in the same spirit. Put third-party content only in **tool results**: Claude "is trained to treat instructions that appear inside tool results with appropriate skepticism". Say what the content is and where it came from. And wrap it in JSON, whose escaping means an attacker "cannot close a quote or tag to 'break out' into an instruction context". The flip side: don't put **your own** instructions in tool results, because they "may be ignored or flagged as a potential injection".
+
+---
+
+## Too much agency
+
+Screens and markers make the model harder to fool. The next layer asks a different question: when it **is** fooled, what can it do?
+
+The 2025 edition of OWASP's Top 10 for LLM applications calls this **excessive agency**: damaging actions taken in response to unexpected, ambiguous or manipulated model output, "regardless of what is causing the LLM to malfunction". Injection is one trigger; a plain hallucination is another. OWASP says the root cause is typically one or more of three things:
+
+- **Excessive functionality:** tools the task doesn't need, like a document reader that can also delete documents.
+- **Excessive permissions:** rights the task doesn't need, like a read-only job connecting with an account that can also update and delete.
+- **Excessive autonomy:** high-impact actions with no check, like deleting a user's files without asking.
+
+OWASP's worked example is an email summariser whose plug-in can also **send** mail, and an incoming email that tricks it into finding sensitive information in the inbox and forwarding it to the attacker. OWASP lists three fixes, any of which ("and/or") would have avoided it: a mail tool that can only read, a read-only login scope, or making the user review and hit send on every draft.
+
+Two more OWASP points are worth keeping. Decide what's allowed **outside** the model: "implement authorization in downstream systems rather than relying on an LLM to decide". And logging and rate limits won't prevent excessive agency, but "can limit the level of damage caused".
+
+---
+
+## The model's output is untrusted input
+
+The same logic applies to everything the model produces. If an injection can steer the model, it can steer the text the model writes, and that text often flows into other systems.
+
+OWASP's 2025 entry on **improper output handling** lists what goes wrong when output is passed on unchecked:
+
+- model output fed straight into a shell or `eval`, leading to remote code execution;
+- generated SQL run without parameters, leading to SQL injection;
+- generated JavaScript or Markdown shown in a browser, leading to cross-site scripting;
+- generated file paths used unsanitised, letting it reach files outside the intended folder.
+
+Its advice: "Treat the model as any other user, adopting a zero-trust approach", and validate what the model sends to backend functions. Its other mitigations are old web-security habits: parameterised database queries, and encoding output to suit wherever it's going (a web page, JavaScript, SQL).
+
+---
+
+## Rules that decide: permissions
+
+Claude Code is a good real example of these layers. As of October 2026, its permissions docs describe three kinds of rule:
+
+- **Allow:** use the tool without asking.
+- **Ask:** prompt for confirmation every time.
+- **Deny:** don't let Claude use it.
+
+🤔 Predict: you deny every `aws` command, but allow the harmless-looking `aws s3 ls`. Which wins when Claude runs `aws s3 ls`?
+
+The deny. The docs say rules are evaluated "deny, then ask, then allow", the first match decides, and "rule specificity doesn't change the order". So "an allow rule can't carve an exception out of a deny rule". The same holds across settings files: a deny in your user settings blocks an allow in a project's settings, so a repository you clone can't loosen your limits that way.
+
+One exception the docs list: a **mod** (an add-on you install yourself) can approve some calls that a deny rule refuses, unless managed settings or a Team or Enterprise login keep deny rules in force.
+
+What about commands no rule mentions? That depends on the **permission mode**. As of October 2026, the security page says auto mode is the built-in starting mode for interactive terminal and VS Code sessions. In auto mode, "a separate classifier model reviews actions instead of you and blocks the ones it judges unsafe" (your ask and deny rules still apply). That classifier is a screen, so the earlier caveat applies to it too. In Manual mode, "unmatched commands require approval by default": the system fails closed.
+
+---
+
+## A rule is not a wall
+
+Permission rules are useful, but the docs are frank about their limits.
+
+As of October 2026, a Bash rule "matches the command text Claude writes". It doesn't match the same program run in a different form, such as by its full path or wrapped inside another shell. So a deny rule "covers the invocation Claude usually produces and isn't a security boundary around the program."
+
+Rules that try to restrict a command's **arguments** are weaker still. The docs call them "fragile", and their example is a rule meant to allow fetching from one site only, which misses the same request written with options in a different order, with a different protocol, through a redirect or via a variable.
+
+And guidance in `CLAUDE.md` is softer again: it "shapes what Claude tries but doesn't enforce a boundary".
+
+That gives a ladder of strength, weakest first: **instructions** the model may or may not follow, **pattern rules** on what it writes, and **limits enforced outside the model**. For network limits that don't depend on the command text, the docs point to the sandbox.
+
+---
+
+## Sandboxes: limits the OS enforces
+
+Asking a person before every action sounds safest, but people tire. Anthropic's October 2025 post on sandboxing describes **approval fatigue**, "where users might not pay close attention to what they're approving".
+
+A **sandbox** swaps many prompts for a fixed boundary. As of October 2026, Claude Code's sandbox is "a boundary that the operating system enforces around the shell commands Claude runs", including the processes those commands start. It uses Seatbelt on macOS and bubblewrap on Linux and WSL2 (on native Windows, commands run unsandboxed), and it's off by default. Inside the boundary, by default:
+
+- **Writes** are limited to the working folder, a temporary folder and any folders you've added.
+- **Network** has "no direct route out": connections go through a proxy that checks each host against your allowed list, which starts empty.
+- **Reads** cover most of the machine, including credential files such as `~/.ssh`, and commands inherit Claude Code's environment variables, secrets included. A separate `credentials` setting lets you block those files and variables.
+
+Why both file and network limits? The 2025 post explains: "Without network isolation, a compromised agent could exfiltrate sensitive files like SSH keys; without filesystem isolation, a compromised agent could easily escape the sandbox and gain network access." In Anthropic's internal usage, it reported, sandboxing cut permission prompts by 84%.
+
+Know the edges, too. The sandbox wraps **shell commands**: Claude's built-in file and web tools follow permission rules instead, and other processes Claude Code starts, such as hooks and local MCP servers, run "with your full access". If a command fails inside the sandbox, Claude can ask to retry it unsandboxed; who approves that depends on your permission mode, and a setting can switch the retry off. The permissions docs recommend using permission rules and the sandbox together for defence in depth, "since sandbox restrictions still apply even if a prompt injection bypasses Claude's decision-making."
+
+---
+
+## Designs that make injection matter less
+
+Every layer so far makes attacks harder. A 2025 paper by Beurer-Kellner and colleagues asks a bolder question: can you **design** an agent so that injected text can't trigger harm at all?
+
+Their shared principle: "once an LLM agent has ingested untrusted input, it must be constrained so that it is impossible for that input to trigger any consequential actions". Some of their patterns:
+
+- **Action selector:** the model only picks from a fixed menu of actions, like a "switch" statement, and never sees the results. Nothing comes back to steer it.
+- **Plan then execute:** the model fixes its list of tool calls **before** reading untrusted data. An injection can't add a call that isn't in the plan, though it can still change a planned call's inputs, such as the text of an email.
+- **Map-reduce:** an isolated model call per piece of untrusted data, none of which can do anything harmful. Their results are combined by ordinary code, or forced into a tight format (their example: a check that the output is a number) before a model with tools sees them.
+- **Dual LLM**, which the paper credits to Simon Willison (2023): a **privileged** model plans and uses tools; a **quarantined** model, which has no tools, is called whenever untrusted data has to be processed. In a more involved version, also described by Willison, the quarantined model's results come back as symbols the privileged model handles without seeing their content, and ordinary code swaps in the real values.
+
+The price is flexibility: the authors say these patterns impose "intentional constraints", explicitly limiting what an agent can do. They also write that as long as agents and their defences rely on the current class of language models, they believe general-purpose agents are unlikely to provide "meaningful and reliable safety guarantees". The paper's code-then-execute pattern, where the model writes a program that calls tools, is the one the CaMeL system from the AI security lesson puts into practice.
+
+---
+
+## Common misconceptions
+
+- **"A screening model makes my agent safe."** A screen is another model reading attacker text. It raises the bar but, as the design-patterns authors put it, it's heuristic and can't guarantee to stop every attack.
+- **"If I deny a command, it can't run."** In Claude Code, a Bash deny rule matches the command as written, not the program. For network limits that don't depend on command text, the docs point to the sandbox.
+- **"Asking the human about everything is the safest option."** Too many prompts cause approval fatigue. A fixed boundary plus a few well-chosen questions can be safer.
+- **"Only prompt injection causes excessive agency."** OWASP lists hallucination too. Limiting tools and rights helps whatever makes the model misbehave.
+- **"Marking untrusted text solves injection."** Spotlighting cut attack success sharply in one study, but with older models and one simple, synthetic kind of attack. It's a layer, not a cure.
+
+---
+
+## Quiz time 🧠
+
+Six questions on layers, rules and designs.
+
+<Quiz />
+
+---
+
+## What you learned
+
+- **Guardrails are layers**: assume the model is sometimes fooled, and limit what a fooled model can do.
+- **Screens** check inputs and tool results with a small model, and should **fail closed**; they are heuristic, so never the only layer.
+- **Spotlighting** and putting third-party text in tool results help the model see what is data; simple delimiters are easy to bypass.
+- **Excessive agency** comes from too much functionality, permission or autonomy; and model **output** is untrusted input for whatever comes next.
+- In Claude Code, **deny beats allow**, pattern rules are not a wall, and the **sandbox** enforces file and network limits outside the model.
+- **Design patterns** such as plan-then-execute and dual LLM trade flexibility for resistance to injection.
+
+**Related:** the AI security lesson covers why injection works and the lethal trifecta, the tool use and agent loops lessons cover the machinery these guardrails wrap, the hooks lesson covers running your own checks before a tool call, and the evals lesson covers building the test suites you'd use to red-team your agent.
+
+Hit **Finish** to collect your XP! 🏁
