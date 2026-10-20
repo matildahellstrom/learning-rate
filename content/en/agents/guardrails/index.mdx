@@ -28,6 +28,8 @@ sources:
     url: https://arxiv.org/abs/2302.12173
   - title: 'Hines et al. (2024): Defending Against Indirect Prompt Injection Attacks With Spotlighting'
     url: https://arxiv.org/abs/2403.14720
+  - title: 'Willison (2023): The Dual LLM pattern for building AI assistants that can resist prompt injection'
+    url: https://simonwillison.net/2023/Apr/25/dual-llm-pattern/
   - title: 'Beurer-Kellner et al. (2025): Design Patterns for Securing LLM Agents against Prompt Injections'
     url: https://arxiv.org/abs/2506.08837
 quiz:
@@ -181,7 +183,7 @@ OWASP's 2025 entry on **improper output handling** lists what goes wrong when ou
 - generated JavaScript or Markdown shown in a browser, leading to cross-site scripting;
 - generated file paths used unsanitised, letting it reach files outside the intended folder.
 
-Its advice: "Treat the model as any other user, adopting a zero-trust approach", and validate what the model sends to backend functions. Its other mitigations are old web-security habits: parameterised database queries, and encoding output to suit wherever it's going (a web page, JavaScript, SQL).
+Its advice: "Treat the model as any other user, adopting a zero-trust approach", and validate what the model sends to backend functions. Its other mitigations include old web-security habits, such as parameterised database queries and encoding output to suit wherever it's going (HTML for a web page, escaping for SQL).
 
 ---
 
@@ -213,7 +215,7 @@ Rules that try to restrict a command's **arguments** are weaker still. The docs 
 
 And guidance in `CLAUDE.md` is softer again: it "shapes what Claude tries but doesn't enforce a boundary".
 
-That gives a ladder of strength, weakest first: **instructions** the model may or may not follow, **pattern rules** on what it writes, and **limits enforced outside the model**. For network limits that don't depend on the command text, the docs point to the sandbox.
+That gives a ladder of strength, weakest first: **instructions** the model may or may not follow, **pattern rules** on what it writes, and **limits enforced outside the model**. For file and network limits that don't depend on the command text, the docs point to the sandbox.
 
 ---
 
@@ -242,7 +244,7 @@ Their shared principle: "once an LLM agent has ingested untrusted input, it must
 - **Action selector:** the model only picks from a fixed menu of actions, like a "switch" statement, and never sees the results. Nothing comes back to steer it.
 - **Plan then execute:** the model fixes its list of tool calls **before** reading untrusted data. An injection can't add a call that isn't in the plan, though it can still change a planned call's inputs, such as the text of an email.
 - **Map-reduce:** an isolated model call per piece of untrusted data, none of which can do anything harmful. Their results are combined by ordinary code, or forced into a tight format (their example: a check that the output is a number) before a model with tools sees them.
-- **Dual LLM**, which the paper credits to Simon Willison (2023): a **privileged** model plans and uses tools; a **quarantined** model, which has no tools, is called whenever untrusted data has to be processed. In a more involved version, also described by Willison, the quarantined model's results come back as symbols the privileged model handles without seeing their content, and ordinary code swaps in the real values.
+- **Dual LLM**, which the paper credits to Simon Willison (2023): a **privileged** model plans and uses tools; a **quarantined** model, which has no tools, is called whenever untrusted data has to be processed. Its raw output must never reach the privileged model. In Willison's original post, the quarantined model's results are stored as variables such as `$VAR1`, so the privileged model only ever sees those names, and ordinary code (a "controller") swaps in the real values. Output passes straight through only when it can be checked, such as a choice from a fixed list of categories.
 
 The price is flexibility: the authors say these patterns impose "intentional constraints", explicitly limiting what an agent can do. They also write that as long as agents and their defences rely on the current class of language models, they believe general-purpose agents are unlikely to provide "meaningful and reliable safety guarantees". The paper's code-then-execute pattern, where the model writes a program that calls tools, is the one the CaMeL system from the AI security lesson puts into practice.
 
@@ -251,7 +253,7 @@ The price is flexibility: the authors say these patterns impose "intentional con
 ## Common misconceptions
 
 - **"A screening model makes my agent safe."** A screen is another model reading attacker text. It raises the bar but, as the design-patterns authors put it, it's heuristic and can't guarantee to stop every attack.
-- **"If I deny a command, it can't run."** In Claude Code, a Bash deny rule matches the command as written, not the program. For network limits that don't depend on command text, the docs point to the sandbox.
+- **"If I deny a command, it can't run."** In Claude Code, a Bash deny rule matches the command as written, not the program. For file and network limits that don't depend on command text, the docs point to the sandbox.
 - **"Asking the human about everything is the safest option."** Too many prompts cause approval fatigue. A fixed boundary plus a few well-chosen questions can be safer.
 - **"Only prompt injection causes excessive agency."** OWASP lists hallucination too. Limiting tools and rights helps whatever makes the model misbehave.
 - **"Marking untrusted text solves injection."** Spotlighting cut attack success sharply in one study, but with older models and one simple, synthetic kind of attack. It's a layer, not a cure.
