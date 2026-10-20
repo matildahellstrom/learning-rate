@@ -345,3 +345,16 @@ You asked to be told when the first version was ready, so these phases were buil
 
 1. Build a 20-question eval for something you use, run it three times, and compare pass@3 with pass^3.
 2. Send the same long prompt twice to the Claude API with a cache breakpoint and read the three usage fields. Then add a timestamp at the top and watch the cache miss.
+
+## Guardrails & prompt injection (2026-10-20)
+
+**Built:** The last Agentic AI lesson, Guardrails & prompt injection, finished from a draft cut off by a rate limit, with the `write-lesson` skill.
+
+**Concepts:**
+
+- **Re-download docs before you trust a draft.** Two days after the draft, the Claude Code permissions page had changed: an installed mod can approve calls a deny rule refuses unless managed settings or a Team or Enterprise login keep deny rules in force. "Deny beats allow" now carries that exception.
+- **Quote the scope the source gives.** The docs point to the sandbox for _network_ limits that don't depend on command text, not for every limit; and the spotlighting paper recommends encoding for high-capacity models, with datamarking as the floor.
+
+**Explore:**
+
+1. Turn on the Claude Code sandbox, run a command that reaches a host not on your allowed list, and see how the block is reported.
